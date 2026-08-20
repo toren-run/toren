@@ -158,7 +158,7 @@ h2 { font: 800 clamp(30px, 4vw, 46px)/1.1 Archivo, sans-serif; margin: 0 0 16px;
 @keyframes blink { 50% { opacity: 0; } }
 
 /* ============ 04 system bento ============ */
-.bento { display: grid; grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: auto auto; gap: 18px; }
+.bento { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 18px; }
 .bcard { background: var(--card); border: 2px solid var(--ink); overflow: hidden; transition: transform .15s, box-shadow .15s; box-shadow: 5px 5px 0 rgba(18,33,52,.08); }
 .bcard:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 rgba(18,33,52,.12); }
 .bcard.tall { grid-row: span 2; }
@@ -354,7 +354,7 @@ footer { margin-top: 110px; }
 <section id="s4">
   <span class="shnum" aria-hidden="true">04</span>
   <h2>Agents as durable processes.</h2>
-  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. Parked runs cost nothing — not a worker, not a container, not a poll loop.</p>
+  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. One deployment serves a whole fleet of process agents — and parked runs cost nothing: not a worker, not a container, not a poll loop.</p>
   <div class="bento rev">
     <div class="bcard tall"><h3>workflow.ts <span class="tag">WAVES — YOUR CODE OWNS FANOUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
   <span class="cm">// one planner task; the model decides</span>
@@ -396,6 +396,16 @@ approval: <span class="s">"always"</span>
         </g>
       </svg>
     </div>
+    <div class="bcard"><h3>/console <span class="tag">BUILT-IN CONSOLE</span></h3><pre>$ toren dev
+<span class="cm">→ console: localhost:7433/console</span>
+live runs · event timelines
+one-click approvals · API keys
+<span class="cm"># pre-authed link, zero setup</span></pre></div>
+    <div class="bcard wide"><h3>crews/ <span class="tag">ONE DEPLOYMENT, MANY AGENTS</span></h3><pre>$ toren dev --dir crews/
+<span class="cm">serving 3 agents (research,</span>
+<span class="cm">  support, billing)</span>
+each crew: own event log,
+own schema, shared nothing</pre></div>
   </div>
 </section>
 

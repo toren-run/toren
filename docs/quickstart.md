@@ -2,7 +2,7 @@
 
 *From zero to a durable multi-agent run — locally with one dependency, then the identical agent in your own AWS account.*
 
-> Status note: everything below runs today, offline out of the box, except `toren deploy aws` — that's Phase 2.
+> Everything below runs today, offline out of the box — and the AWS path has survived a live kill test on a real account (worker killed mid-run, resumed, zero tokens re-paid).
 
 ---
 
@@ -144,7 +144,19 @@ toren jobs approve r_9f2c1a w1t0 s14     # or: --deny --comment "wrong list"
 
 The run wakes, executes the tool once, and continues.
 
-## 7. Trigger it from anywhere
+## 7. Watch it in the console
+
+With `TOREN_API_TOKEN` set, `toren dev` prints a pre-authenticated link to the built-in web console:
+
+```
+toren console: http://localhost:7433/console/#token=…
+```
+
+Live runs, full event timelines (every model call with its token usage), one-click approve/deny on parked runs, and API-key management. Try the kill test again with the run's timeline open — you can watch it survive.
+
+Serving more than one agent is the same command: `toren dev --dir crews/` loads every agent directory in the folder (or repeat `--dir`), each crew with its own isolated event log. The console shows the whole fleet.
+
+## 8. Trigger it from anywhere
 
 `toren dev` serves an HTTP API (bearer-token auth) — and `@toren/client` wraps it, typed:
 
@@ -164,7 +176,7 @@ toren run . --input '"hello"' --env staging     # → env: staging (http://…) 
 toren jobs list --env prod
 ```
 
-## 8. Same agent, your AWS account
+## 9. Same agent, your AWS account
 
 ```bash
 toren deploy-aws --region eu-central-1 --plan-only   # preview everything it would create
@@ -175,4 +187,4 @@ Locally: Postgres does queue + state + log. In AWS: SQS + Lambda/Fargate + RDS �
 
 ---
 
-**Where it stands:** steps 1–7 run today and are chaos- and live-tested (HTTP API, typed SDK, environment profiles included). Step 8 ships too — SQS adapter (unit + creds-gated live contract tests), validated Terraform module (VPC, SQS+DLQs, RDS, ECR, Fargate workers), and the `deploy-aws` command — pending its first real `apply` into an AWS account.
+**Where it stands:** steps 1–8 run today and are chaos- and live-tested (HTTP API, typed SDK, console, environment profiles included). Step 9 is live-validated too: the Terraform module has been applied to real AWS accounts — greenfield and into an existing VPC — and passed the full kill test there: a Fargate worker killed mid-run on real Anthropic billing, resumed by a replacement task, **zero duplicate paid calls** in the event-log audit.
