@@ -5,6 +5,7 @@
 Toren is an open-source runtime for **process-shaped agents**: work measured in hours and days, not seconds. Agents run as durable processes on an append-only Postgres event log — they survive crashes, deploys, restarts, and a literal `kill -9`, and they run in **your** cloud.
 
 - **A resumed run never re-pays for a completed model call.** Every LLM and tool call is recorded the moment it completes; on resume, finished steps replay from the log instead of the provider. Crash-tested with a kill matrix that murders the process after every single database write and asserts exactly-once billing.
+- **One deployment, many process agents.** `toren dev --dir crews/` serves a whole fleet — each agent crew gets its own isolated event-log schema, the API routes runs by agent, and the console shows every crew.
 - **A built-in console.** `toren dev` serves a web console: live runs, full event timelines, one-click approvals, API-key management — pre-authenticated link printed at startup.
 - **Zero-compute parking.** Approvals, timers, and long waits hold no worker, no container, no poll loop. A run waiting three days for a human costs nothing.
 - **One dependency locally, your AWS in production.** The whole runtime needs nothing but Postgres. The same agent deploys to Fargate + SQS + RDS with one Terraform module — into a fresh VPC or the one you already have.

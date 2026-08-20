@@ -16,7 +16,7 @@ import {
 export interface ApiConfig {
   /** Admin (bootstrap) token: full access, including key management. */
   token: string;
-  /** The loaded agent name — POST /runs targets it. */
+  /** Default agent — POST /runs without an explicit agent targets it. */
   agent: string;
   /**
    * Pool for issued-key auth and /keys management. Without it the server
@@ -93,8 +93,22 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
   }
 }
 
-export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
+export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg: ApiConfig): Server {
   if (!cfg.token) throw new Error("api token must be non-empty (set TOREN_API_TOKEN)");
+  const byAgent: Record<string, TickDeps> =
+    "store" in depsIn ? { [cfg.agent]: depsIn as TickDeps } : (depsIn as Record<string, TickDeps>);
+  const agentNames = Object.keys(byAgent);
+  if (agentNames.length === 0) throw new Error("api server needs at least one agent");
+  const defaultAgent = byAgent[cfg.agent] ? cfg.agent : agentNames[0]!;
+
+  /** Which crew owns this run? Probes each store — fleets are small. */
+  const findRun = async (runId: string) => {
+    for (const [agent, deps] of Object.entries(byAgent)) {
+      const run = await deps.store.getRun(runId);
+      if (run) return { agent, deps, run };
+    }
+    return null;
+  };
 
   return createServer(async (req, res) => {
     try {
@@ -137,20 +151,24 @@ export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
         return send(res, 200, { agent: cfg.agentInfo ?? { name: cfg.agent } });
       }
 
-      // POST /runs
+      // POST /runs — routes by body.agent (defaults to the deployment's default agent)
       if (req.method === "POST" && parts.length === 1 && parts[0] === "runs") {
         const body = await readJson(req);
-        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string}" });
-        if (body.agent !== undefined && body.agent !== cfg.agent) {
-          return send(res, 400, { error: `this deployment serves agent "${cfg.agent}"` });
+        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string, agent?: string}" });
+        const target = typeof body.agent === "string" ? body.agent : defaultAgent;
+        const targetDeps = byAgent[target];
+        if (!targetDeps) {
+          return send(res, 400, { error: `unknown agent "${target}" — this deployment serves: ${agentNames.join(", ")}` });
         }
-        const runId = await startRun(deps, { agent: cfg.agent, input: body.input });
-        return send(res, 202, { runId });
+        const runId = await startRun(targetDeps, { agent: target, input: body.input });
+        return send(res, 202, { runId, agent: target });
       }
 
-      // GET /runs
+      // GET /runs — every crew's runs, newest first
       if (req.method === "GET" && parts.length === 1 && parts[0] === "runs") {
-        return send(res, 200, { runs: await deps.store.listRuns() });
+        const all = (await Promise.all(Object.values(byAgent).map((d) => d.store.listRuns()))).flat();
+        all.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+        return send(res, 200, { runs: all });
       }
 
       if (parts.length >= 2 && parts[0] === "runs") {
@@ -158,8 +176,9 @@ export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(runId)) {
           return send(res, 404, { error: `run ${runId} not found` });
         }
-        const run = await deps.store.getRun(runId);
-        if (!run) return send(res, 404, { error: `run ${runId} not found` });
+        const hit = await findRun(runId);
+        if (!hit) return send(res, 404, { error: `run ${runId} not found` });
+        const { deps, run } = hit;
 
         // GET /runs/:id
         if (req.method === "GET" && parts.length === 2) {

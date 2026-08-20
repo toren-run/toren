@@ -1,0 +1,5 @@
+name: support_bot
+model: mock/echo          # swap to anthropic/claude-sonnet-5 when you add a key
+maxTokens: 8000
+limits:
+  maxStepsPerTask: 20

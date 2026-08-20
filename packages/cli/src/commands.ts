@@ -4,8 +4,8 @@ import {
   createApiKey, effectiveEvents, foldRunStream, listApiKeys, listPendingApprovals,
   resolveApproval, revokeApiKey, startRun, sweep,
 } from "@toren/core";
-import { loadAgentDir } from "./loader.js";
-import { buildRuntime, driveRun, type SettledRun } from "./runtime.js";
+import { loadAgentDir, loadProject } from "./loader.js";
+import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
 import { TEMPLATE_FILES } from "./template.js";
 
 export interface CmdIO { out: (line: string) => void }
@@ -53,14 +53,34 @@ export async function cmdRun(dir: string, opts: { input: string; json?: boolean;
   }
 }
 
-/** Long-running worker + guardians daemon (the docker-image entrypoint). */
-export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?: number; apiPort?: number } = {}, io: CmdIO = stdoutIO): Promise<never> {
-  const loaded = await loadAgentDir(dir);
-  const rt = await buildRuntime(loaded, opts.databaseUrl);
+/** Sanitized crew structure — env NAMES and prompt sizes, never values or bodies. */
+function crewInfo(loaded: { name: string; agents: Record<string, import("@toren/core").AgentSpec> }) {
+  return {
+    name: loaded.name,
+    agents: Object.fromEntries(Object.entries(loaded.agents).map(([ref, a]) => [ref, {
+      model: a.model,
+      maxTokens: a.maxTokens,
+      maxSteps: a.maxSteps,
+      systemChars: a.system?.length ?? 0,
+      env: Object.keys((a as { env?: Record<string, string> }).env ?? {}),
+      tools: a.tools.map((t) => ({
+        name: t.name, description: t.description,
+        effects: (t as { effects?: string }).effects ?? "read",
+        approval: (t as { approval?: string }).approval ?? "never",
+      })),
+    }])),
+  };
+}
+
+/** Long-running fleet daemon (the docker-image entrypoint): every agent in every --dir. */
+export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: string; sweepMs?: number; apiPort?: number } = {}, io: CmdIO = stdoutIO): Promise<never> {
+  const project = await loadProject(Array.isArray(dirs) ? dirs : [dirs]);
+  const rt = await buildFleetRuntime(project, opts.databaseUrl);
+  const names = Object.keys(rt.byAgent);
   const { LocalWorkerRuntime } = await import("@toren/core");
-  const worker = new LocalWorkerRuntime(rt.deps, { concurrency: 4 });
+  const worker = new LocalWorkerRuntime(rt.byAgent, { concurrency: 4 });
   worker.start();
-  io.out(`toren dev: serving agent "${loaded.name}" (workers + guardians). Ctrl+C to stop.`);
+  io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`} — workers + guardians. Ctrl+C to stop.`);
 
   const token = process.env.TOREN_API_TOKEN;
   if (token) {
@@ -70,30 +90,20 @@ export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?
     try {
       consoleDir = (await import("@toren/console")).distDir;
     } catch { /* console package not installed — API only */ }
-    // Structure only — env NAMES and prompt sizes, never values or bodies.
     const agentInfo = {
-      name: loaded.name,
-      agents: Object.fromEntries(Object.entries(loaded.agents).map(([ref, a]) => [ref, {
-        model: a.model,
-        maxTokens: a.maxTokens,
-        maxSteps: a.maxSteps,
-        systemChars: a.system?.length ?? 0,
-        env: Object.keys((a as { env?: Record<string, string> }).env ?? {}),
-        tools: a.tools.map((t) => ({
-          name: t.name, description: t.description,
-          effects: (t as { effects?: string }).effects ?? "read",
-          approval: (t as { approval?: string }).approval ?? "never",
-        })),
-      }])),
+      default: names[0]!,
+      crews: Object.fromEntries(Object.entries(rt.crews).map(([name, loaded]) => [name, crewInfo(loaded)])),
     };
-    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool, consoleDir, agentInfo });
+    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
   } else if (opts.apiPort !== undefined) {
     throw new Error("--api-port requires TOREN_API_TOKEN to be set");
   }
-  const interval = setInterval(() => void sweep(rt.deps), opts.sweepMs ?? 5_000);
+  const interval = setInterval(() => {
+    for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);
+  }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {
     const stop = () => {
       clearInterval(interval);

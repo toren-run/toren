@@ -6,7 +6,7 @@ import {
 } from "@toren/core";
 import { SqsQueue } from "@toren/adapters-aws";
 import { RouterProvider } from "./router.js";
-import type { LoadedAgent } from "./loader.js";
+import type { LoadedAgent, LoadedProject } from "./loader.js";
 
 /**
  * Queue selection (spec §4.1): Postgres by default; SQS when TOREN_QUEUE=sqs
@@ -50,6 +50,36 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
     workflows: loaded.workflows,
   };
   return { pool, deps, schema, close: () => pool.end() };
+}
+
+export interface FleetRuntime {
+  pool: ReturnType<typeof createPool>;
+  /** Per-crew deps, keyed by agent name — feed directly to LocalWorkerRuntime. */
+  byAgent: Record<string, TickDeps>;
+  crews: Record<string, LoadedAgent>;
+  close(): Promise<void>;
+}
+
+export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: string): Promise<FleetRuntime> {
+  const pool = createPool(databaseUrl);
+  await tx(pool, async (c) => {
+    await migrateControl(c);
+    for (const name of Object.keys(project.crews)) await provisionAgent(c, name);
+  });
+  const queue = selectQueue(pool);
+  const byAgent: Record<string, TickDeps> = {};
+  for (const [name, loaded] of Object.entries(project.crews)) {
+    const schema = `agent_${name}`;
+    byAgent[name] = {
+      store: new PgStateStore(pool, schema),
+      queue,
+      leases: new PgLeases(pool, schema),
+      provider: new RouterProvider(),
+      agents: loaded.agents,
+      workflows: loaded.workflows,
+    };
+  }
+  return { pool, byAgent, crews: project.crews, close: () => pool.end() };
 }
 
 export type SettledRun =

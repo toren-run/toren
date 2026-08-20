@@ -6,7 +6,7 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 |---|---|
 | `toren init <name>` | Scaffold a filesystem agent (runs offline via `mock/echo`) |
 | `toren run <dir> --input <str> [--json] [--detach] [--env <name>]` | Start a run and drive it to completion or an approval park (`--detach`: start it and exit; workers pick it up) |
-| `toren dev [--dir <dir>] [--api-port <p>]` | Long-running workers + guardians daemon (the container entrypoint); with `TOREN_API_TOKEN` set it serves the [HTTP API](../guides/http-api.md) and the web console at `/console` (prints a pre-authenticated link) |
+| `toren dev [--dir <dir>]… [--api-port <p>]` | Serve a fleet: workers + guardians for every agent in every `--dir` (repeatable; a folder of agent dirs loads them all). With `TOREN_API_TOKEN` set it serves the [HTTP API](../guides/http-api.md) and the web console at `/console` (prints a pre-authenticated link) |
 | `toren jobs list [--dir] [--json]` | All runs with status, including `waiting_approval` |
 | `toren jobs show <runId> [--dir] [--json]` | Status, per-wave progress, pending approvals, output |
 | `toren jobs approve <runId> <taskId> <stepId> [--deny] [--comment <t>]` | Resolve a parked approval and drive the run onward |

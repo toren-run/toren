@@ -1,7 +1,14 @@
 import type pg from "pg";
 
 export type QueueName = "orchestrator" | "tasks-short" | "tasks-long";
-export interface QueueMessage { kind: "tick" | "task"; runId: string; taskId?: string; dedupeKey: string }
+export interface QueueMessage {
+  kind: "tick" | "task";
+  runId: string;
+  taskId?: string;
+  dedupeKey: string;
+  /** Which agent's run this belongs to — workers serving several agents route by it. */
+  agent?: string;
+}
 export interface Delivery { message: QueueMessage; receipt: number | string; attempt: number }
 
 /**

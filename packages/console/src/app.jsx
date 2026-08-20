@@ -149,12 +149,21 @@ function RunsPage({ nav }) {
 
 function NewRun({ onClose, nav }) {
   const [input, setInput] = useState("");
+  const [agent, setAgent] = useState("");
+  const [agents, setAgents] = useState([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    api("GET", "/agent").then((r) => {
+      const names = r.agent?.crews ? Object.keys(r.agent.crews) : [r.agent?.name].filter(Boolean);
+      setAgents(names);
+      setAgent(r.agent?.default ?? names[0] ?? "");
+    }).catch(() => {});
+  }, []);
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setErr("");
     try {
-      const { runId } = await api("POST", "/runs", { input });
+      const { runId } = await api("POST", "/runs", { input, ...(agent ? { agent } : {}) });
       onClose(); nav(`#/runs/${runId}`);
     } catch (ex) { setErr(String(ex.message)); } finally { setBusy(false); }
   };
@@ -163,6 +172,13 @@ function NewRun({ onClose, nav }) {
       <form class="modal" onSubmit={submit}>
         <div class="overline">NEW RUN</div>
         <h2>Give the agent its input</h2>
+        {agents.length > 1 && (
+          <div class="agent-select">
+            {agents.map((n) => (
+              <button type="button" key={n} class={`agent-opt${n === agent ? " on" : ""}`} onClick={() => setAgent(n)}>{n}</button>
+            ))}
+          </div>
+        )}
         <p class="muted">Passed verbatim as the workflow's <code>ctx.input</code> string — many agents expect JSON, e.g. <code>["topic a","topic b"]</code>.</p>
         <textarea rows="4" autofocus placeholder='["research this","and this"]' value={input} onInput={(e) => setInput(e.currentTarget.value)} />
         {err && <div class="form-err">{err}</div>}
@@ -299,63 +315,74 @@ function AgentPage() {
   }, []);
 
   if (!info) return <div class="page"><div class="empty">Loading…</div></div>;
-  const agents = info.agents ?? {};
-  const ROOT = agents.main ? "main" : info.name;
-  const stats = {
-    total: runs.length,
-    completed: runs.filter((r) => r.status === "completed").length,
-    failed: runs.filter((r) => r.status === "failed").length,
-    running: runs.filter((r) => r.status === "running").length,
-  };
-  const order = [ROOT, ...Object.keys(agents).filter((k) => k !== ROOT)].filter((k) => agents[k]);
+  // fleet shape { default, crews: {name: crewInfo} } or legacy single crewInfo
+  const crews = info.crews ?? { [info.name]: info };
+  const crewNames = Object.keys(crews);
 
   return (
     <div class="page">
       <div class="page-head">
         <div>
           <div class="overline">SHT 03 · SPECIFICATION</div>
-          <h1>{info.name}</h1>
+          <h1>{crewNames.length === 1 ? crewNames[0] : `${crewNames.length} process agents`}</h1>
         </div>
       </div>
 
-      <div class="stat-strip">
-        <div class="stat"><b>{stats.total}</b><span>runs</span></div>
-        <div class="stat"><b class="teal">{stats.completed}</b><span>completed</span></div>
-        <div class="stat"><b class="signal">{stats.failed}</b><span>failed</span></div>
-        <div class="stat"><b>{stats.running}</b><span>in flight</span></div>
-      </div>
-
-      {order.map((ref) => {
-        const a = agents[ref];
+      {crewNames.map((crewName) => {
+        const crew = crews[crewName];
+        const agents = crew.agents ?? {};
+        const ROOT = agents.main ? "main" : crewName;
+        const order = [ROOT, ...Object.keys(agents).filter((k) => k !== ROOT)].filter((k) => agents[k]);
+        const crewRuns = runs.filter((r) => r.agent === crewName);
+        const stats = {
+          total: crewRuns.length,
+          completed: crewRuns.filter((r) => r.status === "completed").length,
+          failed: crewRuns.filter((r) => r.status === "failed").length,
+          running: crewRuns.filter((r) => r.status === "running").length,
+        };
         return (
-          <div class="agent-card" key={ref}>
-            <div class="agent-head">
-              <span class="agent-ref">{ref === ROOT ? "ROOT AGENT" : `SUBAGENT · ${ref}`}</span>
-              <span class="model-chip">{a.model}</span>
-              <span class="dim">max {a.maxSteps} steps · {a.maxTokens} tok · prompt {a.systemChars} chars</span>
+          <div class="crew" key={crewName}>
+            {crewNames.length > 1 && <div class="crew-title">{crewName}{info.default === crewName && <span class="dwg" style="margin-left:10px">DEFAULT</span>}</div>}
+            <div class="stat-strip">
+              <div class="stat"><b>{stats.total}</b><span>runs</span></div>
+              <div class="stat"><b class="teal">{stats.completed}</b><span>completed</span></div>
+              <div class="stat"><b class="signal">{stats.failed}</b><span>failed</span></div>
+              <div class="stat"><b>{stats.running}</b><span>in flight</span></div>
             </div>
-            {a.env.length > 0 && (
-              <div class="agent-env">ENV: {a.env.map((n) => <code key={n}>{n}</code>)} <span class="dim">(names only — values never leave the worker)</span></div>
-            )}
-            {a.tools.length === 0 ? (
-              <div class="dim" style="padding: 4px 0 2px">No tools — pure model reasoning.</div>
-            ) : (
-              <table class="tool-table">
-                <thead><tr><th>Tool</th><th>Description</th><th>Effects</th><th>Approval</th></tr></thead>
-                <tbody>
-                  {a.tools.map((t) => (
-                    <tr key={t.name}>
-                      <td class="mono">{t.name}</td>
-                      <td class="dim">{t.description}</td>
-                      <td class="mono dim">{t.effects}</td>
-                      <td>{t.approval === "always"
-                        ? <span class="chip chip-waiting_approval" style="animation:none">gated</span>
-                        : <span class="dim">auto</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {order.map((ref) => {
+              const a = agents[ref];
+              return (
+                <div class="agent-card" key={ref}>
+                  <div class="agent-head">
+                    <span class="agent-ref">{ref === ROOT ? "ROOT AGENT" : `SUBAGENT · ${ref}`}</span>
+                    <span class="model-chip">{a.model}</span>
+                    <span class="dim">max {a.maxSteps} steps · {a.maxTokens} tok · prompt {a.systemChars} chars</span>
+                  </div>
+                  {a.env.length > 0 && (
+                    <div class="agent-env">ENV: {a.env.map((n) => <code key={n}>{n}</code>)} <span class="dim">(names only — values never leave the worker)</span></div>
+                  )}
+                  {a.tools.length === 0 ? (
+                    <div class="dim" style="padding: 4px 0 2px">No tools — pure model reasoning.</div>
+                  ) : (
+                    <table class="tool-table">
+                      <thead><tr><th>Tool</th><th>Description</th><th>Effects</th><th>Approval</th></tr></thead>
+                      <tbody>
+                        {a.tools.map((t) => (
+                          <tr key={t.name}>
+                            <td class="mono">{t.name}</td>
+                            <td class="dim">{t.description}</td>
+                            <td class="mono dim">{t.effects}</td>
+                            <td>{t.approval === "always"
+                              ? <span class="chip chip-waiting_approval" style="animation:none">gated</span>
+                              : <span class="dim">auto</span>}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}

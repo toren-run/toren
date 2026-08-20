@@ -109,3 +109,38 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
 
   return { name, dir, agents, workflows: { [name]: workflow } };
 }
+
+export interface LoadedProject {
+  /** Every crew served by this deployment, keyed by agent name. */
+  crews: Record<string, LoadedAgent>;
+}
+
+/**
+ * Load a project of process agents. Each dir may be a single agent directory
+ * (has agent.yaml) or a folder of agent directories — both shapes load, so
+ * `toren dev` serves one crew or a whole fleet with the same flag.
+ */
+export async function loadProject(dirsRaw: string[]): Promise<LoadedProject> {
+  const crews: Record<string, LoadedAgent> = {};
+  const add = async (dir: string) => {
+    const loaded = await loadAgentDir(dir);
+    if (crews[loaded.name]) throw new Error(`two agent directories resolve to the same name "${loaded.name}" (${crews[loaded.name]!.dir} and ${loaded.dir})`);
+    crews[loaded.name] = loaded;
+  };
+  for (const dirRaw of dirsRaw) {
+    const dir = resolve(dirRaw);
+    if (existsSync(join(dir, "agent.yaml"))) {
+      await add(dir);
+      continue;
+    }
+    const children = existsSync(dir)
+      ? readdirSync(dir, { withFileTypes: true })
+          .filter((d) => d.isDirectory() && existsSync(join(dir, d.name, "agent.yaml")))
+          .map((d) => join(dir, d.name))
+      : [];
+    if (children.length === 0) throw new Error(`${dir} is neither an agent directory (agent.yaml) nor a folder containing agent directories`);
+    for (const child of children) await add(child);
+  }
+  if (Object.keys(crews).length === 0) throw new Error("no agents found");
+  return { crews };
+}

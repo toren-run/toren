@@ -9,16 +9,41 @@ export interface WorkerOpts { concurrency?: number; visibilitySeconds?: number; 
 
 /**
  * Local worker runtime: in-process pollers over the orchestrator and task
- * queues (spec §4.2 local binding). One instance serves both roles.
+ * queues (spec §4.2 local binding). One instance serves one agent or a whole
+ * fleet — construct with a single TickDeps or a Record keyed by agent name;
+ * messages carry the agent and are routed to that agent's deps (store,
+ * leases, and specs are per-agent; the queue tables are shared).
  */
 export class LocalWorkerRuntime {
   private stopped = false;
   private loops: Promise<void>[] = [];
   private inFlight = 0;
   private readonly opts: Required<WorkerOpts>;
+  private readonly byAgent: Map<string, TickDeps>;
+  /** Single-agent construction routes every message here, agent label or not. */
+  private readonly sole: TickDeps | null;
+  /** Any entry — used for the shared queue (polling, acking, depth). */
+  private readonly shared: TickDeps;
 
-  constructor(private deps: TickDeps, opts: WorkerOpts = {}) {
+  constructor(deps: TickDeps | Record<string, TickDeps>, opts: WorkerOpts = {}) {
     this.opts = { concurrency: opts.concurrency ?? 2, visibilitySeconds: opts.visibilitySeconds ?? 60, pollMs: opts.pollMs ?? 20 };
+    if ("store" in deps) {
+      this.sole = deps as TickDeps;
+      this.byAgent = new Map();
+      this.shared = this.sole;
+    } else {
+      const entries = Object.entries(deps);
+      if (entries.length === 0) throw new Error("worker needs at least one agent's deps");
+      this.byAgent = new Map(entries);
+      this.sole = entries.length === 1 ? entries[0]![1] : null;
+      this.shared = entries[0]![1];
+    }
+  }
+
+  private depsFor(agent: string | undefined): TickDeps | null {
+    if (this.sole) return this.sole;
+    if (agent && this.byAgent.has(agent)) return this.byAgent.get(agent)!;
+    return null; // unknown/unlabeled message on a fleet worker — stale hint
   }
 
   start(): void {
@@ -36,7 +61,7 @@ export class LocalWorkerRuntime {
     const deadline = Date.now() + timeoutMs;
     let quiet = 0;
     while (Date.now() < deadline) {
-      const busy = this.inFlight > 0 || (await this.deps.queue.depth()) > 0;
+      const busy = this.inFlight > 0 || (await this.shared.queue.depth()) > 0;
       quiet = busy ? 0 : quiet + 1;
       if (quiet >= 5) return;
       await sleep(this.opts.pollMs);
@@ -47,8 +72,8 @@ export class LocalWorkerRuntime {
   private async pollLoop(owner: string): Promise<void> {
     while (!this.stopped) {
       const d =
-        (await this.deps.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0] ??
-        (await this.deps.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0];
+        (await this.shared.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0] ??
+        (await this.shared.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0];
       if (!d) {
         await sleep(this.opts.pollMs);
         continue;
@@ -64,44 +89,51 @@ export class LocalWorkerRuntime {
 
   private async handle(d: Delivery, owner: string): Promise<void> {
     const msg = d.message;
+    const deps = this.depsFor(msg.agent);
+    if (!deps) {
+      // A hint for an agent this worker doesn't serve. Messages are hints,
+      // never truth — the owning worker's guardians re-derive the work.
+      await this.shared.queue.ack(d);
+      return;
+    }
     try {
       if (msg.kind === "tick") {
-        await tick(this.deps, msg.runId);
-        await this.deps.queue.ack(d);
+        await tick(deps, msg.runId);
+        await this.shared.queue.ack(d);
         return;
       }
       // task message
       const taskId = msg.taskId!;
       const streamId = `task:${taskId}` as const;
-      const lease = await this.deps.leases.acquire(msg.runId, streamId, owner, this.opts.visibilitySeconds);
+      const lease = await deps.leases.acquire(msg.runId, streamId, owner, this.opts.visibilitySeconds);
       if (!lease) {
-        await this.deps.queue.ack(d); // someone else owns it; message was a hint
+        await this.shared.queue.ack(d); // someone else owns it; message was a hint
         return;
       }
       try {
-        const spec = await findTaskSpec(this.deps.store, msg.runId, taskId);
+        const spec = await findTaskSpec(deps.store, msg.runId, taskId);
         if (!spec) {
-          await this.deps.queue.ack(d); // stale hint for an invalidated plan
+          await this.shared.queue.ack(d); // stale hint for an invalidated plan
           return;
         }
-        const agent = this.deps.agents[spec.agentRef];
+        const agent = deps.agents[spec.agentRef];
         if (!agent) throw new Error(`no agent registered for ref ${spec.agentRef}`);
         await runTaskLoop({
-          store: this.deps.store, provider: this.deps.provider,
+          store: deps.store, provider: deps.provider,
           runId: msg.runId, taskId, agent, input: spec.input,
         });
-        await this.deps.queue.ack(d);
+        await this.shared.queue.ack(d);
         // Nudge the orchestrator to absorb the terminal/parked state (spec §5.1).
-        await this.deps.queue.send("orchestrator", { kind: "tick", runId: msg.runId, dedupeKey: `settle-${msg.runId}-${taskId}` });
+        await this.shared.queue.send("orchestrator", { kind: "tick", runId: msg.runId, agent: msg.agent, dedupeKey: `settle-${msg.runId}-${taskId}` });
       } finally {
-        await this.deps.leases.release(lease);
+        await deps.leases.release(lease);
       }
     } catch (e) {
       if (e instanceof TaskLeaseLostError) {
-        await this.deps.queue.ack(d);
+        await this.shared.queue.ack(d);
         return;
       }
-      await this.deps.queue.nack(d, { delaySeconds: 0.2 });
+      await this.shared.queue.nack(d, { delaySeconds: 0.2 });
     }
   }
 }

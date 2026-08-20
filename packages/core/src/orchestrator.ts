@@ -29,7 +29,7 @@ export async function startRun(deps: TickDeps, req: { agent: string; input: stri
   await deps.store.createRun({ runId, agent: req.agent, input: req.input });
   const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input })]);
   if (!r.ok) throw new Error("fresh run stream was not empty");
-  await deps.queue.send("orchestrator", { kind: "tick", runId, dedupeKey: `start-${runId}` });
+  await deps.queue.send("orchestrator", { kind: "tick", runId, agent: req.agent, dedupeKey: `start-${runId}` });
   return runId;
 }
 
@@ -96,7 +96,9 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
     const ctx = createWorkflowCtx(session);
 
     const flush = async () => {
-      for (const d of session.pendingDispatch) await deps.queue.send(d.queue, d.msg, { delaySeconds: d.delaySeconds });
+      for (const d of session.pendingDispatch) {
+        await deps.queue.send(d.queue, { ...d.msg, agent: run.agent }, { delaySeconds: d.delaySeconds });
+      }
       session.pendingDispatch = [];
     };
 

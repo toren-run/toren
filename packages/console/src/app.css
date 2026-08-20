@@ -216,6 +216,16 @@ input:focus, textarea:focus { outline: none; border-color: var(--teal); }
 .minted-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
 .minted-row code { background: var(--navy); color: var(--navy-ink); padding: 8px 12px; border-radius: 5px; font-size: 13px; word-break: break-all; }
 
+/* ---- fleet */
+.crew { margin-bottom: 30px; }
+.crew-title { font: 800 19px Archivo, sans-serif; margin-bottom: 10px; display: flex; align-items: center; }
+.agent-select { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+.agent-opt {
+  font: 600 12.5px "JetBrains Mono", monospace; background: var(--card);
+  border: 1.5px solid var(--line); border-radius: 4px; padding: 6px 12px; color: var(--ink);
+}
+.agent-opt.on { border-color: var(--teal); color: var(--teal); background: color-mix(in srgb, var(--teal) 7%, transparent); }
+
 /* ---- modal */
 .modal-back { position: fixed; inset: 0; background: rgba(18,33,52,.35); display: grid; place-items: center; z-index: 10; padding: 20px; }
 .modal {

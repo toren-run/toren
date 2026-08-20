@@ -12,8 +12,10 @@ All endpoints except `/healthz` require `Authorization: Bearer <token>` — eith
 curl -s -X POST "$API/runs" \
   -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
   -d '{"input": "[\"solar shipping\",\"battery freight\"]"}'
-# → 202 {"runId":"..."}
+# → 202 {"runId":"...","agent":"research_crew"}
 ```
+
+A deployment serves a fleet of process agents; `"agent"` in the body picks which one (omitted = the default). Unknown names get a 400 listing what the deployment serves. `GET /runs` returns every agent's runs, each row labeled with its agent.
 
 ## Check status, get the result
 
