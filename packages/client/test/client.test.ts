@@ -7,7 +7,7 @@ import {
   MockProvider, defineTool,
   type AgentSpec, type TickDeps, type WorkflowFn, type ModelProvider, type ModelRequest, type ModelResponse,
 } from "@toren-run/core";
-import { createApiServer } from "toren";
+import { createApiServer } from "toren-run";
 import { TorenApiError, TorenClient } from "../src/index.js";
 
 const pool = createPool();

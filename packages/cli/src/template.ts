@@ -9,7 +9,7 @@ export const TEMPLATE_FILES = (name: string): Record<string, string> => ({
     "run": "toren run ."
   },
   "dependencies": {
-    "toren": "^0.1.0",
+    "toren-run": "^0.1.0",
     "@toren-run/core": "^0.1.0",
     "zod": "^3.23.0"
   }

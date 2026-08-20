@@ -9,7 +9,7 @@
 ## 1. Install & scaffold
 
 ```bash
-npx toren init research-crew
+npx toren-run init research-crew
 cd research-crew
 npm install                 # runtime + @toren-run/core for your tools
 ```

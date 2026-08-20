@@ -16,7 +16,7 @@ Toren is an open-source runtime for **process-shaped agents**: work measured in 
 ## Quickstart
 
 ```bash
-npx toren init my-crew
+npx toren-run init my-crew
 cd my-crew
 docker compose up -d db
 npx toren dev

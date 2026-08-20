@@ -7,7 +7,7 @@
   },
   "devDependencies": {
     "@toren-run/core": "workspace:^",
-    "toren": "workspace:^",
+    "toren-run": "workspace:^",
     "zod": "^3.23.0"
   },
   "description": "TypeScript client SDK for the Toren HTTP API.",

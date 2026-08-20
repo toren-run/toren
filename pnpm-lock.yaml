@@ -75,7 +75,7 @@ importers:
       '@toren-run/core':
         specifier: workspace:^
         version: link:../core
-      toren:
+      toren-run:
         specifier: workspace:^
         version: link:../cli
       zod:
