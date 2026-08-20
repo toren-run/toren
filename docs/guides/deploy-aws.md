@@ -20,7 +20,9 @@ toren deploy-aws --region eu-central-1 --yes          # terraform apply (billabl
 
 Then build and push the image to the ECR repo from the outputs (`docker build --platform linux/arm64`, `docker tag`, `docker push`), and the service pulls `:latest`. The apply prints the env lines (`TOREN_QUEUE=sqs` + queue URLs) for pointing a local CLI at the deployment.
 
-`ANTHROPIC_API_KEY` in your environment at deploy time is stored in Secrets Manager and injected into the workers — it never lands in Terraform state variables or the image.
+`ANTHROPIC_API_KEY` in your environment at deploy time is stored in Secrets Manager and injected into the workers — it never lands in the image. Like any Terraform-managed secret it does appear in your local state file, so protect the state (or skip the variable and wire the key through `agent_env_secret_arns` instead — that path never touches state).
+
+Injection is least-privilege: the ECS execution role can read exactly the listed secret ARNs and nothing else, values land as env vars at container start, and the task role the agent code runs under has no Secrets Manager permissions at all — running agents cannot read secrets beyond what was injected.
 
 ## Mode 2 — connect to what you already run
 
