@@ -1,0 +1,18 @@
+{
+  "name": "toren",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": { "toren": "./bin/toren.js" },
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@toren/adapters-aws": "workspace:*",
+    "@toren/client": "workspace:*",
+    "@toren/core": "workspace:*",
+    "@toren/providers": "workspace:*",
+    "commander": "^12.1.0",
+    "jiti": "^2.4.0",
+    "yaml": "^2.5.0"
+  },
+  "devDependencies": { "zod": "^3.23.0" }
+}

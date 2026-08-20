@@ -1,0 +1,12 @@
+{
+  "name": "@toren/client",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "devDependencies": {
+    "@toren/core": "workspace:*",
+    "toren": "workspace:*",
+    "zod": "^3.23.0"
+  }
+}

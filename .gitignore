@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.terraform/
+
+# vitepress
+docs/.vitepress/dist/
+docs/.vitepress/cache/
+*.tfstate
+*.tfstate.*
+terraform.tfstate.d/

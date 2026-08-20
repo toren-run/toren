@@ -1,0 +1,5 @@
+name: research_crew
+model: mock/echo          # swap to anthropic/claude-opus-5 when you add a key
+maxTokens: 16000
+limits:
+  maxStepsPerTask: 50

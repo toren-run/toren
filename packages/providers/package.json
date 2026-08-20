@@ -1,0 +1,11 @@
+{
+  "name": "@toren/providers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@toren/core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.110.0"
+  }
+}

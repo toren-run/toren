@@ -1,0 +1,10 @@
+{
+  "name": "@toren/example-research-crew",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@toren/core": "workspace:*",
+    "zod": "^3.23.0"
+  }
+}

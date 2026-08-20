@@ -1,0 +1,12 @@
+# production — copy to prod.tfvars; consider a separate AWS account entirely
+region            = "eu-central-1"
+project           = "toren-prod"
+image             = "<ecr-url>@sha256:<digest>"   # promote the exact digest validated in staging
+agent_dir         = "examples/research-crew"
+worker_count      = 2
+db_instance_class = "db.t4g.small"
+# agent_env_secret_arns = { SERP_API_KEY = "arn:aws:secretsmanager:...:secret:prod/serp" }
+
+# --- bring your own infrastructure / auto-scaling: same knobs as staging ---
+# create_vpc = false ... create_db = false ... create_alb = false
+# enable_autoscaling = true / autoscaling_min / autoscaling_max / autoscaling_cpu_target

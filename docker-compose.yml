@@ -1,0 +1,14 @@
+services:
+  toren:
+    profiles: ["full"]
+    build: .
+    environment:
+      DATABASE_URL: postgres://toren:toren@db:5432/toren
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: pgvector/pgvector:pg16
+    environment: { POSTGRES_USER: toren, POSTGRES_PASSWORD: toren, POSTGRES_DB: toren }
+    ports: ["5433:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U toren"], interval: 2s, retries: 20 }

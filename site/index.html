@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Toren</title>
+<meta name="description" content="Toren is the open-source runtime for long-running, durable AI agents — in your own cloud. A resumed run never re-pays for a completed model call.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,600;0,700;0,800;0,900;1,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+:root {
+  --paper: #f8f7f3; --ink: #122134; --teal: #0a8884; --signal: #f4571c;
+  --line: #d8e0e4; --muted: #5b6b7b; --card: #ffffff; --code-bg: #101d2c; --code-ink: #cfe3e0;
+  --grid: rgba(18, 33, 52, 0.05); --ghost: rgba(18, 33, 52, 0.055);
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 17px/1.65 "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+}
+a { color: var(--teal); }
+code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* ============ the drawing sheet ============ */
+.sheet-frame {
+  position: relative; margin: 16px; border: 2px solid var(--ink); min-height: calc(100vh - 32px);
+  background:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    var(--paper);
+  background-size: 30px 30px, 30px 30px, auto;
+  overflow: clip;
+}
+/* grain */
+.sheet-frame::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .35; z-index: 5;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+/* rulers */
+.ruler-x, .ruler-y { position: absolute; z-index: 4; pointer-events: none; }
+.ruler-x { top: 0; left: 0; right: 0; height: 14px; border-bottom: 1px solid var(--line);
+  background: repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 30px); opacity: .3; }
+.ruler-y { top: 0; bottom: 0; left: 0; width: 14px; border-right: 1px solid var(--line);
+  background: repeating-linear-gradient(0deg, var(--ink) 0 1px, transparent 1px 30px); opacity: .3; }
+/* margin note */
+.marginalia {
+  position: fixed; right: 26px; top: 50%; transform: translateY(-50%); z-index: 6;
+  writing-mode: vertical-rl; font: 600 10px/1 "JetBrains Mono", monospace; letter-spacing: .3em;
+  color: var(--muted); text-transform: uppercase;
+}
+.wrap { max-width: 1140px; margin: 0 auto; padding: 0 48px; }
+
+/* ============ nav ============ */
+nav {
+  position: sticky; top: 0; z-index: 9; display: flex; align-items: center; gap: 26px;
+  padding: 16px 48px; background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(6px); border-bottom: 1.5px solid var(--ink);
+}
+.brandlock { display: flex; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.brandlock b { font: 800 17px Archivo, sans-serif; letter-spacing: .3em; }
+.sheetchip { font: 500 10px "JetBrains Mono", monospace; letter-spacing: .12em; color: var(--muted); border: 1px solid var(--line); padding: 4px 9px; border-radius: 3px; }
+nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+nav .links a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14.5px; }
+nav .links a:hover { color: var(--teal); }
+.cta { background: var(--signal); color: #fff !important; padding: 9px 18px; border-radius: 5px; font-weight: 600; font-size: 14.5px; text-decoration: none; box-shadow: 3px 3px 0 rgba(18,33,52,.85); transition: transform .12s, box-shadow .12s; }
+.cta:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(18,33,52,.85); }
+
+/* ============ sections: numbered, each its own logic ============ */
+section { position: relative; padding: 96px 0 40px; scroll-margin-top: 72px; }
+.shnum {
+  position: absolute; top: 24px; left: -10px; z-index: 0; user-select: none;
+  font: 900 170px/1 Archivo, sans-serif; color: var(--ghost); letter-spacing: -.04em;
+}
+.sechead { position: relative; display: flex; align-items: baseline; gap: 16px; margin-bottom: 10px; }
+.sechead .cut { font: 700 12px "JetBrains Mono", monospace; color: var(--signal); letter-spacing: .1em; }
+h2 { font: 800 clamp(30px, 4vw, 46px)/1.1 Archivo, sans-serif; margin: 0 0 16px; text-wrap: balance; max-width: 22ch; position: relative; }
+.lede { color: var(--muted); font-size: 19px; max-width: 60ch; margin: 0 0 34px; position: relative; }
+
+/* reveal on scroll */
+.rev { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+.rev.in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { .rev { opacity: 1; transform: none; transition: none; } }
+
+/* ============ 01 hero ============ */
+.hero { padding: 90px 0 30px; position: relative; }
+.hero h1 {
+  font: 900 clamp(38px, 5.8vw, 76px)/1.05 Archivo, sans-serif; letter-spacing: -.02em;
+  margin: 0 0 26px; color: var(--teal); text-wrap: balance;
+  position: relative; z-index: 2;
+}
+.hero h1 .tail { color: var(--ink); }
+.hero h1 em { font-style: normal; position: relative; white-space: nowrap; }
+.hero h1 em::after {
+  content: ""; position: absolute; left: -1%; right: -1%; bottom: 4%; height: 6px;
+  background: var(--signal); transform: rotate(-1.2deg);
+}
+.hero .sub { font-size: 21px; color: var(--muted); max-width: 46ch; margin: 0 0 30px; position: relative; z-index: 2; }
+.heroctas { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; position: relative; z-index: 2; }
+.install { font: 600 15px "JetBrains Mono", monospace; background: var(--ink); color: #e8f0ee; padding: 13px 20px; border-radius: 6px; user-select: all; box-shadow: 4px 4px 0 rgba(10,136,132,.5); }
+.install::before { content: "$ "; color: #6fd3c7; }
+.ghost-link { font-weight: 600; color: var(--ink); text-decoration: none; border-bottom: 2.5px solid var(--teal); padding-bottom: 2px; }
+/* the overlapping drafted sheet */
+.figsheet {
+  position: relative; z-index: 1; margin: 40px 0 0 auto; width: min(640px, 100%);
+  background: var(--card); border: 2px solid var(--ink); padding: 20px 20px 12px;
+  transform: rotate(-1.1deg); box-shadow: 10px 10px 0 rgba(18,33,52,.10);
+}
+.figsheet .fhead { display: flex; justify-content: space-between; font: 600 10px "JetBrains Mono", monospace; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-bottom: 6px; }
+.figsheet .replaybtn {
+  position: absolute; right: 14px; bottom: 12px; font: 600 11px "JetBrains Mono", monospace;
+  border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  padding: 6px 12px; border-radius: 4px; cursor: pointer; letter-spacing: .06em;
+}
+.replaybtn:hover { background: var(--signal); color: #fff; border-color: var(--signal); }
+.diagram .draw { stroke-dasharray: 700; stroke-dashoffset: 700; animation: draw 2s ease forwards; }
+.diagram .d2 { animation-delay: .45s; } .diagram .d3 { animation-delay: .9s; }
+.diagram .node { opacity: 0; animation: pop .35s ease forwards; }
+.diagram .cutline { stroke-dasharray: 300; stroke-dashoffset: 300; animation: draw .9s ease forwards 2.3s; }
+.diagram .resume { opacity: 0; animation: pop .5s ease forwards 3s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .diagram .draw, .diagram .cutline { animation: none; stroke-dashoffset: 0; }
+  .diagram .node, .diagram .resume { animation: none; opacity: 1; }
+}
+
+/* claims strip under hero */
+.claims { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); border: 2px solid var(--ink); background: var(--card); margin-top: 54px; }
+.claim { padding: 22px 26px; border-right: 1.5px solid var(--line); }
+.claim:last-child { border-right: none; }
+.claim .no { font: 600 10.5px "JetBrains Mono", monospace; color: var(--signal); letter-spacing: .12em; }
+.claim p { margin: 8px 0 0; font: 700 17.5px/1.4 Archivo, sans-serif; }
+
+/* ============ 02 manifesto ============ */
+.manifesto { text-align: left; padding: 130px 0 70px; }
+.manifesto .bigq {
+  font: 600 clamp(26px, 3.6vw, 44px)/1.3 Archivo, sans-serif; font-style: italic;
+  max-width: 26ch; margin: 0; position: relative; z-index: 1;
+}
+.manifesto .bigq mark { background: none; color: var(--signal); font-style: normal; }
+.manifesto .attr { margin-top: 22px; font: 500 13px "JetBrains Mono", monospace; color: var(--muted); }
+.manifesto .therefore { margin-top: 46px; font-size: 20px; max-width: 56ch; }
+.manifesto .therefore b { color: var(--teal); }
+
+/* ============ 03 demo terminal ============ */
+.term {
+  background: var(--code-bg); color: var(--code-ink); border: 2px solid var(--ink); border-radius: 8px;
+  padding: 0; overflow: hidden; box-shadow: 8px 8px 0 rgba(18,33,52,.12); max-width: 860px;
+}
+.term .bar { display: flex; gap: 7px; padding: 12px 16px; border-bottom: 1px solid #1e3247; align-items: center; }
+.term .dot { width: 10px; height: 10px; border-radius: 50%; background: #2a4258; }
+.term .dot.o { background: var(--signal); }
+.term .bar span { margin-left: auto; font: 500 10.5px "JetBrains Mono", monospace; color: #57738a; letter-spacing: .1em; }
+.term .body { padding: 20px 24px 26px; font: 14.5px/1.85 "JetBrains Mono", monospace; min-height: 218px; white-space: pre-wrap; word-break: break-word; }
+.term .c { color: #7d95a8; } .term .g { color: #6fd3c7; } .term .o { color: #ff8b5e; } .term b { color: #fff; font-weight: 600; }
+.term .cursor { display: inline-block; width: 8px; height: 16px; background: #6fd3c7; vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ============ 04 system bento ============ */
+.bento { display: grid; grid-template-columns: 1.2fr 1fr 1fr; grid-template-rows: auto auto; gap: 18px; }
+.bcard { background: var(--card); border: 2px solid var(--ink); overflow: hidden; transition: transform .15s, box-shadow .15s; box-shadow: 5px 5px 0 rgba(18,33,52,.08); }
+.bcard:hover { transform: translate(-2px,-2px); box-shadow: 8px 8px 0 rgba(18,33,52,.12); }
+.bcard.tall { grid-row: span 2; }
+.bcard.wide { grid-column: span 2; }
+.bcard h3 { font: 700 16px Archivo, sans-serif; margin: 0; padding: 13px 18px; border-bottom: 1.5px solid var(--line); display: flex; justify-content: space-between; align-items: baseline; }
+.bcard h3 .tag { font: 500 10px "JetBrains Mono", monospace; color: var(--muted); letter-spacing: .1em; }
+.bcard pre { margin: 0; padding: 16px 18px; font-size: 12.6px; line-height: 1.7; overflow-x: auto; background: var(--code-bg); color: var(--code-ink); height: 100%; }
+.bcard .k { color: #8fd0ff; } .bcard .s { color: #ffcf9e; } .bcard .cm { color: #7d95a8; }
+.bcard .prose { padding: 16px 18px; font-size: 15px; color: var(--muted); }
+.bcard .prose b { color: var(--ink); }
+/* annotated arch mini-diagram */
+.arch { padding: 14px 18px 18px; }
+.arch svg { width: 100%; height: auto; }
+
+/* ============ 05 spec strip ============ */
+.spec { border-top: 3px solid var(--ink); border-bottom: 3px solid var(--ink); background: var(--card); display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.spec .cell { padding: 34px 30px; border-right: 1.5px solid var(--line); }
+.spec .cell:last-child { border-right: none; }
+.spec .big { font: 800 clamp(34px, 4vw, 52px)/1 Archivo, sans-serif; font-variant-numeric: tabular-nums; }
+.spec .big em { font-style: normal; color: var(--signal); }
+.spec .lbl { margin-top: 10px; font: 600 12px "JetBrains Mono", monospace; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+
+/* ============ 06 compare ============ */
+.tablewrap { overflow-x: auto; border: 2px solid var(--ink); background: var(--card); }
+table { border-collapse: collapse; width: 100%; font-size: 15.5px; min-width: 700px; }
+th { text-align: left; font: 700 11px/1.3 Archivo, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+th, td { padding: 13px 16px; border-bottom: 1px solid var(--line); }
+td.idx { font: 500 11px "JetBrains Mono", monospace; color: var(--muted); width: 34px; }
+tbody tr:last-child td { border-bottom: none; }
+tr.toren td { background: rgba(10,136,132,.09); font-weight: 600; color: var(--teal); }
+tr.toren td:nth-child(2) { color: var(--ink); font-family: Archivo, sans-serif; font-weight: 800; letter-spacing: .08em; }
+
+/* ============ 07 deploy ============ */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 2px solid var(--ink); background: var(--card); position: relative; }
+.split::before { content: "FOLD"; position: absolute; left: 50%; top: -9px; transform: translateX(-50%); font: 600 9px "JetBrains Mono", monospace; letter-spacing: .2em; color: var(--muted); background: var(--paper); padding: 0 8px; }
+.pane { padding: 34px 36px; }
+.pane + .pane { border-left: 1.5px dashed var(--ink); }
+.pane .where { font: 600 11px "JetBrains Mono", monospace; letter-spacing: .12em; color: var(--signal); text-transform: uppercase; }
+.pane h3 { font: 800 26px Archivo, sans-serif; margin: 8px 0 10px; }
+.pane p { color: var(--muted); font-size: 15.5px; }
+.pane code { background: rgba(18,33,52,.07); padding: 3px 8px; border-radius: 4px; font-size: 13.5px; color: var(--ink); }
+
+/* ============ 08 pricing ============ */
+.tiers { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 18px; align-items: stretch; }
+.tier { background: var(--card); border: 2px solid var(--ink); padding: 26px 28px; box-shadow: 5px 5px 0 rgba(18,33,52,.08); }
+.tier.flag { border-color: var(--signal); box-shadow: 7px 7px 0 rgba(244,87,28,.22); position: relative; }
+.tier.flag::before { content: "FLAGSHIP"; position: absolute; top: -10px; right: 14px; font: 700 9.5px "JetBrains Mono", monospace; letter-spacing: .18em; background: var(--signal); color: #fff; padding: 3px 9px; }
+.tier h3 { font: 800 21px Archivo, sans-serif; margin: 0; }
+.tier.flag h3 { color: var(--signal); }
+.tier .price { font: 500 12.5px "JetBrains Mono", monospace; color: var(--muted); margin: 3px 0 16px; }
+.tier ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; font-size: 15px; }
+.tier li::before { content: "· "; color: var(--teal); font-weight: 700; }
+
+/* ============ footer title block ============ */
+footer { margin-top: 110px; }
+.tblock { border-top: 2px solid var(--ink); display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.tcell { padding: 16px 20px; border-right: 1px solid var(--line); font-size: 13px; }
+.tcell:last-child { border-right: none; }
+.tcell .k { font: 600 9.5px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 3px; }
+.revtable { border-top: 1.5px solid var(--line); font: 500 11px "JetBrains Mono", monospace; color: var(--muted); display: flex; gap: 34px; padding: 12px 20px 18px; flex-wrap: wrap; }
+
+@media (max-width: 880px) {
+  .wrap { padding: 0 22px; }
+  nav { padding: 14px 22px; }
+  .marginalia, .ruler-x, .ruler-y { display: none; }
+  .figsheet { margin-top: 26px; transform: none; }
+  .bento { grid-template-columns: 1fr; }
+  .bcard.tall, .bcard.wide { grid-row: auto; grid-column: auto; }
+  .split { grid-template-columns: 1fr; }
+  .pane + .pane { border-left: none; border-top: 1.5px dashed var(--ink); }
+  .tiers { grid-template-columns: 1fr; }
+  .shnum { font-size: 100px; }
+}
+@media (max-width: 700px) {
+  .sheet-frame { margin: 8px; }
+  nav { gap: 14px; }
+  .sheetchip { display: none; }
+  nav .links { gap: 0; }
+  nav .links a:not(.cta):not(.keep) { display: none; }
+  .hero { padding-top: 56px; }
+  .hero h1 { font-size: clamp(30px, 9.4vw, 40px); }
+  .hero h1 br { display: none; }
+  .hero .sub { font-size: 18px; }
+  .install { font-size: 13.5px; padding: 11px 14px; }
+  .figsheet { padding: 14px 12px 10px; }
+  .figsheet .fhead { flex-wrap: wrap; gap: 3px 12px; font-size: 8.5px; }
+  .figsheet .replaybtn { position: static; margin-top: 10px; width: 100%; }
+  section { padding: 66px 0 26px; }
+  .shnum { font-size: 74px; top: 14px; }
+  .manifesto { padding: 90px 0 50px; }
+  .term .body { font-size: 12px; padding: 16px 14px 20px; min-height: 190px; }
+  .pane { padding: 26px 22px; }
+  .spec .cell { padding: 26px 22px; border-right: none; border-bottom: 1.5px solid var(--line); }
+  .spec .cell:last-child { border-bottom: none; }
+  .claims .claim { border-right: none; border-bottom: 1.5px solid var(--line); }
+  .claims .claim:last-child { border-bottom: none; }
+  .tcell { border-right: none; border-bottom: 1px solid var(--line); }
+}
+:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="sheet-frame">
+<div class="ruler-x" aria-hidden="true"></div>
+<div class="ruler-y" aria-hidden="true"></div>
+<div class="marginalia" aria-hidden="true">DURABLE EXECUTION FOR AGENTS · SHT 1/1 · REV A · AUG 2026</div>
+
+<nav>
+  <a class="brandlock" href="#">
+    <svg viewBox="0 0 64 104" width="18" height="30" aria-hidden="true"><defs><mask id="cutn"><rect width="64" height="104" fill="white"/><rect x="-16" y="47" width="96" height="8" fill="black" transform="rotate(-12 32 52)"/></mask></defs><rect x="12" y="4" width="40" height="96" rx="7" fill="#122134" mask="url(#cutn)"/></svg>
+    <b>TOREN</b>
+  </a>
+  <span class="sheetchip">DWG № TRN-001 · REV A</span>
+  <div class="links">
+    <a href="#s2">Principle</a>
+    <a href="#s4">System</a>
+    <a href="#s6">Compare</a>
+    <a href="#s8">Pricing</a>
+    <a class="keep" href="/docs/">Docs</a>
+    <a class="cta" href="#s3">Run the kill test</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+<!-- ======== 01 HERO ======== -->
+<section class="hero" id="s1">
+  <h1>Toren runs agents <br>that work for <em>days</em> <br><span class="tail">and survive anything.</span></h1>
+  <p class="sub">The open-source runtime for <strong>process-shaped agents</strong> — work measured in hours and days, not seconds, that shrugs off crashes, deploys, and a literal <span style="white-space:nowrap">kill&nbsp;-9</span>. In <em>your</em> cloud.</p>
+  <div class="heroctas">
+    <div class="install">npx toren init my-crew</div>
+    <a class="ghost-link" href="#s3">Watch it survive a kill -9 ↓</a>
+  </div>
+
+  <figure class="figsheet">
+    <div class="fhead"><span>FIG. 1 — RUN r_9f2c1a · TWO WAVES, ONE MURDER</span><span>KILL TEST</span></div>
+    <svg class="diagram" id="herodiag" viewBox="0 0 440 250" role="img" aria-label="A run diagram cut by a kill-9 line, resuming past the cut">
+      <path class="draw" d="M20 60 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
+      <path class="draw d2" d="M20 125 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
+      <path class="draw d3" d="M20 190 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
+      <text x="20" y="48" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#5b6b7b">WAVE research · task w0t0</text>
+      <text x="20" y="113" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#5b6b7b">WAVE research · task w0t1</text>
+      <text x="20" y="178" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#5b6b7b">WAVE write · task w1t0</text>
+      <g fill="#122134">
+        <circle class="node" style="animation-delay:.55s" cx="70" cy="60" r="7"/>
+        <circle class="node" style="animation-delay:.85s" cx="150" cy="60" r="7"/>
+        <circle class="node" style="animation-delay:1.05s" cx="150" cy="125" r="7"/>
+        <circle class="node" style="animation-delay:1.35s" cx="230" cy="125" r="7"/>
+        <circle class="node" style="animation-delay:1.55s" cx="230" cy="190" r="7"/>
+      </g>
+      <line class="cutline" x1="300" y1="12" x2="253" y2="244" stroke="#f4571c" stroke-width="3"/>
+      <text class="resume" x="306" y="26" font-family="JetBrains Mono, monospace" font-size="11" fill="#f4571c" font-weight="600">kill -9</text>
+      <g class="resume">
+        <circle cx="330" cy="190" r="7" fill="#122134"/>
+        <circle cx="400" cy="190" r="9" fill="none" stroke="#0a8884" stroke-width="3"/>
+        <text x="256" y="222" font-family="JetBrains Mono, monospace" font-size="11" fill="#0a8884" font-weight="600">resumed · 0 tokens re-paid</text>
+      </g>
+      <g stroke="#5b6b7b" stroke-width="1">
+        <line x1="70" y1="237" x2="230" y2="237"/><line x1="70" y1="232" x2="70" y2="242"/><line x1="230" y1="232" x2="230" y2="242"/>
+      </g>
+      <text x="116" y="232" font-family="JetBrains Mono, monospace" font-size="10" fill="#5b6b7b">recorded once</text>
+    </svg>
+    <button class="replaybtn" id="replay" type="button">↻ RE-RUN THE KILL TEST</button>
+  </figure>
+
+  <div class="claims rev">
+    <div class="claim"><span class="no">CLAIM 01 — AN ASSERTION IN CI</span><p>A resumed run never re-pays for a completed model call.</p></div>
+    <div class="claim"><span class="no">CLAIM 02 — AN ASSERTION IN CI</span><p>Crash-tested after every single write point.</p></div>
+    <div class="claim"><span class="no">CLAIM 03 — BY CONSTRUCTION</span><p>Your VPC. Your keys. Apache-2.0, forever.</p></div>
+  </div>
+</section>
+
+<!-- ======== 02 MANIFESTO ======== -->
+<section class="manifesto" id="s2">
+  <span class="shnum" aria-hidden="true">02</span>
+  <blockquote class="bigq rev">"<mark>90% of the work</mark> is checkpointing, delivery tracking, and human oversight — agent logic is 10%."</blockquote>
+  <div class="attr rev">— practitioners building multi-agent systems in production, 2026</div>
+  <p class="therefore rev">Every serious agent team rebuilds the same plumbing: queues, checkpoints, retries, approval flows. Toren is that 90%, <b>built once, chaos-tested, and open</b> — so your team ships the 10% that's actually yours.</p>
+</section>
+
+<!-- ======== 03 DEMO ======== -->
+<section id="s3">
+  <span class="shnum" aria-hidden="true">03</span>
+  <h2>Kill it. It keeps working.</h2>
+  <p class="lede">Every model call and tool call is recorded in a Postgres event log the moment it completes. The run's state <em>is</em> the log — so nothing that lives in a process can die with one.</p>
+  <div class="term rev">
+    <div class="bar"><div class="dot o"></div><div class="dot"></div><div class="dot"></div><span>KILL TEST · LIVE TRANSCRIPT</span></div>
+    <div class="body" id="termbody" data-typed="pending"></div>
+  </div>
+</section>
+
+<!-- ======== 04 SYSTEM ======== -->
+<section id="s4">
+  <span class="shnum" aria-hidden="true">04</span>
+  <h2>Agents as durable processes.</h2>
+  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. Parked runs cost nothing — not a worker, not a container, not a poll loop.</p>
+  <div class="bento rev">
+    <div class="bcard tall"><h3>workflow.ts <span class="tag">WAVES — YOUR CODE OWNS FANOUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
+  <span class="cm">// one planner task; the model decides</span>
+  <span class="cm">// what deserves research</span>
+  <span class="k">const</span> plan = <span class="k">await</span> ctx.wave(<span class="s">"plan"</span>,
+    [ctx.task(<span class="s">"planner"</span>, ctx.input)]);
+
+  <span class="cm">// your code turns the plan into a</span>
+  <span class="cm">// dynamic parallel fan-out</span>
+  <span class="k">const</span> topics = parse(plan.results[0].output);
+  <span class="k">const</span> found = <span class="k">await</span> ctx.wave(<span class="s">"research"</span>,
+    topics.map(t =&gt; ctx.task(<span class="s">"researcher"</span>, t)),
+    { onTaskFailure: <span class="s">"collect"</span> });
+
+  <span class="cm">// park for a human — zero compute</span>
+  <span class="k">const</span> memo = <span class="k">await</span> ctx.wave(<span class="s">"write"</span>,
+    [ctx.task(<span class="s">"writer"</span>, join(found))]);
+  <span class="k">return</span> memo.results[0].output;
+}</pre></div>
+    <div class="bcard"><h3>tools/send.ts <span class="tag">DURABILITY ATTRS</span></h3><pre>effects: <span class="s">"external"</span>,
+<span class="cm">// recorded once, never re-run</span>
+idempotency: <span class="s">"keyed"</span>,
+<span class="cm">// retries carry a stable key</span>
+approval: <span class="s">"always"</span>
+<span class="cm">// parks until a human signs</span></pre></div>
+    <div class="bcard"><h3>anywhere.ts <span class="tag">TYPED CLIENT</span></h3><pre><span class="k">const</span> t = <span class="k">new</span> TorenClient({url, token});
+<span class="k">const</span> {runId} = <span class="k">await</span> t.startRun({input});
+<span class="k">const</span> run = <span class="k">await</span> t.waitForRun(runId);</pre></div>
+    <div class="bcard wide arch"><h3 style="border:none;padding:0 0 10px">The whole machine <span class="tag">FIG. 2 — ONE BORING DATABASE</span></h3>
+      <svg viewBox="0 0 640 120" aria-label="Architecture: CLI and API feed a queue, workers execute, everything lands in the Postgres event log">
+        <g font-family="JetBrains Mono, monospace" font-size="11" fill="#122134">
+          <rect x="4" y="34" width="104" height="34" fill="none" stroke="#122134" stroke-width="1.5"/><text x="17" y="55">CLI · API</text>
+          <rect x="168" y="34" width="104" height="34" fill="none" stroke="#122134" stroke-width="1.5"/><text x="187" y="55">QUEUE</text>
+          <rect x="332" y="34" width="104" height="34" fill="none" stroke="#122134" stroke-width="1.5"/><text x="345" y="55">WORKERS</text>
+          <rect x="500" y="20" width="136" height="62" fill="rgba(10,136,132,.08)" stroke="#0a8884" stroke-width="2"/><text x="514" y="46" fill="#0a8884" font-weight="600">EVENT LOG</text><text x="514" y="64" fill="#0a8884">(postgres)</text>
+          <g stroke="#5b6b7b" stroke-width="1.2"><line x1="108" y1="51" x2="166" y2="51"/><line x1="272" y1="51" x2="330" y2="51"/><line x1="436" y1="51" x2="498" y2="51"/></g>
+          <g fill="#5b6b7b" font-size="9"><text x="118" y="45">hints</text><text x="284" y="45">leases</text><text x="446" y="45">truth</text></g>
+          <text x="4" y="105" font-size="9.5" fill="#5b6b7b">LOCAL: postgres is all three boxes on the right · AWS: SQS + Fargate + RDS — same binary, same log</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ======== 05 SPEC STRIP ======== -->
+<section id="s5">
+  <span class="shnum" aria-hidden="true">05</span>
+  <div class="sechead"><span class="cut">SPEC — MEASURED, NOT MARKETED</span></div>
+  <div class="spec rev">
+    <div class="cell"><div class="big"><em>0</em></div><div class="lbl">tokens re-paid on resume</div></div>
+    <div class="cell"><div class="big">every</div><div class="lbl">write point crash-tested in CI</div></div>
+    <div class="cell"><div class="big">1</div><div class="lbl">dependency to run locally</div></div>
+    <div class="cell"><div class="big">$0</div><div class="lbl">compute while a run waits — hours or weeks</div></div>
+  </div>
+</section>
+
+<!-- ======== 06 COMPARE ======== -->
+<section id="s6">
+  <span class="shnum" aria-hidden="true">06</span>
+  <h2>They optimize time-to-first-agent. We optimize agent-lifetime.</h2>
+  <div class="tablewrap rev"><table>
+    <thead><tr><th></th><th></th><th>Long-running agents</th><th>Your cloud</th><th>Never re-pay tokens</th><th>Open source</th></tr></thead>
+    <tbody>
+      <tr><td class="idx">01</td><td>Vercel Eve</td><td>limited</td><td>no — theirs</td><td>no</td><td>framework only</td></tr>
+      <tr><td class="idx">02</td><td>Temporal</td><td>code, not agents</td><td>yes</td><td>no</td><td>yes</td></tr>
+      <tr><td class="idx">03</td><td>LangGraph</td><td>checkpoints only</td><td>partly</td><td>no</td><td>yes</td></tr>
+      <tr><td class="idx">04</td><td>Inngest / Restate</td><td>functions, not agents</td><td>partly</td><td>no</td><td>partly</td></tr>
+      <tr class="toren"><td class="idx">05</td><td>TOREN</td><td>yes — by design</td><td>yes — by design</td><td>yes</td><td>yes · Apache-2.0</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ======== 07 DEPLOY ======== -->
+<section id="s7">
+  <span class="shnum" aria-hidden="true">07</span>
+  <h2>One dependency locally. Your AWS in production.</h2>
+  <div class="split rev">
+    <div class="pane">
+      <span class="where">LOCAL — FREE FOREVER</span>
+      <h3>docker compose up</h3>
+      <p>Postgres is the entire stack — state, queue, and event log in one boring database. The scaffold runs offline; no API keys required to feel it work.</p>
+      <p><code>npx toren init</code> → <code>toren run</code></p>
+    </div>
+    <div class="pane">
+      <span class="where">PRODUCTION — YOUR ACCOUNT</span>
+      <h3>toren deploy-aws</h3>
+      <p>One Terraform apply into <em>your</em> AWS: SQS, RDS, Fargate workers, an authenticated HTTP API. Your VPC, your keys, your data boundary. Identical binary.</p>
+      <p><code>toren deploy-aws --region eu-central-1 --yes</code></p>
+    </div>
+  </div>
+</section>
+
+<!-- ======== 08 PRICING ======== -->
+<section id="s8">
+  <span class="shnum" aria-hidden="true">08</span>
+  <h2>Free for developers. Paid where organizations need it.</h2>
+  <div class="tiers rev">
+    <div class="tier"><h3>Open source</h3><div class="price">Apache-2.0 · forever</div>
+      <ul><li>The full runtime + CLI</li><li>Deploy to your own AWS</li><li>Scheduling &amp; local memory</li><li>HTTP API &amp; typed SDK</li></ul></div>
+    <div class="tier"><h3>Toren Cloud</h3><div class="price">from ~$100/mo · usage-based</div>
+      <ul><li>Fully hosted, zero ops</li><li>Dashboard &amp; approvals UI</li><li>Hosted memory</li><li>For teams without infra</li></ul></div>
+    <div class="tier flag"><h3>Toren BYOC</h3><div class="price">enterprise · 3–5 design partner seats open</div>
+      <ul><li>Data plane in <strong>your</strong> cloud — payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>The self-improvement loop, fed by fleet telemetry</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="tblock">
+    <div class="tcell"><span class="k">Project</span>TOREN — durable agent runtime</div>
+    <div class="tcell"><span class="k">Drawing</span>TRN-001 · marketing sheet</div>
+    <div class="tcell"><span class="k">Scale</span>hours : days : forever</div>
+    <div class="tcell"><span class="k">License</span>Apache-2.0</div>
+    <div class="tcell"><span class="k">Drawn by</span>humans + agents, durably</div>
+  </div>
+  <div class="revtable">
+    <span>REV A — Aug 2026 · first issue</span>
+    <span>CHECKED — 68 assertions in CI</span>
+    <span>APPROVED — pending your kill -9</span>
+  </div>
+</footer>
+
+</div><!-- /sheet-frame -->
+
+<script>
+// scroll reveals
+const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { threshold: .18 });
+document.querySelectorAll(".rev").forEach(el => io.observe(el));
+
+// hero diagram replay
+document.getElementById("replay").addEventListener("click", () => {
+  const svg = document.getElementById("herodiag");
+  const clone = svg.cloneNode(true);
+  svg.replaceWith(clone);
+  clone.id = "herodiag";
+});
+
+// self-typing terminal
+const LINES = [
+  ['c', '$ '], ['p', 'toren run research-crew --input \'["solar shipping","battery freight"]\'\n'],
+  ['p', 'run r_9f2c1a  wave research   dispatched 2 tasks\n'],
+  ['p', 'run r_9f2c1a  wave research   settled 2/2\n'],
+  ['o', '^C  — process killed mid-wave\n'],
+  ['c', '$ '], ['p', 'toren dev\n'],
+  ['g', 'run r_9f2c1a  resumed at step 14 — 13 completed calls replayed, 0 tokens re-paid\n'],
+  ['b', 'run r_9f2c1a  completed  '], ['p', '"Solar-assisted shipping is…"\n'],
+];
+const CLS = { c: 'c', g: 'g', o: 'o', b: '', p: '' };
+const body = document.getElementById("termbody");
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function renderInstant() {
+  body.innerHTML = LINES.map(([k, t]) => k === 'b' ? `<b>${t}</b>` : `<span class="${CLS[k]}">${t}</span>`).join('');
+}
+async function typeIt() {
+  const cur = document.createElement("span"); cur.className = "cursor";
+  body.appendChild(cur);
+  for (const [k, text] of LINES) {
+    const span = k === 'b' ? document.createElement("b") : document.createElement("span");
+    if (CLS[k]) span.className = CLS[k];
+    body.insertBefore(span, cur);
+    for (const ch of text) {
+      span.textContent += ch;
+      await new Promise(r => setTimeout(r, ch === '\n' ? 120 : 14));
+    }
+  }
+}
+const tio = new IntersectionObserver((es) => {
+  if (es.some(e => e.isIntersecting) && body.dataset.typed === "pending") {
+    body.dataset.typed = "done";
+    reduced ? renderInstant() : typeIt();
+    tio.disconnect();
+  }
+}, { threshold: .35 });
+tio.observe(body);
+</script>
+</body>
+</html>

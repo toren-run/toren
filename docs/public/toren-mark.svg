@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 104" width="64" height="104">
+  <!-- Toren mark: "The Continuation" — fixed harbor-teal fill for <img>/favicon use. -->
+  <defs>
+    <mask id="toren-cut">
+      <rect x="0" y="0" width="64" height="104" fill="white"/>
+      <rect x="-16" y="47" width="96" height="8" fill="black" transform="rotate(-12 32 52)"/>
+    </mask>
+  </defs>
+  <rect x="12" y="4" width="40" height="96" rx="7" fill="#0a8884" mask="url(#toren-cut)"/>
+</svg>

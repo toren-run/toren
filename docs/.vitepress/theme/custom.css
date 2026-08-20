@@ -1,0 +1,193 @@
+/* Toren docs — the drafting-sheet language from site/index.html, applied to VitePress.
+   Signature moves: chart paper + faint grid, hard ink borders, offset block shadows,
+   JetBrains Mono uppercase labels in signal orange, Archivo 800/900 headings. */
+
+:root {
+  /* brand */
+  --toren-ink: #122134;
+  --toren-teal: #0a8884;
+  --toren-signal: #f4571c;
+  --toren-line: #d8e0e4;
+
+  --vp-c-brand-1: #0a8884;
+  --vp-c-brand-2: #0b9a95;
+  --vp-c-brand-3: #0a8884;
+  --vp-c-brand-soft: rgba(10, 136, 132, 0.14);
+
+  /* chart paper */
+  --vp-c-bg: #f8f7f3;
+  --vp-c-bg-alt: #f8f7f3;
+  --vp-c-bg-soft: #f1efe9;
+  --vp-c-bg-elv: #ffffff;
+  --vp-sidebar-bg-color: #f8f7f3;
+  --vp-nav-bg-color: rgba(248, 247, 243, 0.88);
+
+  --vp-c-text-1: #122134;
+  --vp-c-text-2: #435264;
+  --vp-c-text-3: #5b6b7b;
+  --vp-c-divider: #d8e0e4;
+  --vp-c-border: #d8e0e4;
+  --vp-c-gutter: #d8e0e4;
+
+  --vp-font-family-base: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --vp-font-family-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* code blocks: structural navy, like the site terminal */
+  --vp-code-block-bg: #101d2c;
+  --vp-c-tip-1: #0a8884;
+  --vp-c-tip-soft: rgba(10, 136, 132, 0.14);
+  --vp-c-warning-1: #b8410f;
+  --vp-c-warning-soft: rgba(244, 87, 28, 0.12);
+
+  --vp-button-brand-bg: #f4571c;
+  --vp-button-brand-hover-bg: #d94a14;
+  --vp-button-brand-active-bg: #c2420f;
+
+  /* kill most of VitePress's roundedness — the sheet uses 4–6px */
+  --vp-border-radius: 5px;
+
+  --toren-shadow: 6px 6px 0 rgba(18, 33, 52, 0.10);
+  --toren-border: 2px solid var(--toren-ink);
+  --toren-hairline: 1.5px solid var(--toren-ink);
+  --toren-grid: rgba(18, 33, 52, 0.05);
+}
+
+.dark {
+  /* dark ground */
+  --toren-ink: #e2ebe9;
+  --toren-line: #22344a;
+
+  --vp-c-bg: #0d1826;
+  --vp-c-bg-alt: #0d1826;
+  --vp-c-bg-soft: #14233a;
+  --vp-c-bg-elv: #101d2c;
+  --vp-sidebar-bg-color: #0d1826;
+  --vp-nav-bg-color: rgba(13, 24, 38, 0.88);
+
+  --vp-c-text-1: #e2ebe9;
+  --vp-c-text-2: #a7b8c4;
+  --vp-c-text-3: #7e93a3;
+  --vp-c-divider: #22344a;
+  --vp-c-border: #22344a;
+  --vp-c-gutter: #22344a;
+
+  --vp-c-brand-1: #3ec2b5;
+  --vp-c-brand-2: #5ad0c4;
+  --vp-c-brand-soft: rgba(62, 194, 181, 0.16);
+
+  --vp-code-block-bg: #0a1420;
+
+  --toren-shadow: 6px 6px 0 rgba(0, 0, 0, 0.35);
+  --toren-border: 2px solid #33475f;
+  --toren-hairline: 1.5px solid #33475f;
+  --toren-grid: rgba(226, 235, 233, 0.04);
+}
+
+/* ============ the sheet: drafting grid on everything ============ */
+body {
+  background-image:
+    linear-gradient(var(--toren-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--toren-grid) 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+.VPContent, .VPSidebar, .VPNavBar { background-color: transparent; }
+.VPSidebar {
+  background-color: var(--vp-sidebar-bg-color) !important;
+  border-right: 1px solid var(--vp-c-divider);
+}
+
+/* ============ nav: ink rule + DWG chip, like the site ============ */
+.VPNavBar { border-bottom: var(--toren-hairline) !important; }
+.VPNavBar:not(.home) { background-color: var(--vp-nav-bg-color) !important; backdrop-filter: blur(6px); }
+.VPNavBar .divider { display: none; }
+.VPNavBarTitle .title {
+  font-family: "Archivo", sans-serif; font-weight: 800; letter-spacing: 0.28em; font-size: 16px;
+}
+/* drawing-number chip after the wordmark */
+.VPNavBarTitle .title::after {
+  content: "DWG № TRN-002";
+  font: 500 10px "JetBrains Mono", monospace; letter-spacing: 0.12em;
+  color: var(--vp-c-text-3); border: 1px solid var(--toren-line);
+  padding: 4px 9px; border-radius: 3px; margin-left: 14px; white-space: nowrap;
+}
+@media (max-width: 960px) { .VPNavBarTitle .title::after { display: none; } }
+.VPNavBarMenuLink { font-weight: 600 !important; font-size: 14.5px !important; }
+
+/* search pill → drafted control */
+.DocSearch-Button, .VPNavBarSearchButton {
+  border: 1.5px solid var(--toren-line) !important; border-radius: 4px !important;
+  background: var(--vp-c-bg-elv) !important;
+  font-family: "JetBrains Mono", monospace !important; font-size: 12px !important;
+}
+
+/* ============ sidebar: mono uppercase group labels in signal orange ============ */
+.VPSidebarItem.level-0 > .item .text {
+  font: 700 11px "JetBrains Mono", monospace !important;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--toren-signal) !important;
+}
+.VPSidebarItem.level-1 .text { font: 600 14px "Source Sans 3", sans-serif; }
+.VPSidebarItem.level-1.is-active > .item .text { color: var(--vp-c-brand-1) !important; }
+
+/* ============ document typography ============ */
+.vp-doc h1, .vp-doc h2, .vp-doc h3, .vp-doc h4 { font-family: "Archivo", sans-serif; }
+.vp-doc h1 { font-weight: 900; letter-spacing: -0.02em; font-size: 40px; }
+.vp-doc h2 {
+  font-weight: 800; letter-spacing: -0.01em;
+  border-top: var(--toren-hairline); padding-top: 22px; margin-top: 44px;
+}
+.vp-doc h3 { font-weight: 700; }
+.vp-doc h2 .header-anchor, .vp-doc h1 .header-anchor { color: var(--toren-signal); }
+
+/* first paragraph after h1 (the doc's lede) reads like the site lede */
+.vp-doc h1 + p, .vp-doc h1 + blockquote p { font-size: 18px; color: var(--vp-c-text-2); }
+
+/* ============ blocks: hard ink borders + offset shadows ============ */
+.vp-doc div[class*="language-"] {
+  border: var(--toren-border); border-radius: 5px;
+  box-shadow: var(--toren-shadow); margin: 24px 0;
+}
+.vp-doc div[class*="language-"] code { font-size: 13.5px; }
+
+.vp-doc table {
+  border: var(--toren-border); box-shadow: var(--toren-shadow);
+  display: inline-table; margin: 24px 0;
+}
+.vp-doc th {
+  font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--vp-c-bg-soft); color: var(--vp-c-text-2);
+}
+.vp-doc tr:nth-child(2n) { background: transparent; }
+
+.vp-doc .custom-block {
+  border: var(--toren-border); border-radius: 5px; box-shadow: var(--toren-shadow);
+}
+.vp-doc .custom-block.tip { border-left: 5px solid var(--toren-teal); }
+.vp-doc .custom-block.warning, .vp-doc .custom-block.caution { border-left: 5px solid var(--toren-signal); }
+
+.vp-doc blockquote {
+  border-left: 4px solid var(--toren-signal);
+  font-style: italic; color: var(--vp-c-text-2);
+}
+
+/* inline code slightly inked */
+.vp-doc :not(pre) > code { background: rgba(18, 33, 52, 0.07); border-radius: 4px; }
+.dark .vp-doc :not(pre) > code { background: rgba(226, 235, 233, 0.1); }
+
+/* links: teal with the site's underline weight */
+.vp-doc a { text-decoration-thickness: 2px; text-underline-offset: 3px; }
+
+/* prev/next cards → drafted cards */
+.pager-link {
+  border: 1.5px solid var(--toren-line) !important; border-radius: 5px !important;
+  background: var(--vp-c-bg-elv) !important; transition: transform 0.12s, box-shadow 0.12s;
+}
+.pager-link:hover {
+  border-color: var(--vp-c-brand-1) !important;
+  box-shadow: 4px 4px 0 rgba(18, 33, 52, 0.12);
+  transform: translate(-1px, -1px);
+}
+
+/* one sidebar only: drop the right "on this page" rail, widen the document */
+.VPDoc .aside { display: none !important; }
+.VPDoc.has-aside .content-container { max-width: 760px !important; }

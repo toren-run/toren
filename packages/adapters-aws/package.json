@@ -1,0 +1,11 @@
+{
+  "name": "@toren/adapters-aws",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@toren/core": "workspace:*",
+    "@aws-sdk/client-sqs": "^3.650.0"
+  }
+}
