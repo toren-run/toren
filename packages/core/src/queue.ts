@@ -18,12 +18,18 @@ export interface Delivery { message: QueueMessage; receipt: number | string; att
  */
 export interface QueueAdapter {
   send(queue: QueueName, msg: QueueMessage, opts?: { delaySeconds?: number; maxAttempts?: number }): Promise<void>;
-  receive(queue: QueueName, opts: { max: number; visibilitySeconds: number }): Promise<Delivery[]>;
+  /**
+   * opts.agents scopes claiming to those agents' messages (unlabeled legacy
+   * messages included) — separate worker fleets share one queue table without
+   * stealing each other's hints. Adapters that can't filter server-side (SQS)
+   * may deliver everything; workers ack-and-skip foreign hints regardless.
+   */
+  receive(queue: QueueName, opts: { max: number; visibilitySeconds: number; agents?: string[] }): Promise<Delivery[]>;
   extend(d: Delivery, visibilitySeconds: number): Promise<void>;
   ack(d: Delivery): Promise<void>;
   nack(d: Delivery, opts?: { delaySeconds?: number }): Promise<void>;
-  /** Messages in flight or ready (delayed excluded) — used by drain/tests. */
-  depth(): Promise<number>;
+  /** Messages in flight or ready (delayed excluded) — used by drain/tests. Scopable like receive. */
+  depth(opts?: { agents?: string[] }): Promise<number>;
 }
 
 export class PgQueue implements QueueAdapter {
@@ -37,7 +43,7 @@ export class PgQueue implements QueueAdapter {
     );
   }
 
-  async receive(queue: QueueName, opts: { max: number; visibilitySeconds: number }): Promise<Delivery[]> {
+  async receive(queue: QueueName, opts: { max: number; visibilitySeconds: number; agents?: string[] }): Promise<Delivery[]> {
     // Move exhausted messages to the DLQ first, then claim visible ones.
     await this.pool.query(
       `WITH exhausted AS (
@@ -58,22 +64,25 @@ export class PgQueue implements QueueAdapter {
          WHERE queue = $1 AND visible_at <= now()
            AND (locked_until IS NULL OR locked_until <= now())
            AND attempts < max_attempts
+           AND ($4::text[] IS NULL OR payload->>'agent' IS NULL OR payload->>'agent' = ANY($4))
          ORDER BY id
          LIMIT $2
          FOR UPDATE SKIP LOCKED
        )
        RETURNING id, payload, attempts`,
-      [queue, opts.max, opts.visibilitySeconds],
+      [queue, opts.max, opts.visibilitySeconds, opts.agents ?? null],
     );
     return r.rows.map((row) => ({ message: row.payload, receipt: Number(row.id), attempt: Number(row.attempts) }));
   }
 
   /** Messages that are in flight or ready for delivery (delayed ones excluded). */
-  async depth(): Promise<number> {
+  async depth(opts?: { agents?: string[] }): Promise<number> {
     const r = await this.pool.query(
       `SELECT count(*)::int AS n FROM toren_control.queue_messages
-       WHERE (locked_until IS NOT NULL AND locked_until > now())
-          OR (visible_at <= now() AND (locked_until IS NULL OR locked_until <= now()) AND attempts < max_attempts)`,
+       WHERE ((locked_until IS NOT NULL AND locked_until > now())
+          OR (visible_at <= now() AND (locked_until IS NULL OR locked_until <= now()) AND attempts < max_attempts))
+         AND ($1::text[] IS NULL OR payload->>'agent' IS NULL OR payload->>'agent' = ANY($1))`,
+      [opts?.agents ?? null],
     );
     return r.rows[0].n;
   }

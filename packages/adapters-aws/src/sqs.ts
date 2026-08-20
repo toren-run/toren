@@ -51,7 +51,9 @@ export class SqsQueue implements QueueAdapter {
     }));
   }
 
-  async receive(queue: QueueName, opts: { max: number; visibilitySeconds: number }): Promise<Delivery[]> {
+  // opts.agents is accepted but not filterable server-side on SQS — each stack
+  // has its own queues, and workers ack-and-skip foreign hints regardless.
+  async receive(queue: QueueName, opts: { max: number; visibilitySeconds: number; agents?: string[] }): Promise<Delivery[]> {
     const r = (await this.client.send(new ReceiveMessageCommand({
       QueueUrl: this.url(queue),
       MaxNumberOfMessages: Math.min(10, opts.max),
@@ -86,7 +88,7 @@ export class SqsQueue implements QueueAdapter {
     }));
   }
 
-  async depth(): Promise<number> {
+  async depth(_opts?: { agents?: string[] }): Promise<number> {
     let total = 0;
     for (const queue of Object.keys(this.cfg.urls) as QueueName[]) {
       const r = (await this.client.send(new GetQueueAttributesCommand({

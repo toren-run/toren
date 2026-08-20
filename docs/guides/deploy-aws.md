@@ -48,6 +48,7 @@ database_url = "postgres://toren:...@your-db.internal:5432/toren?sslmode=no-veri
 - Allow the worker security group (output `worker_security_group_id`) on `:5432` in your database's security group.
 - Include the `sslmode` your server needs — RDS Postgres 15+ forces SSL, so `?sslmode=no-verify` at minimum.
 - Sizing: the event log writes on every agent step, so load is proportional to agent activity, not user traffic. On a busy shared instance, watch write IOPS.
+- Multiple Toren deployments can share one Postgres safely: queue messages are labeled by agent and each worker fleet claims only its own agents' messages, so independently scaled fleets never steal each other's work.
 
 **Existing ingress** — skip the ALB and front the workers (`:7433`, plain HTTP, bearer auth) with whatever you already run, or keep the API VPC-internal:
 

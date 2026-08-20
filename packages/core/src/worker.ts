@@ -28,14 +28,17 @@ export class LocalWorkerRuntime {
   constructor(deps: TickDeps | Record<string, TickDeps>, opts: WorkerOpts = {}) {
     this.opts = { concurrency: opts.concurrency ?? 2, visibilitySeconds: opts.visibilitySeconds ?? 60, pollMs: opts.pollMs ?? 20 };
     if ("store" in deps) {
+      // Legacy single-deps form: unscoped — claims and serves everything.
       this.sole = deps as TickDeps;
       this.byAgent = new Map();
       this.shared = this.sole;
     } else {
+      // Fleet form — ALWAYS scoped to its agents, even a fleet of one, so
+      // separate fleets can share a queue table without stealing hints.
       const entries = Object.entries(deps);
       if (entries.length === 0) throw new Error("worker needs at least one agent's deps");
       this.byAgent = new Map(entries);
-      this.sole = entries.length === 1 ? entries[0]![1] : null;
+      this.sole = null;
       this.shared = entries[0]![1];
     }
   }
@@ -43,7 +46,14 @@ export class LocalWorkerRuntime {
   private depsFor(agent: string | undefined): TickDeps | null {
     if (this.sole) return this.sole;
     if (agent && this.byAgent.has(agent)) return this.byAgent.get(agent)!;
-    return null; // unknown/unlabeled message on a fleet worker — stale hint
+    // Unlabeled (pre-fleet) messages: a fleet of one can safely own them.
+    if (!agent && this.byAgent.size === 1) return this.shared;
+    return null; // unknown agent, or unlabeled on a multi-crew fleet — stale hint
+  }
+
+  /** Fleet workers claim only their own agents' messages; sole workers claim everything (legacy). */
+  private get agentScope(): string[] | undefined {
+    return this.sole ? undefined : [...this.byAgent.keys()];
   }
 
   start(): void {
@@ -61,7 +71,7 @@ export class LocalWorkerRuntime {
     const deadline = Date.now() + timeoutMs;
     let quiet = 0;
     while (Date.now() < deadline) {
-      const busy = this.inFlight > 0 || (await this.shared.queue.depth()) > 0;
+      const busy = this.inFlight > 0 || (await this.shared.queue.depth({ agents: this.agentScope })) > 0;
       quiet = busy ? 0 : quiet + 1;
       if (quiet >= 5) return;
       await sleep(this.opts.pollMs);
@@ -72,8 +82,8 @@ export class LocalWorkerRuntime {
   private async pollLoop(owner: string): Promise<void> {
     while (!this.stopped) {
       const d =
-        (await this.shared.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0] ??
-        (await this.shared.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds }))[0];
+        (await this.shared.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0] ??
+        (await this.shared.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0];
       if (!d) {
         await sleep(this.opts.pollMs);
         continue;
