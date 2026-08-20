@@ -12,4 +12,4 @@ limits:
 - `instructions.md` beside it is the system prompt; missing → a generic default.
 - Model routing is by prefix: `mock/` (offline echo), `anthropic/` (needs `ANTHROPIC_API_KEY`). Subagents may each use different models.
 
-Planned keys (spec §9, not yet implemented — will fail silently today, don't set them): `fallbacks`, `runtime: short|long`, `sandbox.image`, `sandbox.snapshotEvery`, `limits.maxWaves`, `limits.maxWallClockMin`, `limits.maxBudgetUsd`.
+Planned keys (planned, not yet implemented — will fail silently today, don't set them): `fallbacks`, `runtime: short|long`, `sandbox.image`, `sandbox.snapshotEvery`, `limits.maxWaves`, `limits.maxWallClockMin`, `limits.maxBudgetUsd`.

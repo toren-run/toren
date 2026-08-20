@@ -26,6 +26,15 @@ CREATE TABLE IF NOT EXISTS toren_control.dead_letters (
   attempts int NOT NULL,
   failed_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS toren_control.api_keys (
+  id uuid PRIMARY KEY,
+  name text NOT NULL,
+  key_hash text NOT NULL UNIQUE,
+  prefix text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  revoked_at timestamptz,
+  last_used_at timestamptz
+);
 `;
 
 const AGENT_TABLES_SQL = (s: string) => `

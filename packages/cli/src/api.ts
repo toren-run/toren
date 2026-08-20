@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import {
-  effectiveEvents, foldRunStream, listPendingApprovals, resolveApproval, startRun,
+  createApiKey, createPool, effectiveEvents, foldRunStream, listApiKeys,
+  listPendingApprovals, resolveApproval, revokeApiKey, startRun, verifyApiKey,
   type TickDeps,
 } from "@toren/core";
 
@@ -11,10 +12,18 @@ import {
  * /healthz is open for load-balancer checks.
  */
 export interface ApiConfig {
+  /** Admin (bootstrap) token: full access, including key management. */
   token: string;
   /** The loaded agent name — POST /runs targets it. */
   agent: string;
+  /**
+   * Pool for issued-key auth and /keys management. Without it the server
+   * accepts only the admin token (pre-key deployments keep working).
+   */
+  pool?: ReturnType<typeof createPool>;
 }
+
+type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   const json = JSON.stringify(body);
@@ -22,12 +31,21 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(json);
 }
 
-function authorized(req: IncomingMessage, token: string): boolean {
+function presentedToken(req: IncomingMessage): string {
   const header = req.headers.authorization ?? "";
-  const presented = header.startsWith("Bearer ") ? header.slice(7) : "";
+  return header.startsWith("Bearer ") ? header.slice(7) : "";
+}
+
+async function authenticate(req: IncomingMessage, cfg: ApiConfig): Promise<Principal | null> {
+  const presented = presentedToken(req);
   const a = Buffer.from(presented);
-  const b = Buffer.from(token);
-  return a.length === b.length && timingSafeEqual(a, b);
+  const b = Buffer.from(cfg.token);
+  if (a.length === b.length && timingSafeEqual(a, b)) return { kind: "admin" };
+  if (cfg.pool) {
+    const key = await verifyApiKey(cfg.pool, presented);
+    if (key) return { kind: "key", id: key.id, name: key.name };
+  }
+  return null;
 }
 
 async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
@@ -55,7 +73,32 @@ export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
       const parts = url.pathname.split("/").filter(Boolean);
 
       if (req.method === "GET" && url.pathname === "/healthz") return send(res, 200, { ok: true });
-      if (!authorized(req, cfg.token)) return send(res, 401, { error: "missing or invalid bearer token" });
+      const principal = await authenticate(req, cfg);
+      if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
+
+      // /keys — admin-token only; issued keys cannot mint or revoke keys.
+      if (parts[0] === "keys") {
+        if (principal.kind !== "admin") return send(res, 403, { error: "key management requires the admin token" });
+        if (!cfg.pool) return send(res, 501, { error: "key management unavailable (no database pool configured)" });
+        if (req.method === "POST" && parts.length === 1) {
+          const body = await readJson(req);
+          if (typeof body.name !== "string" || !body.name.trim()) return send(res, 400, { error: "body must be {name: string}" });
+          const created = await createApiKey(cfg.pool, body.name);
+          return send(res, 201, { key: created }); // secret appears here exactly once
+        }
+        if (req.method === "GET" && parts.length === 1) {
+          return send(res, 200, { keys: await listApiKeys(cfg.pool) });
+        }
+        if (req.method === "DELETE" && parts.length === 2) {
+          const id = parts[1]!;
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+            return send(res, 404, { error: "no such active key" });
+          }
+          const revoked = await revokeApiKey(cfg.pool, id);
+          return revoked ? send(res, 200, { revoked: true }) : send(res, 404, { error: "no such active key" });
+        }
+        return send(res, 404, { error: "not found" });
+      }
 
       // POST /runs
       if (req.method === "POST" && parts.length === 1 && parts[0] === "runs") {

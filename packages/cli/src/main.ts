@@ -2,7 +2,9 @@ import { createRequire } from "node:module";
 import { Command } from "commander";
 import { resolveEnvProfile } from "./environments.js";
 import { remoteJobsApprove, remoteJobsList, remoteJobsShow, remoteRun } from "./remote.js";
-import { cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdRun } from "./commands.js";
+import {
+  cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdKeysCreate, cmdKeysList, cmdKeysRevoke, cmdRun,
+} from "./commands.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
@@ -75,6 +77,29 @@ export async function main(argv: string[]): Promise<void> {
       const profile = resolveEnvProfile(opts.env, opts.dir);
       if (profile.kind === "api") return remoteJobsApprove(profile, runId, taskId, stepId, opts, io);
       void (await cmdJobsApprove(opts.dir, runId, taskId, stepId, { ...opts, databaseUrl: profile.databaseUrl }));
+    });
+
+  const keys = program.command("keys").description("Issue and revoke API keys for this deployment");
+  keys.command("create <name>").option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (name: string, opts: { dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("key management runs against the database — use a db-backed environment profile");
+      return cmdKeysCreate(opts.dir, name, { databaseUrl: profile.databaseUrl });
+    });
+  keys.command("list").option("--dir <dir>", "agent directory", ".").option("--json")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (opts: { dir: string; json?: boolean; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("key management runs against the database — use a db-backed environment profile");
+      return cmdKeysList(opts.dir, { ...opts, databaseUrl: profile.databaseUrl });
+    });
+  keys.command("revoke <id>").option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (id: string, opts: { dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("key management runs against the database — use a db-backed environment profile");
+      return cmdKeysRevoke(opts.dir, id, { databaseUrl: profile.databaseUrl });
     });
 
   await program.parseAsync(argv);

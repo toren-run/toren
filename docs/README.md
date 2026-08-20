@@ -27,7 +27,7 @@ The design rationale behind these guarantees is summarized in [Durability & repl
 |---|---|
 | Quickstart, guides, concepts, CLI/config reference | ✅ written, matches shipped code |
 | TypeScript API reference (`@toren/core` symbols) | ❌ gap — needs typedoc generation |
-| HTTP intake API (runs, status, events, approvals) | ✅ v0 shipped — see the [guide](guides/http-api.md); sessions/SSE remain roadmap (spec §19) |
+| HTTP intake API (runs, status, events, approvals) | ✅ v0 shipped — see the [guide](guides/http-api.md); sessions/SSE remain roadmap (roadmap) |
 | Troubleshooting / FAQ | ❌ gap — collect from first external users |
 | Versioning & compatibility policy | ❌ gap — needed before first public release |
 | Examples gallery beyond research-crew | ❌ gap |

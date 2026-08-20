@@ -27,4 +27,4 @@ Every run is two-plus append-only streams in the agent's schema: `run` (written 
 | `StreamInvalidated` | Prompt/tool edit detected on replay; steps from `fromSeq` re-run |
 | `TaskCompleted` / `TaskFailed` | Terminal for the task (`willRetry` marks retryable failures) |
 
-Payloads are versioned JSONB (`{ v: 1, ... }`). The log is the source of truth; `runs` table columns (`status`, `output`, `error`) are rebuildable projections. Full semantics: [Durability](../concepts/durability.md) and spec §5–§6.
+Payloads are versioned JSONB (`{ v: 1, ... }`). The log is the source of truth; `runs` table columns (`status`, `output`, `error`) are rebuildable projections. Full semantics: [Durability](../concepts/durability.md).

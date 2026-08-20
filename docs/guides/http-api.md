@@ -4,7 +4,7 @@
 
 `toren dev` serves the API whenever `TOREN_API_TOKEN` is set (port 7433 by default; `--api-port` to change). On AWS the load balancer fronts it — `terraform output api_url`, token in Secrets Manager (`api_token_secret_arn`). One agent per deployment (v0).
 
-All endpoints except `/healthz` require `Authorization: Bearer <token>`.
+All endpoints except `/healthz` require `Authorization: Bearer <token>` — either the deployment's admin token (`TOREN_API_TOKEN`, created by the Terraform module) or an issued API key (below). Key management itself accepts only the admin token.
 
 ## Trigger a run
 
@@ -44,8 +44,20 @@ curl -s -X POST "$API/runs/$RUN_ID/approvals" \
 
 The run wakes, executes the tool exactly once, and continues.
 
+## Manage API keys
+
+Issue named, individually revocable keys instead of sharing the admin token:
+
+```bash
+curl -s -X POST "$API/keys" -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "content-type: application/json" -d '{"name":"ci-pipeline"}'
+# → { "key": { "id": "…", "name": "ci-pipeline", "prefix": "trn_ab12cd34", "secret": "trn_…" } }
+```
+
+The `secret` appears in that response exactly once — only its SHA-256 hash is stored. `GET /keys` lists keys (never secrets); `DELETE /keys/:id` revokes immediately. Issued keys can trigger and inspect runs and resolve approvals, but cannot mint or revoke keys. The same operations exist on the CLI: `toren keys create|list|revoke`.
+
 ## Notes
 
-- Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap — spec §19).
+- Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap).
 - Without `acm_certificate_arn` the AWS listener is plain HTTP — fine for a pilot behind a strong token, but set a certificate for anything real.
 - The API only calls the same core functions the CLI uses; durability semantics are identical however a run is triggered.

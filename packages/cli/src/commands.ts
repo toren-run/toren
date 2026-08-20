@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
-  effectiveEvents, foldRunStream, listPendingApprovals, resolveApproval, startRun, sweep,
+  createApiKey, effectiveEvents, foldRunStream, listApiKeys, listPendingApprovals,
+  resolveApproval, revokeApiKey, startRun, sweep,
 } from "@toren/core";
 import { loadAgentDir } from "./loader.js";
 import { buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -65,7 +66,7 @@ export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?
   if (token) {
     const { createApiServer } = await import("./api.js");
     const port = opts.apiPort ?? 7433;
-    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name });
+    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
   } else if (opts.apiPort !== undefined) {
@@ -81,6 +82,46 @@ export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?
     process.once("SIGTERM", stop);
   });
   process.exit(0);
+}
+
+export async function cmdKeysCreate(dir: string, name: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const key = await createApiKey(rt.pool, name);
+    io.out(`created key ${key.id}  ${key.name}`);
+    io.out(`secret (shown once, store it now): ${key.secret}`);
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdKeysList(dir: string, opts: { json?: boolean; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const keys = await listApiKeys(rt.pool);
+    if (opts.json) {
+      io.out(JSON.stringify({ keys }));
+      return;
+    }
+    for (const k of keys) {
+      io.out(`${k.id}  ${k.prefix}…  ${k.name}  ${k.revokedAt ? "revoked" : "active"}`);
+    }
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdKeysRevoke(dir: string, id: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    if (!(await revokeApiKey(rt.pool, id))) throw new Error(`no active key with id ${id}`);
+    io.out(`revoked ${id}`);
+  } finally {
+    await rt.close();
+  }
 }
 
 export async function cmdJobsList(dir: string, opts: { json?: boolean; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
