@@ -1,5 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { extname, join, normalize, resolve } from "node:path";
 import {
   createApiKey, createPool, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, resolveApproval, revokeApiKey, startRun, verifyApiKey,
@@ -21,9 +23,30 @@ export interface ApiConfig {
    * accepts only the admin token (pre-key deployments keep working).
    */
   pool?: ReturnType<typeof createPool>;
+  /** Static dir of @toren/console — when set, the web console is served at /console. */
+  consoleDir?: string;
 }
 
 type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
+
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".map": "application/json",
+};
+
+/** Static console assets — auth-free (the app itself authenticates every API call). */
+async function serveConsole(res: ServerResponse, pathname: string, dir: string): Promise<void> {
+  const rel = pathname.replace(/^\/console\/?/, "") || "index.html";
+  const file = normalize(join(dir, rel));
+  if (!file.startsWith(resolve(dir))) { send(res, 404, { error: "not found" }); return; }
+  try {
+    const body = await readFile(file);
+    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream", "content-length": body.length });
+    res.end(body);
+  } catch {
+    send(res, 404, { error: "not found" });
+  }
+}
 
 function send(res: ServerResponse, status: number, body: unknown): void {
   const json = JSON.stringify(body);
@@ -73,6 +96,9 @@ export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
       const parts = url.pathname.split("/").filter(Boolean);
 
       if (req.method === "GET" && url.pathname === "/healthz") return send(res, 200, { ok: true });
+      if (req.method === "GET" && cfg.consoleDir && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
+        return serveConsole(res, url.pathname, cfg.consoleDir);
+      }
       const principal = await authenticate(req, cfg);
       if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
 

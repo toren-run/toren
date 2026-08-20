@@ -1,0 +1,20 @@
+{
+  "name": "@toren/console",
+  "version": "0.1.0",
+  "description": "Toren's built-in web console: live runs, event timelines, approvals, API keys. Served by `toren dev`.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": { ".": "./dist/serve.js" },
+  "files": ["dist"],
+  "repository": { "type": "git", "url": "git+https://github.com/toren-run/toren.git", "directory": "packages/console" },
+  "homepage": "https://toren.run",
+  "bugs": "https://github.com/toren-run/toren/issues",
+  "keywords": ["agents", "ai", "durable-execution", "console", "dashboard"],
+  "engines": { "node": ">=20" },
+  "scripts": { "build": "node build.mjs" },
+  "publishConfig": { "access": "public" },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "preact": "^10.24.0"
+  }
+}

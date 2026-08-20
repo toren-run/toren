@@ -66,9 +66,14 @@ export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?
   if (token) {
     const { createApiServer } = await import("./api.js");
     const port = opts.apiPort ?? 7433;
-    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool });
+    let consoleDir: string | undefined;
+    try {
+      consoleDir = (await import("@toren/console")).distDir;
+    } catch { /* console package not installed — API only */ }
+    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool, consoleDir });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
+    if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
   } else if (opts.apiPort !== undefined) {
     throw new Error("--api-port requires TOREN_API_TOKEN to be set");
   }

@@ -15,7 +15,8 @@
     "@toren/providers": "workspace:^",
     "commander": "^12.1.0",
     "jiti": "^2.4.0",
-    "yaml": "^2.5.0"
+    "yaml": "^2.5.0",
+    "@toren/console": "workspace:^"
   },
   "devDependencies": {
     "zod": "^3.23.0"

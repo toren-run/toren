@@ -17,7 +17,7 @@ node packages/cli/bin/toren.js run examples/research-crew --input '["a","b"]'  #
 ## Layout
 
 - `packages/core` — event log, loop, orchestrator, worker, guardians, approvals. **Depends on nothing environment-specific.** All durability logic lives here.
-- `packages/providers` — model adapters (Anthropic). `packages/adapters-aws` — SQS. `packages/cli` — `toren` bin, loader, deploy. `packages/client` — TypeScript SDK. `examples/research-crew` — canonical offline agent. `infra/terraform-aws` — the AWS module.
+- `packages/providers` — model adapters (Anthropic). `packages/adapters-aws` — SQS. `packages/cli` — `toren` bin, loader, deploy. `packages/client` — TypeScript SDK. `packages/console` — the web console `toren dev` serves at /console (Preact + esbuild, static). `examples/research-crew` — canonical offline agent. `infra/terraform-aws` — the AWS module.
 - Developer docs under `docs/` (VitePress; `pnpm docs:dev`).
 
 ## Hard rules — do not break these
