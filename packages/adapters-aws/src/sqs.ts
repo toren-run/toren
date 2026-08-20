@@ -6,7 +6,7 @@ import {
   ChangeMessageVisibilityCommand,
   GetQueueAttributesCommand,
 } from "@aws-sdk/client-sqs";
-import type { Delivery, QueueAdapter, QueueMessage, QueueName } from "@toren/core";
+import type { Delivery, QueueAdapter, QueueMessage, QueueName } from "@toren-run/core";
 
 /** Minimal client surface, so tests can inject a fake. */
 export interface SqsClientLike {

@@ -1,12 +1,12 @@
 {
-  "name": "@toren/client",
+  "name": "@toren-run/client",
   "version": "0.1.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "devDependencies": {
-    "@toren/core": "workspace:^",
+    "@toren-run/core": "workspace:^",
     "toren": "workspace:^",
     "zod": "^3.23.0"
   },

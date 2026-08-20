@@ -1,6 +1,6 @@
 import { afterAll, expect, test } from "vitest";
-import { createPool, PgQueue } from "@toren/core";
-import { SqsQueue } from "@toren/adapters-aws";
+import { createPool, PgQueue } from "@toren-run/core";
+import { SqsQueue } from "@toren-run/adapters-aws";
 import { selectQueue } from "../src/runtime.js";
 
 const pool = createPool();

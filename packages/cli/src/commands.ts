@@ -3,7 +3,7 @@ import { join } from "node:path";
 import {
   createApiKey, effectiveEvents, foldRunStream, listApiKeys, listPendingApprovals,
   resolveApproval, revokeApiKey, startRun, sweep,
-} from "@toren/core";
+} from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
 import { TEMPLATE_FILES } from "./template.js";
@@ -59,7 +59,7 @@ export async function cmdRun(dir: string, opts: { input: string; json?: boolean;
 }
 
 /** Sanitized crew structure — env NAMES and prompt sizes, never values or bodies. */
-function crewInfo(loaded: { name: string; agents: Record<string, import("@toren/core").AgentSpec> }) {
+function crewInfo(loaded: { name: string; agents: Record<string, import("@toren-run/core").AgentSpec> }) {
   return {
     name: loaded.name,
     agents: Object.fromEntries(Object.entries(loaded.agents).map(([ref, a]) => [ref, {
@@ -82,7 +82,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   const project = await loadProject(Array.isArray(dirs) ? dirs : [dirs]);
   const rt = await buildFleetRuntime(project, opts.databaseUrl);
   const names = Object.keys(rt.byAgent);
-  const { LocalWorkerRuntime } = await import("@toren/core");
+  const { LocalWorkerRuntime } = await import("@toren-run/core");
   const worker = new LocalWorkerRuntime(rt.byAgent, { concurrency: 4 });
   worker.start();
   io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`} — workers + guardians. Ctrl+C to stop.`);
@@ -96,7 +96,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     const port = opts.apiPort ?? 7433;
     let consoleDir: string | undefined;
     try {
-      consoleDir = (await import("@toren/console")).distDir;
+      consoleDir = (await import("@toren-run/console")).distDir;
     } catch { /* console package not installed — API only */ }
     const agentInfo = {
       default: names[0]!,

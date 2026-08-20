@@ -2,7 +2,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { createPool } from "@toren/core";
+import { createPool } from "@toren-run/core";
 import { loadAgentDir } from "../src/loader.js";
 import { cmdInit, cmdJobsList, cmdRun, type CmdIO } from "../src/commands.js";
 

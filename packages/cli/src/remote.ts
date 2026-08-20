@@ -1,4 +1,4 @@
-import { TorenClient } from "@toren/client";
+import { TorenClient } from "@toren-run/client";
 import type { CmdIO } from "./commands.js";
 import type { ResolvedEnv } from "./environments.js";
 

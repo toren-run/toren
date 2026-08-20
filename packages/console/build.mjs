@@ -17,7 +17,7 @@ cpSync("src/index.html", "dist/index.html");
 cpSync("src/app.css", "dist/app.css");
 
 // Tiny runtime entry so the CLI can locate the static files:
-//   const { distDir } = await import("@toren/console")
+//   const { distDir } = await import("@toren-run/console")
 writeFileSync(
   "dist/serve.js",
   `import { dirname } from "node:path";

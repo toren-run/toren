@@ -1,5 +1,5 @@
 {
-  "name": "@toren/core",
+  "name": "@toren-run/core",
   "version": "0.1.0",
   "type": "module",
   "exports": {

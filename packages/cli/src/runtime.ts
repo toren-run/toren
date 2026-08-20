@@ -3,8 +3,8 @@ import {
   PgStateStore, PgQueue, PgLeases,
   LocalWorkerRuntime, listPendingApprovals,
   type QueueAdapter, type TickDeps,
-} from "@toren/core";
-import { SqsQueue } from "@toren/adapters-aws";
+} from "@toren-run/core";
+import { SqsQueue } from "@toren-run/adapters-aws";
 import { RouterProvider } from "./router.js";
 import type { LoadedAgent, LoadedProject } from "./loader.js";
 

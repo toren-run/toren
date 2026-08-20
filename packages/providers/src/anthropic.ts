@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
   ChatMessage, ContentBlock, ModelProvider, ModelRequest, ModelResponse, StopReason,
-} from "@toren/core";
+} from "@toren-run/core";
 
 type SdkMessageParam = Anthropic.Messages.MessageParam;
 type SdkContentBlockParam = Exclude<SdkMessageParam["content"], string>[number];

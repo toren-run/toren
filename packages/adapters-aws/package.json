@@ -1,12 +1,12 @@
 {
-  "name": "@toren/adapters-aws",
+  "name": "@toren-run/adapters-aws",
   "version": "0.1.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@toren/core": "workspace:^",
+    "@toren-run/core": "workspace:^",
     "@aws-sdk/client-sqs": "^3.650.0"
   },
   "description": "AWS adapters for Toren (SQS queue backend).",

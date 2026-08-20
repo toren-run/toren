@@ -6,7 +6,7 @@ import {
   createApiKey, createPool, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, resolveApproval, revokeApiKey, startRun, verifyApiKey,
   type TickDeps,
-} from "@toren/core";
+} from "@toren-run/core";
 
 /**
  * The intake API: trigger runs, read status/results/events, resolve
@@ -23,7 +23,7 @@ export interface ApiConfig {
    * accepts only the admin token (pre-key deployments keep working).
    */
   pool?: ReturnType<typeof createPool>;
-  /** Static dir of @toren/console — when set, the web console is served at /console. */
+  /** Static dir of @toren-run/console — when set, the web console is served at /console. */
   consoleDir?: string;
   /** Sanitized structure of the served agent (models, tools, env names — never values). */
   agentInfo?: unknown;

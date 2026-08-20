@@ -6,7 +6,7 @@ import {
   PgStateStore, PgQueue, PgLeases, LocalWorkerRuntime,
   MockProvider, defineTool,
   type AgentSpec, type TickDeps, type WorkflowFn, type ModelProvider, type ModelRequest, type ModelResponse,
-} from "@toren/core";
+} from "@toren-run/core";
 import { createApiServer } from "toren";
 import { TorenApiError, TorenClient } from "../src/index.js";
 
@@ -104,7 +104,7 @@ test("startRun → waitForRun → completed with output; events readable", async
 
 test("gated run parks; approve via client resumes to completion", async () => {
   const deps = (globalThis as Record<string, unknown>).__deps as TickDeps;
-  const { startRun } = await import("@toren/core");
+  const { startRun } = await import("@toren-run/core");
   const runId = await startRun(deps, { agent: "gatedwf", input: "go" });
 
   const parked = await client.waitForRun(runId, { timeoutMs: 20_000 });

@@ -4,7 +4,7 @@ import {
   createPool, tx, migrateControl, provisionAgent,
   PgStateStore, PgQueue, PgLeases, MockProvider,
   type AgentSpec, type TickDeps, type WorkflowFn,
-} from "@toren/core";
+} from "@toren-run/core";
 import { createApiServer } from "../src/api.js";
 
 const pool = createPool();

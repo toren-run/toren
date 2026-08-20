@@ -4,7 +4,7 @@ import {
   PgStateStore, PgQueue, PgLeases,
   LocalWorkerRuntime, startRun, sweep, effectiveEvents,
   type AgentSpec, type TickDeps, type WorkflowFn, type RecordedEvent,
-} from "@toren/core";
+} from "@toren-run/core";
 import { RouterProvider } from "../src/router.js";
 
 /**

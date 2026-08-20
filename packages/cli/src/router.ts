@@ -1,5 +1,5 @@
-import { EchoProvider, type ModelProvider, type ModelRequest, type ModelResponse } from "@toren/core";
-import { AnthropicProvider } from "@toren/providers";
+import { EchoProvider, type ModelProvider, type ModelRequest, type ModelResponse } from "@toren-run/core";
+import { AnthropicProvider } from "@toren-run/providers";
 
 /**
  * Routes each request by its model prefix, so different (sub)agents in one

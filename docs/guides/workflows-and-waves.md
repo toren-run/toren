@@ -5,7 +5,7 @@
 A workflow is a default-exported async function. It runs under record/replay: on every scheduler tick it re-executes from the top, and everything already done returns instantly from the event log. Parallelism comes from **waves**:
 
 ```ts
-import type { WorkflowCtx } from "@toren/core";
+import type { WorkflowCtx } from "@toren-run/core";
 
 export default async function (ctx: WorkflowCtx) {
   // one planner task; its output drives the next wave (the planner pattern)

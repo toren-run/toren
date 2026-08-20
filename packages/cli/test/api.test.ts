@@ -6,7 +6,7 @@ import {
   PgStateStore, PgQueue, PgLeases,
   LocalWorkerRuntime, MockProvider, defineTool,
   type AgentSpec, type ModelProvider, type ModelRequest, type ModelResponse, type TickDeps, type WorkflowFn,
-} from "@toren/core";
+} from "@toren-run/core";
 import { createApiServer } from "../src/api.js";
 
 const pool = createPool();

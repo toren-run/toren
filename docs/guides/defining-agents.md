@@ -21,7 +21,7 @@ Scaffold one with `toren init my-crew` — the template runs offline on the mock
 
 ```ts
 // tools/send-report.ts
-import { defineTool } from "@toren/core";
+import { defineTool } from "@toren-run/core";
 import { z } from "zod";
 
 export default defineTool({

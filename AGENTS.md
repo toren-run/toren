@@ -28,7 +28,7 @@ node packages/cli/bin/toren.js run examples/research-crew --input '["a","b"]'  #
 - **Queue messages are hints, never truth.** Any handler must be a harmless no-op on duplicate or stale delivery.
 - **Workflow-visible behavior must be deterministic on replay** — no `Date.now()`/`Math.random()`/I-O in orchestrator or workflow paths; recorded side effects only.
 - **No cloud emulation** (no LocalStack). Adapters implement interfaces; AWS behavior is tested with fakes + creds-gated live tests.
-- `@toren/core` gets no new runtime dependencies without strong justification (only pg, zod, zod-to-json-schema, @opentelemetry/api today).
+- `@toren-run/core` gets no new runtime dependencies without strong justification (only pg, zod, zod-to-json-schema, @opentelemetry/api today).
 
 ## Conventions
 
@@ -40,7 +40,7 @@ node packages/cli/bin/toren.js run examples/research-crew --input '["a","b"]'  #
 
 ## Gotchas
 
-- `toren init`-scaffolded dirs outside the repo can't resolve `@toren/core` (unpublished) — test loaders against `examples/research-crew`.
+- `toren init`-scaffolded dirs outside the repo can't resolve `@toren-run/core` (unpublished) — test loaders against `examples/research-crew`.
 - The OTel tracer resolves per call on purpose (hosts register SDKs late) — don't hoist `trace.getTracer` to module scope.
 - SQS delays cap at 900s; `ctx.sleep` re-derives remaining delay on wake, so clamping is chaining — don't add chaining logic.
 - Parked tasks (unresolved approvals) are excluded from wave re-dispatch — re-nudging them is an infinite loop (see `orchestrator.ts` absorb step).

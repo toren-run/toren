@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createJiti } from "jiti";
 import { parse as parseYaml } from "yaml";
-import type { AgentSpec, ToolDefAny, WorkflowFn } from "@toren/core";
+import type { AgentSpec, ToolDefAny, WorkflowFn } from "@toren-run/core";
 
 const jiti = createJiti(import.meta.url);
 

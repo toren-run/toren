@@ -16,7 +16,7 @@ pnpm typecheck
 ## Pull requests
 
 - One logical change per PR, with tests. A failing test that reproduces your bug is a great first commit.
-- No new runtime dependencies in `@toren/core` without discussion in an issue first.
+- No new runtime dependencies in `@toren-run/core` without discussion in an issue first.
 - Anything touching replay semantics (`canonicalDigest`, event ordering, lease/fencing) needs a linked issue describing the invariant impact before review.
 
 ## License

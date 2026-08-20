@@ -1,4 +1,4 @@
-import { defineTool } from "@toren/core";
+import { defineTool } from "@toren-run/core";
 import { z } from "zod";
 
 export default defineTool({

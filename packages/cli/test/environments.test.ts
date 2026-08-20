@@ -7,7 +7,7 @@ import {
   createPool, tx, migrateControl, provisionAgent,
   PgStateStore, PgQueue, PgLeases, LocalWorkerRuntime,
   type AgentSpec, type TickDeps, type WorkflowFn, type ModelProvider, type ModelRequest, type ModelResponse,
-} from "@toren/core";
+} from "@toren-run/core";
 import { createApiServer } from "../src/api.js";
 import { loadEnvironments, resolveEnvProfile } from "../src/environments.js";
 import { remoteJobsList, remoteRun } from "../src/remote.js";

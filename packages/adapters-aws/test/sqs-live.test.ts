@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import {
   SQSClient, CreateQueueCommand, DeleteQueueCommand, GetQueueAttributesCommand,
 } from "@aws-sdk/client-sqs";
-import type { QueueName } from "@toren/core";
+import type { QueueName } from "@toren-run/core";
 import { SqsQueue } from "../src/sqs.js";
 
 /**

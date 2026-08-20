@@ -23,7 +23,7 @@ importers:
 
   examples/research-crew:
     dependencies:
-      '@toren/core':
+      '@toren-run/core':
         specifier: workspace:*
         version: link:../../packages/core
       zod:
@@ -35,25 +35,25 @@ importers:
       '@aws-sdk/client-sqs':
         specifier: ^3.650.0
         version: 3.1112.0
-      '@toren/core':
+      '@toren-run/core':
         specifier: workspace:^
         version: link:../core
 
   packages/cli:
     dependencies:
-      '@toren/adapters-aws':
+      '@toren-run/adapters-aws':
         specifier: workspace:^
         version: link:../adapters-aws
-      '@toren/client':
+      '@toren-run/client':
         specifier: workspace:^
         version: link:../client
-      '@toren/console':
+      '@toren-run/console':
         specifier: workspace:^
         version: link:../console
-      '@toren/core':
+      '@toren-run/core':
         specifier: workspace:^
         version: link:../core
-      '@toren/providers':
+      '@toren-run/providers':
         specifier: workspace:^
         version: link:../providers
       commander:
@@ -72,7 +72,7 @@ importers:
 
   packages/client:
     devDependencies:
-      '@toren/core':
+      '@toren-run/core':
         specifier: workspace:^
         version: link:../core
       toren:
@@ -121,7 +121,7 @@ importers:
       '@anthropic-ai/sdk':
         specifier: ^0.110.0
         version: 0.110.0(zod@3.25.76)
-      '@toren/core':
+      '@toren-run/core':
         specifier: workspace:^
         version: link:../core
 

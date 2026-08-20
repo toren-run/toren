@@ -9,14 +9,14 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@toren/adapters-aws": "workspace:^",
-    "@toren/client": "workspace:^",
-    "@toren/core": "workspace:^",
-    "@toren/providers": "workspace:^",
+    "@toren-run/adapters-aws": "workspace:^",
+    "@toren-run/client": "workspace:^",
+    "@toren-run/core": "workspace:^",
+    "@toren-run/providers": "workspace:^",
     "commander": "^12.1.0",
     "jiti": "^2.4.0",
     "yaml": "^2.5.0",
-    "@toren/console": "workspace:^"
+    "@toren-run/console": "workspace:^"
   },
   "devDependencies": {
     "zod": "^3.23.0"

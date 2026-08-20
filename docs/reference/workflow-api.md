@@ -23,4 +23,4 @@ The default export of `workflow.ts`: `(ctx: WorkflowCtx) => Promise<string>`.
 - One wave `await` at a time — parallelism lives *inside* a wave, not across `Promise.all` of ctx calls (v0 rule).
 - Throwing any error fails the run with `workflow error: <message>`; a wave failing under `"fail"` policy does the same with per-task detail.
 
-Programmatic host API (no CLI): `startRun(deps, {agent, input})`, `tick(deps, runId)`, `LocalWorkerRuntime`, `sweep(deps)`, `listPendingApprovals`, `resolveApproval` — see `@toren/core` exports until the typedoc reference exists.
+Programmatic host API (no CLI): `startRun(deps, {agent, input})`, `tick(deps, runId)`, `LocalWorkerRuntime`, `sweep(deps)`, `listPendingApprovals`, `resolveApproval` — see `@toren-run/core` exports until the typedoc reference exists.

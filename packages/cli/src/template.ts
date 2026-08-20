@@ -10,7 +10,7 @@ export const TEMPLATE_FILES = (name: string): Record<string, string> => ({
   },
   "dependencies": {
     "toren": "^0.1.0",
-    "@toren/core": "^0.1.0",
+    "@toren-run/core": "^0.1.0",
     "zod": "^3.23.0"
   }
 }
@@ -67,7 +67,7 @@ limits:
 `,
   "instructions.md": `You are ${name}, a helpful agent. Answer directly and concisely.
 `,
-  "workflow.ts": `import type { WorkflowCtx } from "@toren/core";
+  "workflow.ts": `import type { WorkflowCtx } from "@toren-run/core";
 
 export default async function (ctx: WorkflowCtx) {
   // Wave 1: two researchers in parallel
@@ -84,7 +84,7 @@ export default async function (ctx: WorkflowCtx) {
   return summary.results[0]?.output ?? "";
 }
 `,
-  "tools/search-web.ts": `import { defineTool } from "@toren/core";
+  "tools/search-web.ts": `import { defineTool } from "@toren-run/core";
 import { z } from "zod";
 
 export default defineTool({

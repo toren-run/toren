@@ -11,14 +11,14 @@
 ```bash
 npx toren init research-crew
 cd research-crew
-npm install                 # runtime + @toren/core for your tools
+npm install                 # runtime + @toren-run/core for your tools
 ```
 
 You get a filesystem-first agent — files, not framework config:
 
 ```
 research-crew/
-  package.json          # toren + @toren/core, ready to install
+  package.json          # toren + @toren-run/core, ready to install
   docker-compose.yml    # the one dependency: Postgres
   agent.yaml            # model, limits, budget caps
   instructions.md       # the system prompt
@@ -36,7 +36,7 @@ Tools are plain TypeScript with three durability attributes — what the tool to
 
 ```ts
 // tools/send-report.ts
-import { defineTool } from "@toren/core";
+import { defineTool } from "@toren-run/core";
 import { z } from "zod";
 
 export default defineTool({
@@ -67,7 +67,7 @@ The workflow is a short, deterministic script. Parallelism comes from **waves** 
 
 ```ts
 // workflow.ts
-import type { WorkflowCtx } from "@toren/core";
+import type { WorkflowCtx } from "@toren-run/core";
 
 export default async function (ctx: WorkflowCtx) {
   const topics = JSON.parse(ctx.input) as string[];
@@ -110,7 +110,7 @@ run r_9f2c1a  completed       "Solar-assisted shipping is..."
 Programmatic equivalent (works today):
 
 ```ts
-import { LocalWorkerRuntime, startRun } from "@toren/core";
+import { LocalWorkerRuntime, startRun } from "@toren-run/core";
 
 const runId = await startRun(deps, { agent: "research-crew", input: JSON.stringify(topics) });
 new LocalWorkerRuntime(deps).start();   // pollers for orchestration + tasks
@@ -160,10 +160,10 @@ Serving more than one agent is the same command: `toren dev --dir crews/` loads 
 
 ## 8. Trigger it from anywhere
 
-`toren dev` serves an HTTP API (bearer-token auth) — and `@toren/client` wraps it, typed:
+`toren dev` serves an HTTP API (bearer-token auth) — and `@toren-run/client` wraps it, typed:
 
 ```ts
-import { TorenClient } from "@toren/client";
+import { TorenClient } from "@toren-run/client";
 
 const toren = new TorenClient({ url: process.env.TOREN_URL!, token: process.env.TOREN_TOKEN! });
 const { runId } = await toren.startRun({ input: JSON.stringify(topics) });

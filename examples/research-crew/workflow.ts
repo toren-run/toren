@@ -1,4 +1,4 @@
-import type { WorkflowCtx } from "@toren/core";
+import type { WorkflowCtx } from "@toren-run/core";
 
 export default async function (ctx: WorkflowCtx) {
   const topics = JSON.parse(ctx.input) as string[];

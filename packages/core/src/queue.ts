@@ -14,7 +14,7 @@ export interface Delivery { message: QueueMessage; receipt: number | string; att
 /**
  * The queue seam: at-least-once delivery with visibility
  * timeouts and a dead-letter policy. Messages are hints, never truth.
- * Local: Postgres SKIP LOCKED. AWS: SQS (@toren/adapters-aws).
+ * Local: Postgres SKIP LOCKED. AWS: SQS (@toren-run/adapters-aws).
  */
 export interface QueueAdapter {
   send(queue: QueueName, msg: QueueMessage, opts?: { delaySeconds?: number; maxAttempts?: number }): Promise<void>;
