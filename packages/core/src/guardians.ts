@@ -1,7 +1,7 @@
 import type { TickDeps } from "./orchestrator.js";
 
 /**
- * The guardians (spec §6.3): one scheduled pass that re-nudges every
+ * The guardians: one scheduled pass that re-nudges every
  * non-terminal run. Covers lost queue messages (reconciler role) and runs
  * whose workers died mid-flight (watchdog role — expired leases simply stop
  * blocking the next tick). Ticks are cheap no-ops when nothing changed, so

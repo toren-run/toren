@@ -182,7 +182,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         response = completed.payload.response as ModelResponse; // replayed — zero tokens spent
         ptr += 2;
       } else {
-        // Crash window: call was issued but the response never landed. Re-issue (at-least-once, spec §6.2).
+        // Crash window: call was issued but the response never landed. Re-issue (at-least-once).
         ptr += 1;
         response = await withSpan("toren.llm", { "gen_ai.request.model": agent.model }, () => provider.complete(request));
         await append([ev("LlmCallCompleted", { stepId: next.payload.stepId, response, usage: response.usage })]);

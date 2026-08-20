@@ -2,7 +2,7 @@
 
 *How-to — trigger runs and read results from anywhere, no VPC access needed.*
 
-`toren dev` serves the API whenever `TOREN_API_TOKEN` is set (port 7433 by default; `--api-port` to change). On AWS the load balancer fronts it — `terraform output api_url`, token in Secrets Manager (`api_token_secret_arn`). One agent per deployment (v0).
+`toren dev` serves the API (port 7433 by default; `--api-port` to change) — with a pinned `TOREN_API_TOKEN` or an ephemeral one it mints and prints. On AWS the load balancer fronts it — `terraform output api_url`, token in Secrets Manager (`api_token_secret_arn`). The API covers every agent the deployment serves.
 
 All endpoints except `/healthz` require `Authorization: Bearer <token>` — either the deployment's admin token (`TOREN_API_TOKEN`, created by the Terraform module) or an issued API key (below). Key management itself accepts only the admin token.
 

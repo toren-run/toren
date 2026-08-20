@@ -4,7 +4,7 @@ import { SpanStatusCode, trace, type Span } from "@opentelemetry/api";
 const tracer = () => trace.getTracer("toren");
 
 /**
- * Spec §13: every model call, tool invocation, task, and tick emits a
+ * Every model call, tool invocation, task, and tick emits a
  * standard span. No-op unless the host registers an OTel SDK/exporter.
  */
 export async function withSpan<T>(

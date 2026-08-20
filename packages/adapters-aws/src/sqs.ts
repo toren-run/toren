@@ -22,7 +22,7 @@ export interface SqsQueueConfig {
 const MAX_SQS_DELAY = 900; // SQS cap; ctx.sleep re-derives the remainder on wake, so clamping is chaining.
 
 /**
- * SQS binding of the queue seam (spec §4.1). Dead-lettering is the queues'
+ * SQS binding of the queue seam. Dead-lettering is the queues'
  * redrive policy (Terraform), not adapter code; `maxAttempts` on send is
  * therefore ignored here. Receipts encode `queueName::receiptHandle`.
  */

@@ -72,7 +72,7 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
   };
 }
 
-/** Load a filesystem-first agent directory (spec §9). */
+/** Load a filesystem-first agent directory. */
 export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
   const dir = resolve(dirRaw);
   if (!existsSync(join(dir, "agent.yaml"))) throw new Error(`${dir} has no agent.yaml — not an agent directory`);

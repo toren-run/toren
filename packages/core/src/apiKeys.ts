@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type pg from "pg";
 
 /**
- * Deployment API keys (spec §19 control seed). Secrets are shown once at
+ * Deployment API keys. Secrets are shown once at
  * creation and stored only as SHA-256 hashes; verification is a hash lookup,
  * so the raw secret never touches a comparison the caller can time.
  */

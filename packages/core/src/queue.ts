@@ -12,7 +12,7 @@ export interface QueueMessage {
 export interface Delivery { message: QueueMessage; receipt: number | string; attempt: number }
 
 /**
- * The queue seam (spec §4.1): at-least-once delivery with visibility
+ * The queue seam: at-least-once delivery with visibility
  * timeouts and a dead-letter policy. Messages are hints, never truth.
  * Local: Postgres SKIP LOCKED. AWS: SQS (@toren/adapters-aws).
  */

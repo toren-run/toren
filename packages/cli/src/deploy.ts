@@ -39,7 +39,7 @@ function tfBinary(): string {
 }
 
 /**
- * `toren deploy aws` — one apply into the user's account (spec §11).
+ * `toren deploy aws` — one apply into the user's account.
  * Refuses to apply without --yes; --plan-only never mutates anything.
  */
 export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Promise<void> {

@@ -9,7 +9,7 @@ import { RouterProvider } from "./router.js";
 import type { LoadedAgent, LoadedProject } from "./loader.js";
 
 /**
- * Queue selection (spec §4.1): Postgres by default; SQS when TOREN_QUEUE=sqs
+ * Queue selection: Postgres by default; SQS when TOREN_QUEUE=sqs
  * with the three queue URLs in env — how the Fargate worker is configured.
  */
 export function selectQueue(pool: ReturnType<typeof createPool>, env: NodeJS.ProcessEnv = process.env): QueueAdapter {

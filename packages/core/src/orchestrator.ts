@@ -67,7 +67,7 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
 
     if (!folded.started) await appendRun([ev("RunStarted", {})]);
 
-    // Absorb task terminal states into the run stream (spec §4.4 step 3);
+    // Absorb task terminal states into the run stream;
     // track parked tasks so waves don't re-nudge work waiting on a human.
     const parkedTasks = new Set<string>();
     for (const w of folded.waves) {

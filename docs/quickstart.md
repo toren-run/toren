@@ -24,8 +24,7 @@ research-crew/
   instructions.md       # the system prompt
   workflow.ts           # how work fans out (waves)
   tools/
-    search-web.ts
-    send-report.ts
+    search-web.ts       # you'll add send-report.ts in step 2
   subagents/
     researcher/         # a nested agent, same layout
     writer/

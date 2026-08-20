@@ -9,7 +9,7 @@ export interface WorkerOpts { concurrency?: number; visibilitySeconds?: number; 
 
 /**
  * Local worker runtime: in-process pollers over the orchestrator and task
- * queues (spec §4.2 local binding). One instance serves one agent or a whole
+ * queues (local binding). One instance serves one agent or a whole
  * fleet — construct with a single TickDeps or a Record keyed by agent name;
  * messages carry the agent and are routed to that agent's deps (store,
  * leases, and specs are per-agent; the queue tables are shared).
@@ -133,7 +133,7 @@ export class LocalWorkerRuntime {
           runId: msg.runId, taskId, agent, input: spec.input,
         });
         await this.shared.queue.ack(d);
-        // Nudge the orchestrator to absorb the terminal/parked state (spec §5.1).
+        // Nudge the orchestrator to absorb the terminal/parked state.
         await this.shared.queue.send("orchestrator", { kind: "tick", runId: msg.runId, agent: msg.agent, dedupeKey: `settle-${msg.runId}-${taskId}` });
       } finally {
         await deps.leases.release(lease);

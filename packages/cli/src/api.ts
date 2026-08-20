@@ -9,8 +9,8 @@ import {
 } from "@toren/core";
 
 /**
- * The intake API (spec §19 seed): trigger runs, read status/results/events,
- * resolve approvals. One agent per deployment (v0). Bearer-token auth;
+ * The intake API: trigger runs, read status/results/events, resolve
+ * approvals — for every agent the deployment serves. Bearer-token auth;
  * /healthz is open for load-balancer checks.
  */
 export interface ApiConfig {

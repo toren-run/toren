@@ -49,7 +49,7 @@ export interface ResolveApprovalReq {
 
 /**
  * Append ApprovalResolved to the parked task's stream (taking its lease
- * briefly — spec §5.1) and nudge the orchestrator so the run resumes.
+ * briefly) and nudge the orchestrator so the run resumes.
  */
 export async function resolveApproval(deps: ResolveApprovalDeps, req: ResolveApprovalReq): Promise<void> {
   const streamId: StreamId = `task:${req.taskId}`;

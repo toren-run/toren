@@ -232,7 +232,7 @@ export function createWorkflowCtx(s: RunSession): WorkflowCtx {
 
       const allSettled = w.tasks.every((t) => w.settledTasks.has(t.taskId));
       if (!allSettled) {
-        // Messages are hints (spec §6.3): re-nudge outstanding tasks so a lost
+        // Messages are hints: re-nudge outstanding tasks so a lost
         // dispatch self-heals on the next tick; duplicates no-op at the worker.
         enqueueTaskMessages(w);
         throw new WorkflowBlocked(`wave ${name} unsettled`);
