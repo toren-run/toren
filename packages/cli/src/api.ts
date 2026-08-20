@@ -25,6 +25,8 @@ export interface ApiConfig {
   pool?: ReturnType<typeof createPool>;
   /** Static dir of @toren/console — when set, the web console is served at /console. */
   consoleDir?: string;
+  /** Sanitized structure of the served agent (models, tools, env names — never values). */
+  agentInfo?: unknown;
 }
 
 type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
@@ -41,7 +43,11 @@ async function serveConsole(res: ServerResponse, pathname: string, dir: string):
   if (!file.startsWith(resolve(dir))) { send(res, 404, { error: "not found" }); return; }
   try {
     const body = await readFile(file);
-    res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream", "content-length": body.length });
+    res.writeHead(200, {
+      "content-type": MIME[extname(file)] ?? "application/octet-stream",
+      "content-length": body.length,
+      "cache-control": "no-cache",
+    });
     res.end(body);
   } catch {
     send(res, 404, { error: "not found" });
@@ -124,6 +130,11 @@ export function createApiServer(deps: TickDeps, cfg: ApiConfig): Server {
           return revoked ? send(res, 200, { revoked: true }) : send(res, 404, { error: "no such active key" });
         }
         return send(res, 404, { error: "not found" });
+      }
+
+      // GET /agent — what this deployment serves
+      if (req.method === "GET" && parts.length === 1 && parts[0] === "agent") {
+        return send(res, 200, { agent: cfg.agentInfo ?? { name: cfg.agent } });
       }
 
       // POST /runs

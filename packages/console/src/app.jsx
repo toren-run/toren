@@ -288,6 +288,81 @@ function RunPage({ runId, isAdmin }) {
   );
 }
 
+/* ---------------------------------------------------------------- agent */
+
+function AgentPage() {
+  const [info, setInfo] = useState(null);
+  const [runs, setRuns] = useState([]);
+  useEffect(() => {
+    api("GET", "/agent").then((r) => setInfo(r.agent));
+    api("GET", "/runs").then((r) => setRuns(r.runs)).catch(() => {});
+  }, []);
+
+  if (!info) return <div class="page"><div class="empty">Loading…</div></div>;
+  const agents = info.agents ?? {};
+  const ROOT = agents.main ? "main" : info.name;
+  const stats = {
+    total: runs.length,
+    completed: runs.filter((r) => r.status === "completed").length,
+    failed: runs.filter((r) => r.status === "failed").length,
+    running: runs.filter((r) => r.status === "running").length,
+  };
+  const order = [ROOT, ...Object.keys(agents).filter((k) => k !== ROOT)].filter((k) => agents[k]);
+
+  return (
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="overline">SHT 03 · SPECIFICATION</div>
+          <h1>{info.name}</h1>
+        </div>
+      </div>
+
+      <div class="stat-strip">
+        <div class="stat"><b>{stats.total}</b><span>runs</span></div>
+        <div class="stat"><b class="teal">{stats.completed}</b><span>completed</span></div>
+        <div class="stat"><b class="signal">{stats.failed}</b><span>failed</span></div>
+        <div class="stat"><b>{stats.running}</b><span>in flight</span></div>
+      </div>
+
+      {order.map((ref) => {
+        const a = agents[ref];
+        return (
+          <div class="agent-card" key={ref}>
+            <div class="agent-head">
+              <span class="agent-ref">{ref === ROOT ? "ROOT AGENT" : `SUBAGENT · ${ref}`}</span>
+              <span class="model-chip">{a.model}</span>
+              <span class="dim">max {a.maxSteps} steps · {a.maxTokens} tok · prompt {a.systemChars} chars</span>
+            </div>
+            {a.env.length > 0 && (
+              <div class="agent-env">ENV: {a.env.map((n) => <code key={n}>{n}</code>)} <span class="dim">(names only — values never leave the worker)</span></div>
+            )}
+            {a.tools.length === 0 ? (
+              <div class="dim" style="padding: 4px 0 2px">No tools — pure model reasoning.</div>
+            ) : (
+              <table class="tool-table">
+                <thead><tr><th>Tool</th><th>Description</th><th>Effects</th><th>Approval</th></tr></thead>
+                <tbody>
+                  {a.tools.map((t) => (
+                    <tr key={t.name}>
+                      <td class="mono">{t.name}</td>
+                      <td class="dim">{t.description}</td>
+                      <td class="mono dim">{t.effects}</td>
+                      <td>{t.approval === "always"
+                        ? <span class="chip chip-waiting_approval" style="animation:none">gated</span>
+                        : <span class="dim">auto</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- keys */
 
 function KeysPage() {
@@ -388,6 +463,7 @@ function App() {
         <a class="brand" href="#/runs"><Mark /> <b>TOREN</b> <span class="dwg">CONSOLE · DWG № TRN-003</span></a>
         <nav>
           <a class={route.startsWith("#/runs") ? "on" : ""} href="#/runs">Runs</a>
+          <a class={route === "#/agent" ? "on" : ""} href="#/agent">Agent</a>
           {isAdmin && <a class={route === "#/keys" ? "on" : ""} href="#/keys">API keys</a>}
         </nav>
         <div class="topbar-right">
@@ -396,6 +472,7 @@ function App() {
         </div>
       </header>
       {runMatch ? <RunPage runId={runMatch[1]} isAdmin={isAdmin} />
+        : route === "#/agent" ? <AgentPage />
         : route === "#/keys" && isAdmin ? <KeysPage />
         : <RunsPage nav={nav} />}
       <footer class="foot">TOREN CONSOLE · single deployment · credentials never leave this browser</footer>

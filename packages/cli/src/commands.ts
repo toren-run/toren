@@ -70,7 +70,23 @@ export async function cmdDev(dir: string, opts: { databaseUrl?: string; sweepMs?
     try {
       consoleDir = (await import("@toren/console")).distDir;
     } catch { /* console package not installed — API only */ }
-    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool, consoleDir });
+    // Structure only — env NAMES and prompt sizes, never values or bodies.
+    const agentInfo = {
+      name: loaded.name,
+      agents: Object.fromEntries(Object.entries(loaded.agents).map(([ref, a]) => [ref, {
+        model: a.model,
+        maxTokens: a.maxTokens,
+        maxSteps: a.maxSteps,
+        systemChars: a.system?.length ?? 0,
+        env: Object.keys((a as { env?: Record<string, string> }).env ?? {}),
+        tools: a.tools.map((t) => ({
+          name: t.name, description: t.description,
+          effects: (t as { effects?: string }).effects ?? "read",
+          approval: (t as { approval?: string }).approval ?? "never",
+        })),
+      }])),
+    };
+    const apiServer = createApiServer(rt.deps, { token, agent: loaded.name, pool: rt.pool, consoleDir, agentInfo });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);

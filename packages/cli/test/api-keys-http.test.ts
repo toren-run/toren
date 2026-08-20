@@ -71,6 +71,15 @@ test("revoked keys stop working immediately; admin token is unaffected", async (
   expect((await call("GET", "/runs", ADMIN)).status).toBe(200);
 });
 
+test("GET /agent returns the served agent's identity to any principal", async () => {
+  const { body } = await call("POST", "/keys", ADMIN, { name: "reader" });
+  const admin = await call("GET", "/agent", ADMIN);
+  expect(admin.status).toBe(200);
+  expect(admin.body.agent).toEqual({ name: "keys" });
+  const viaKey = await call("GET", "/agent", body.key.secret);
+  expect(viaKey.status).toBe(200);
+});
+
 test("garbage bearer tokens still 401", async () => {
   expect((await call("GET", "/runs", "trn_deadbeef")).status).toBe(401);
   expect((await call("GET", "/runs", "")).status).toBe(401);
