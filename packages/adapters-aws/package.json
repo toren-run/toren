@@ -1,11 +1,48 @@
 {
   "name": "@toren/adapters-aws",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "dependencies": {
-    "@toren/core": "workspace:*",
+    "@toren/core": "workspace:^",
     "@aws-sdk/client-sqs": "^3.650.0"
+  },
+  "description": "AWS adapters for Toren (SQS queue backend).",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toren-run/toren.git",
+    "directory": "packages/adapters-aws"
+  },
+  "homepage": "https://toren.run",
+  "bugs": "https://github.com/toren-run/toren/issues",
+  "keywords": [
+    "agents",
+    "ai",
+    "durable-execution",
+    "workflow",
+    "postgres",
+    "anthropic",
+    "llm"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "access": "public"
   }
 }

@@ -1,12 +1,49 @@
 {
   "name": "@toren/client",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "devDependencies": {
-    "@toren/core": "workspace:*",
-    "toren": "workspace:*",
+    "@toren/core": "workspace:^",
+    "toren": "workspace:^",
     "zod": "^3.23.0"
+  },
+  "description": "TypeScript client SDK for the Toren HTTP API.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toren-run/toren.git",
+    "directory": "packages/client"
+  },
+  "homepage": "https://toren.run",
+  "bugs": "https://github.com/toren-run/toren/issues",
+  "keywords": [
+    "agents",
+    "ai",
+    "durable-execution",
+    "workflow",
+    "postgres",
+    "anthropic",
+    "llm"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    },
+    "access": "public"
   }
 }

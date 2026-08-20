@@ -1,11 +1,14 @@
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { resolveEnvProfile } from "./environments.js";
 import { remoteJobsApprove, remoteJobsList, remoteJobsShow, remoteRun } from "./remote.js";
 import { cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdRun } from "./commands.js";
 
+const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+
 export async function main(argv: string[]): Promise<void> {
   const program = new Command();
-  program.name("toren").description("Durable agents in your own cloud").version("0.0.1");
+  program.name("toren").description("Durable agents in your own cloud").version(version);
 
   program.command("init <name>").description("Scaffold a filesystem-first agent").action(async (name: string) => {
     await cmdInit(name);

@@ -36,22 +36,22 @@ importers:
         specifier: ^3.650.0
         version: 3.1112.0
       '@toren/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
   packages/cli:
     dependencies:
       '@toren/adapters-aws':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../adapters-aws
       '@toren/client':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../client
       '@toren/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       '@toren/providers':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../providers
       commander:
         specifier: ^12.1.0
@@ -70,10 +70,10 @@ importers:
   packages/client:
     devDependencies:
       '@toren/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       toren:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../cli
       zod:
         specifier: ^3.23.0
@@ -110,7 +110,7 @@ importers:
         specifier: ^0.110.0
         version: 0.110.0(zod@3.25.76)
       '@toren/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
 
 packages:

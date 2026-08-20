@@ -1,18 +1,59 @@
 {
   "name": "toren",
-  "version": "0.0.1",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "bin": { "toren": "./bin/toren.js" },
-  "exports": { ".": "./src/index.ts" },
+  "bin": {
+    "toren": "./bin/toren.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "dependencies": {
-    "@toren/adapters-aws": "workspace:*",
-    "@toren/client": "workspace:*",
-    "@toren/core": "workspace:*",
-    "@toren/providers": "workspace:*",
+    "@toren/adapters-aws": "workspace:^",
+    "@toren/client": "workspace:^",
+    "@toren/core": "workspace:^",
+    "@toren/providers": "workspace:^",
     "commander": "^12.1.0",
     "jiti": "^2.4.0",
     "yaml": "^2.5.0"
   },
-  "devDependencies": { "zod": "^3.23.0" }
+  "devDependencies": {
+    "zod": "^3.23.0"
+  },
+  "description": "Toren CLI: scaffold, run, and deploy durable agents that survive anything and never re-pay a completed model call.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toren-run/toren.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://toren.run",
+  "bugs": "https://github.com/toren-run/toren/issues",
+  "keywords": [
+    "agents",
+    "ai",
+    "durable-execution",
+    "workflow",
+    "postgres",
+    "anthropic",
+    "llm"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  }
 }
