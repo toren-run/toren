@@ -11,12 +11,15 @@
 ```bash
 npx toren init research-crew
 cd research-crew
+npm install                 # runtime + @toren/core for your tools
 ```
 
 You get a filesystem-first agent — files, not framework config:
 
 ```
 research-crew/
+  package.json          # toren + @toren/core, ready to install
+  docker-compose.yml    # the one dependency: Postgres
   agent.yaml            # model, limits, budget caps
   instructions.md       # the system prompt
   workflow.ts           # how work fans out (waves)
@@ -94,8 +97,8 @@ export default async function (ctx: WorkflowCtx) {
 The whole local stack is Postgres. Nothing else.
 
 ```bash
-docker compose up -d        # postgres + toren (orchestrator + workers)
-toren run research-crew --input '["solar shipping","battery freight"]'
+docker compose up -d db     # postgres — the whole local stack
+npx toren run . --input '["solar shipping","battery freight"]'
 ```
 
 ```
@@ -119,9 +122,9 @@ new LocalWorkerRuntime(deps).start();   // pollers for orchestration + tasks
 Kill the process mid-run. Hard.
 
 ```bash
-toren run research-crew --input '[...]' &
+npx toren run . --input '[...]' &
 sleep 10 && kill -9 %1        # murder it mid-wave
-toren dev                      # bring the stack back
+npx toren dev                  # bring the stack back
 ```
 
 The run resumes at the exact step it died on. Every completed model call is **replayed from the event log, not re-executed** — a resumed run re-pays zero tokens for finished work. This isn't best-effort: the test suite kills the stack after *every single write point* in a run and asserts each LLM step was paid for exactly once.
@@ -146,7 +149,7 @@ The run wakes, executes the tool once, and continues.
 
 ## 7. Watch it in the console
 
-With `TOREN_API_TOKEN` set, `toren dev` prints a pre-authenticated link to the built-in web console:
+`toren dev` prints a pre-authenticated link to the built-in web console:
 
 ```
 toren console: http://localhost:7433/console/#token=…

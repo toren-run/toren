@@ -1,7 +1,66 @@
 /** Files written by `toren init <name>`. Runs offline via the mock provider. */
 export const TEMPLATE_FILES = (name: string): Record<string, string> => ({
+  "package.json": `{
+  "name": "${name}",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "toren dev",
+    "run": "toren run ."
+  },
+  "dependencies": {
+    "toren": "^0.1.0",
+    "@toren/core": "^0.1.0",
+    "zod": "^3.23.0"
+  }
+}
+`,
+  "docker-compose.yml": `services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: toren
+      POSTGRES_PASSWORD: toren
+      POSTGRES_DB: toren
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toren"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+`,
+  "README.md": `# ${name}
+
+A Toren process agent — durable, crash-proof, in your own infrastructure.
+
+\`\`\`bash
+npm install                 # runtime + core
+docker compose up -d db     # the only dependency: Postgres
+npx toren run . --input '"hello"'
+\`\`\`
+
+Long-running mode with the web console (prints a pre-authenticated link):
+
+\`\`\`bash
+npx toren dev
+\`\`\`
+
+Try the kill test: start a run, \`kill -9\` the process mid-flight, run \`npx toren dev\` again — the run resumes and re-pays nothing for completed model calls.
+
+- \`agent.yaml\` — model, limits, declared env
+- \`instructions.md\` — the system prompt
+- \`workflow.ts\` — how work fans out (waves)
+- \`tools/\` — plain TypeScript tools with durability attributes
+- \`subagents/\` — the crew
+
+Swap \`model: mock/echo\` for \`anthropic/claude-sonnet-5\` and set \`ANTHROPIC_API_KEY\` to go live. Docs: https://toren.run/docs
+`,
+  ".gitignore": `node_modules/
+.env
+`,
   "agent.yaml": `name: ${name}
-model: mock/echo          # swap to anthropic/claude-opus-5 when you add a key
+model: mock/echo          # swap to anthropic/claude-sonnet-5 when you add a key
 maxTokens: 16000
 limits:
   maxStepsPerTask: 50

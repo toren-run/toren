@@ -19,7 +19,12 @@ export async function cmdInit(name: string, io: CmdIO = stdoutIO): Promise<strin
     mkdirSync(join(path, ".."), { recursive: true });
     writeFileSync(path, content);
   }
-  io.out(`created ${name}/ — run it with: toren run ${name} --input '"hello"'`);
+  io.out(`created ${name}/ — next:
+  cd ${name}
+  npm install
+  docker compose up -d db
+  npx toren run . --input '"hello"'     # one durable run
+  npx toren dev                          # workers + web console`);
   return dir;
 }
 
@@ -82,7 +87,10 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   worker.start();
   io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`} — workers + guardians. Ctrl+C to stop.`);
 
-  const token = process.env.TOREN_API_TOKEN;
+  // No configured token → mint an ephemeral one so the API + console work out
+  // of the box. It rotates every restart; set TOREN_API_TOKEN to pin it.
+  const configured = process.env.TOREN_API_TOKEN;
+  const token = configured ?? (await import("node:crypto")).randomBytes(24).toString("hex");
   if (token) {
     const { createApiServer } = await import("./api.js");
     const port = opts.apiPort ?? 7433;
@@ -98,8 +106,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
-  } else if (opts.apiPort !== undefined) {
-    throw new Error("--api-port requires TOREN_API_TOKEN to be set");
+    if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart) — set TOREN_API_TOKEN to pin one`);
   }
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);
