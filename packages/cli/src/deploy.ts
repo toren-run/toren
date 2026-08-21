@@ -112,7 +112,8 @@ export async function ecrDockerLogin(repoUri: string, region: string, io: CmdIO)
   if (!auth) throw new Error("ECR returned no authorization token");
   const [user, password] = Buffer.from(auth, "base64").toString("utf8").split(":");
   const registry = repoUri.split("/")[0]!;
-  execFileSync("docker", ["login", "--username", user!, "--password-stdin", registry], { input: password, stdio: ["pipe", "ignore", "inherit"] });
+  // timeout guards against the macOS keychain credential-helper hang
+  execFileSync("docker", ["login", "--username", user!, "--password-stdin", registry], { input: password, stdio: ["pipe", "ignore", "inherit"], timeout: 30_000 });
   io.out(`docker logged in to ${registry}`);
 }
 
