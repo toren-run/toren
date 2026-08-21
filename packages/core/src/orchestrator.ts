@@ -24,6 +24,11 @@ export interface TickDeps {
 
 export type TickResult = "leased" | "terminal" | "blocked" | "completed" | "failed";
 
+const SESSION_WORKFLOW: WorkflowFn = async (ctx) => {
+  const w = await ctx.wave("session", [ctx.task("main", ctx.input)]);
+  return w.results[0]?.output ?? "";
+};
+
 export async function startRun(deps: TickDeps, req: { agent: string; input: string; runId?: string; mode?: "task" | "session" }): Promise<string> {
   const runId = req.runId ?? randomUUID();
   await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode });
@@ -46,7 +51,10 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
     if (!run) return "terminal";
     if (run.status === "completed" || run.status === "failed" || run.status === "cancelled") return "terminal";
 
-    const workflow = deps.workflows[run.agent];
+    // Sessions always converse with the crew's root agent through the
+    // implicit single-task workflow. A crew's custom batch workflow (which
+    // may parse structured input, fan out waves, etc.) never sees a chat.
+    const workflow = run.mode === "session" ? SESSION_WORKFLOW : deps.workflows[run.agent];
     if (!workflow) throw new Error(`no workflow registered for agent ${run.agent}`);
 
     let raw = await deps.store.read(runId, "run");

@@ -107,7 +107,9 @@ function Login({ onIn }) {
 function RunsPage({ nav }) {
   const [runs, setRuns] = useState(null);
   const [showNew, setShowNew] = useState(false);
-  usePoll(async () => setRuns((await api("GET", "/runs")).runs), 2500);
+  // Sessions live on their own page — an open conversation parked on input
+  // reads as a stuck "running" job in this table otherwise.
+  usePoll(async () => setRuns((await api("GET", "/runs")).runs.filter((r) => r.mode !== "session")), 2500);
 
   return (
     <div class="page">
@@ -311,7 +313,7 @@ function AgentPage() {
   const [runs, setRuns] = useState([]);
   useEffect(() => {
     api("GET", "/agent").then((r) => setInfo(r.agent));
-    api("GET", "/runs").then((r) => setRuns(r.runs)).catch(() => {});
+    api("GET", "/runs").then((r) => setRuns(r.runs.filter((x) => x.mode !== "session"))).catch(() => {});
   }, []);
 
   if (!info) return <div class="page"><div class="empty">Loading…</div></div>;
@@ -425,7 +427,7 @@ function SessionsPage({ nav }) {
               <tr key={s.runId} class="rowlink" onClick={() => nav(`#/sessions/${s.runId}`)}>
                 <td class="mono">{short(s.runId)}<span class="dim">…</span></td>
                 <td>{s.agent}</td>
-                <td><StatusChip status={s.status} /></td>
+                <td><StatusChip status={s.status === "running" ? "active" : s.status} /></td>
                 <td class="dim">{ago(s.createdAt)}</td>
               </tr>
             ))}

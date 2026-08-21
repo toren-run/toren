@@ -267,3 +267,23 @@ input:focus, textarea:focus { outline: none; border-color: var(--teal); }
 }
 .modal textarea { margin-top: 6px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; }
+
+/* ---- mobile polish */
+@media (max-width: 760px) {
+  input, textarea, .chat-input input { font-size: 16px; } /* stops iOS zoom-on-focus */
+  .topbar { padding: 10px 14px; gap: 14px; }
+  .topbar nav { overflow-x: auto; scrollbar-width: none; flex: 1; }
+  .topbar nav::-webkit-scrollbar { display: none; }
+  .page { padding: 20px 14px 70px; }
+  .page-head { margin-bottom: 14px; }
+  h1 { font-size: 26px; }
+  .sheet-table { display: block; overflow-x: auto; }
+  .bubble { max-width: 88%; }
+  .chat-input { padding-bottom: calc(6px + env(safe-area-inset-bottom)); }
+  button, .btn-primary, .btn-ghost, .btn-deny { min-height: 42px; }
+  .sm { min-height: 34px; }
+}
+@media (max-width: 560px) {
+  .role { display: none; }
+  .head-actions .live-dot { display: none; }
+}

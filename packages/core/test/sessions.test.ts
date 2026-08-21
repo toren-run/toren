@@ -210,3 +210,23 @@ test("session kill matrix: crash after every write across a 2-turn conversation 
     }
   }
 });
+
+test("sessions bypass a crew's custom workflow: chatting with a JSON-parsing batch crew works", async () => {
+  const explosive: WorkflowFn = async (ctx) => {
+    JSON.parse(ctx.input); // batch contract: input must be JSON — a chat "hi" would explode
+    return "batch";
+  };
+  const provider = new TurnProvider({ "hi": "hello from the root agent" });
+  const deps = { ...makeDeps(new PgStateStore(pool, SCHEMA), provider), workflows: { sess: explosive } };
+  const worker = new LocalWorkerRuntime({ sess: deps }, { concurrency: 1 });
+  worker.start();
+  try {
+    const runId = await startSession(deps, { agent: "sess", message: "hi" });
+    await worker.drain(15_000);
+    const s = (await getSession(deps.store, runId))!;
+    expect(s.state).toBe("awaiting_input");
+    expect(s.transcript[1]!.text).toBe("hello from the root agent");
+  } finally {
+    await worker.stop();
+  }
+});
