@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 /* ------------------------------------------------------------------ api */
 
 const TOKEN_KEY = "toren.console.token";
-const getToken = () => sessionStorage.getItem(TOKEN_KEY) ?? "";
-const setToken = (t) => sessionStorage.setItem(TOKEN_KEY, t);
-const clearToken = () => sessionStorage.removeItem(TOKEN_KEY);
+const getToken = () => localStorage.getItem(TOKEN_KEY) ?? "";
+const setToken = (t) => localStorage.setItem(TOKEN_KEY, t);
+const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
 async function api(method, path, body) {
   const res = await fetch(path, {
