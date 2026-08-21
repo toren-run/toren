@@ -7,7 +7,8 @@
   },
   "dependencies": {
     "@toren-run/core": "workspace:^",
-    "@anthropic-ai/sdk": "^0.110.0"
+    "@anthropic-ai/sdk": "^0.110.0",
+    "openai": "^4.68.0"
   },
   "description": "Model provider adapters for Toren (Anthropic).",
   "license": "Apache-2.0",

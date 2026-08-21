@@ -54,7 +54,7 @@ Try the kill test: start a run, \`kill -9\` the process mid-flight, run \`npx to
 - \`tools/\` — plain TypeScript tools with durability attributes
 - \`subagents/\` — the crew
 
-Swap \`model: mock/echo\` for \`anthropic/claude-sonnet-5\` and set \`ANTHROPIC_API_KEY\` to go live. Docs: https://toren.run/docs
+Swap \`model: mock/echo\` for \`anthropic/claude-sonnet-5\` (set ANTHROPIC_API_KEY) or \`openai/gpt-4o-mini\` (set OPENAI_API_KEY) to go live. Docs: https://toren.run/docs
 `,
   ".gitignore": `node_modules/
 .env
@@ -76,7 +76,7 @@ EXPOSE 7433
 CMD ["npx", "toren", "dev", "--dir", "."]
 `,
   "agent.yaml": `name: ${name}
-model: mock/echo          # swap to anthropic/claude-sonnet-5 when you add a key
+model: mock/echo          # or anthropic/claude-sonnet-5, openai/gpt-4o-mini — prefix picks the provider
 maxTokens: 16000
 limits:
   maxStepsPerTask: 50

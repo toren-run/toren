@@ -113,6 +113,13 @@ variable "autoscaling_cpu_target" {
   default     = 60
 }
 
+variable "openai_api_key" {
+  description = "OpenAI API key for the workers (stored in Secrets Manager). Empty disables the secret."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "agent_env_secret_arns" {
   description = "Map of env-var name -> Secrets Manager secret ARN, injected into the workers. Pairs with the agent.yaml `env:` declaration — toren never stores these values."
   type        = map(string)

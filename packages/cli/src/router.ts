@@ -1,5 +1,5 @@
 import { EchoProvider, type ModelProvider, type ModelRequest, type ModelResponse } from "@toren-run/core";
-import { AnthropicProvider } from "@toren-run/providers";
+import { AnthropicProvider, OpenAIProvider } from "@toren-run/providers";
 
 /**
  * Routes each request by its model prefix, so different (sub)agents in one
@@ -8,6 +8,7 @@ import { AnthropicProvider } from "@toren-run/providers";
 export class RouterProvider implements ModelProvider {
   readonly echo = new EchoProvider();
   private anthropic?: AnthropicProvider;
+  private openai?: OpenAIProvider;
 
   async complete(req: ModelRequest): Promise<ModelResponse> {
     if (req.model.startsWith("mock/")) return this.echo.complete(req);
@@ -15,6 +16,10 @@ export class RouterProvider implements ModelProvider {
       this.anthropic ??= new AnthropicProvider();
       return this.anthropic.complete(req);
     }
-    throw new Error(`unknown model provider in "${req.model}" (expected mock/... or anthropic/...)`);
+    if (req.model.startsWith("openai/")) {
+      this.openai ??= new OpenAIProvider();
+      return this.openai.complete(req);
+    }
+    throw new Error(`unknown model provider in "${req.model}" (expected mock/..., anthropic/..., or openai/...)`);
   }
 }

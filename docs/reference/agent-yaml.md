@@ -2,7 +2,7 @@
 
 ```yaml
 name: research_crew        # lowercase [a-z][a-z0-9_]*; becomes the schema/agent key
-model: anthropic/claude-opus-5   # provider/model; mock/echo runs offline
+model: anthropic/claude-opus-5   # or openai/gpt-4o, mock/echo (offline). Prefix picks the provider
 maxTokens: 16000           # per model call (default 16000)
 limits:
   maxStepsPerTask: 50      # hard cap on loop steps per task (default 50)

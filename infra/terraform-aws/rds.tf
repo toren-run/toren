@@ -61,3 +61,14 @@ resource "aws_secretsmanager_secret_version" "anthropic_api_key" {
   secret_id     = aws_secretsmanager_secret.anthropic_api_key[0].id
   secret_string = var.anthropic_api_key
 }
+
+resource "aws_secretsmanager_secret" "openai_api_key" {
+  count       = var.openai_api_key == "" ? 0 : 1
+  name_prefix = "${var.project}-openai-key-"
+}
+
+resource "aws_secretsmanager_secret_version" "openai_api_key" {
+  count         = var.openai_api_key == "" ? 0 : 1
+  secret_id     = aws_secretsmanager_secret.openai_api_key[0].id
+  secret_string = var.openai_api_key
+}
