@@ -14,6 +14,8 @@ export interface DeployOpts {
   agentDir?: string;
   anthropicApiKey?: string;
   openaiApiKey?: string;
+  telegramBotToken?: string;
+  telegramAllowedUsers?: string;
   /** AWS shared-config profile for terraform, the state backend, and bucket setup. */
   profile?: string;
   /** S3 bucket for remote terraform state. Created (versioned, public-access-blocked) if missing. */
@@ -163,6 +165,8 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     ...(opts.agentDir ? ["-var", `agent_dir=${opts.agentDir}`] : []),
     ...(opts.anthropicApiKey ? ["-var", `anthropic_api_key=${opts.anthropicApiKey}`] : []),
     ...(opts.openaiApiKey ? ["-var", `openai_api_key=${opts.openaiApiKey}`] : []),
+    ...(opts.telegramBotToken ? ["-var", `telegram_bot_token=${opts.telegramBotToken}`] : []),
+    ...(opts.telegramAllowedUsers ? ["-var", `telegram_allowed_users=${opts.telegramAllowedUsers}`] : []),
   ];
 
   io.out(`using ${tf} with module ${moduleDir}`);

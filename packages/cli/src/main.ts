@@ -53,7 +53,7 @@ export async function main(argv: string[]): Promise<void> {
     .option("--image-context <dir>", "build the agent image from this directory (linux/arm64), push to the stack's ECR, deploy with the tag pinned")
     .action(async (opts: { region: string; planOnly?: boolean; yes?: boolean; image?: string; agentDir?: string; moduleDir?: string; profile?: string; stateBucket?: string; stateKey?: string; imageContext?: string }) => {
       const { cmdDeployAws } = await import("./deploy.js");
-      await cmdDeployAws({ ...opts, anthropicApiKey: process.env.ANTHROPIC_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY });
+      await cmdDeployAws({ ...opts, anthropicApiKey: process.env.ANTHROPIC_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY, telegramBotToken: process.env.TELEGRAM_BOT_TOKEN, telegramAllowedUsers: process.env.TELEGRAM_ALLOWED_USERS });
     });
 
   const io = { out: (l: string) => console.log(l) };
@@ -105,6 +105,19 @@ export async function main(argv: string[]): Promise<void> {
       const profile = resolveEnvProfile(opts.env, opts.dir);
       if (profile.kind === "api") throw new Error("key management runs against the database — use a db-backed environment profile");
       return cmdKeysRevoke(opts.dir, id, { databaseUrl: profile.databaseUrl });
+    });
+
+  const channels = program.command("channels").description("Messaging channels for sessions");
+  const telegram = channels.command("telegram").description("Telegram bot channel (set TELEGRAM_BOT_TOKEN on the workers)");
+  telegram.command("invite")
+    .description("Mint a one-time pairing code — the bot is deny-by-default")
+    .option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (opts: { dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("invite codes are minted against the database — use a db-backed environment profile");
+      const { cmdTelegramInvite } = await import("./commands.js");
+      return cmdTelegramInvite(opts.dir, { databaseUrl: profile.databaseUrl });
     });
 
   const schedule = program.command("schedule").description("Cron-triggered runs — fired by the workers, exactly once, crash-safe");

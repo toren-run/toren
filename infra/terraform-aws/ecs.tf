@@ -50,6 +50,7 @@ data "aws_iam_policy_document" "execution_secrets" {
       [aws_secretsmanager_secret.database_url.arn, aws_secretsmanager_secret.api_token.arn],
       var.anthropic_api_key == "" ? [] : [aws_secretsmanager_secret.anthropic_api_key[0].arn],
       var.openai_api_key == "" ? [] : [aws_secretsmanager_secret.openai_api_key[0].arn],
+      var.telegram_bot_token == "" ? [] : [aws_secretsmanager_secret.telegram_bot_token[0].arn],
       values(var.agent_env_secret_arns),
     )
   }
@@ -123,6 +124,7 @@ resource "aws_ecs_task_definition" "worker" {
           { name = "TOREN_SQS_URL_TASKS_SHORT", value = aws_sqs_queue.main["tasks-short"].url },
           { name = "TOREN_SQS_URL_TASKS_LONG", value = aws_sqs_queue.main["tasks-long"].url },
         ],
+        var.telegram_allowed_users == "" ? [] : [{ name = "TELEGRAM_ALLOWED_USERS", value = var.telegram_allowed_users }],
       )
       secrets = concat(
         [
@@ -131,6 +133,7 @@ resource "aws_ecs_task_definition" "worker" {
         ],
         var.anthropic_api_key == "" ? [] : [{ name = "ANTHROPIC_API_KEY", valueFrom = aws_secretsmanager_secret.anthropic_api_key[0].arn }],
         var.openai_api_key == "" ? [] : [{ name = "OPENAI_API_KEY", valueFrom = aws_secretsmanager_secret.openai_api_key[0].arn }],
+        var.telegram_bot_token == "" ? [] : [{ name = "TELEGRAM_BOT_TOKEN", valueFrom = aws_secretsmanager_secret.telegram_bot_token[0].arn }],
         [for name, arn in var.agent_env_secret_arns : { name = name, valueFrom = arn }],
       )
       logConfiguration = {

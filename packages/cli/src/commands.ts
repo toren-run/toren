@@ -109,6 +109,19 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
     if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart); set TOREN_API_TOKEN to pin one`);
   }
+  let telegram: { stop(): Promise<void> } | undefined;
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    const { TelegramChannel } = await import("./telegram.js");
+    const allowedUsers = new Set(
+      (process.env.TELEGRAM_ALLOWED_USERS ?? "").split(",").map((s) => parseInt(s.trim(), 10)).filter(Number.isFinite),
+    );
+    const tg = new TelegramChannel({
+      botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers,
+    });
+    tg.start();
+    telegram = tg;
+    io.out("toren telegram: channel up (deny-by-default; pair via invite code or TELEGRAM_ALLOWED_USERS)");
+  }
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);
     void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
@@ -116,12 +129,25 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   await new Promise<void>((resolveExit) => {
     const stop = () => {
       clearInterval(interval);
-      void worker.stop().then(() => rt.close()).then(() => resolveExit());
+      void (telegram?.stop() ?? Promise.resolve()).then(() => worker.stop()).then(() => rt.close()).then(() => resolveExit());
     };
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
   });
   process.exit(0);
+}
+
+export async function cmdTelegramInvite(dir: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const { createTelegramInvite } = await import("./telegram.js");
+    const code = await createTelegramInvite(rt.pool);
+    io.out(`one-time pairing code: ${code}`);
+    io.out("send it to the bot in a direct message; it pairs the sender and then burns");
+  } finally {
+    await rt.close();
+  }
 }
 
 export async function cmdKeysCreate(dir: string, name: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {

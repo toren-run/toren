@@ -125,3 +125,16 @@ variable "agent_env_secret_arns" {
   type        = map(string)
   default     = {}
 }
+
+variable "telegram_bot_token" {
+  description = "Telegram bot token — enables the Telegram channel on the workers (stored in Secrets Manager). Empty disables it."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "telegram_allowed_users" {
+  description = "Comma-separated numeric Telegram user IDs allowed without a pairing code (the bot is deny-by-default either way)"
+  type        = string
+  default     = ""
+}

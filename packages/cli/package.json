@@ -18,10 +18,12 @@
     "yaml": "^2.5.0",
     "@toren-run/console": "workspace:^",
     "@aws-sdk/client-s3": "^3.650.0",
-    "@aws-sdk/client-ecr": "^3.650.0"
+    "@aws-sdk/client-ecr": "^3.650.0",
+    "pg": "^8.13.0"
   },
   "devDependencies": {
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "@types/pg": "^8.11.0"
   },
   "description": "Toren CLI: scaffold, run, and deploy durable agents that survive anything and never re-pay a completed model call.",
   "license": "Apache-2.0",

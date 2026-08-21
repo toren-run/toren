@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 export default defineConfig({
   title: "Toren",
   description:
-    "Toren is the open-source runtime for long-running, durable AI agents — in your own cloud. A resumed run never re-pays for a completed model call.",
+    "Toren is the open-source runtime for long-running, durable AI agents in your own cloud. A resumed run never re-pays for a completed model call.",
   base: "/docs/",
   cleanUrls: true,
   // Code blocks stay structural-navy in both modes (like the site terminal),
@@ -38,6 +38,7 @@ export default defineConfig({
           { text: "Defining agents", link: "/guides/defining-agents" },
           { text: "Workflows & waves", link: "/guides/workflows-and-waves" },
           { text: "Approvals", link: "/guides/approvals" },
+          { text: "Sessions & channels", link: "/guides/sessions" },
           { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },

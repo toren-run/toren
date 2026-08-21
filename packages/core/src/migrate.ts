@@ -59,6 +59,27 @@ CREATE TABLE IF NOT EXISTS toren_control.api_keys (
   revoked_at timestamptz,
   last_used_at timestamptz
 );
+CREATE TABLE IF NOT EXISTS toren_control.telegram_users (
+  user_id bigint PRIMARY KEY,
+  paired_at timestamptz NOT NULL DEFAULT now(),
+  via_code text
+);
+CREATE TABLE IF NOT EXISTS toren_control.telegram_invites (
+  code text PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  used_by bigint
+);
+CREATE TABLE IF NOT EXISTS toren_control.telegram_bindings (
+  chat_id bigint PRIMARY KEY,
+  agent text NOT NULL,
+  run_id uuid,
+  last_delivered_seq int NOT NULL DEFAULT 0,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS toren_control.telegram_state (
+  id int PRIMARY KEY DEFAULT 1,
+  last_update_id bigint NOT NULL DEFAULT 0
+);
 `;
 
 const AGENT_TABLES_SQL = (s: string) => `

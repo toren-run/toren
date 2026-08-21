@@ -72,3 +72,14 @@ resource "aws_secretsmanager_secret_version" "openai_api_key" {
   secret_id     = aws_secretsmanager_secret.openai_api_key[0].id
   secret_string = var.openai_api_key
 }
+
+resource "aws_secretsmanager_secret" "telegram_bot_token" {
+  count       = var.telegram_bot_token == "" ? 0 : 1
+  name_prefix = "${var.project}-telegram-token-"
+}
+
+resource "aws_secretsmanager_secret_version" "telegram_bot_token" {
+  count         = var.telegram_bot_token == "" ? 0 : 1
+  secret_id     = aws_secretsmanager_secret.telegram_bot_token[0].id
+  secret_string = var.telegram_bot_token
+}
