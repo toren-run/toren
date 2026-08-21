@@ -20,16 +20,17 @@ export async function main(argv: string[]): Promise<void> {
   program.command("run <dir>")
     .description("Run an agent directory to completion (or until it parks on an approval)")
     .requiredOption("--input <input>", "run input (string)")
+    .option("--file <path>", "attach a local file: pdf, docx, xlsx, or text (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])
     .option("--json", "JSON output")
     .option("--detach", "start the run and exit without driving it (workers pick it up)")
     .option("--env <name>", "environment profile from .toren/environments.json", "local")
-    .action(async (dir: string, opts: { input: string; json?: boolean; detach?: boolean; env?: string }) => {
+    .action(async (dir: string, opts: { input: string; json?: boolean; detach?: boolean; env?: string; file: string[] }) => {
       const profile = resolveEnvProfile(opts.env, dir);
       if (profile.kind === "api") {
-        await remoteRun(profile, opts, { out: (l) => console.log(l) });
+        await remoteRun(profile, { ...opts, files: opts.file }, { out: (l) => console.log(l) });
         return;
       }
-      const settled = await cmdRun(dir, { ...opts, databaseUrl: profile.databaseUrl });
+      const settled = await cmdRun(dir, { ...opts, files: opts.file, databaseUrl: profile.databaseUrl });
       if (settled.status === "failed") process.exitCode = 1;
     });
 
@@ -37,15 +38,16 @@ export async function main(argv: string[]): Promise<void> {
     .description("Talk to an agent from the terminal — a durable session; Ctrl+C leaves it open to resume")
     .option("--agent <name>", "agent to talk to (default: the first agent found)")
     .option("--session <runId>", "resume an open session")
+    .option("--file <path>", "attach a local file to the first message (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])
     .option("--env <name>", "environment profile from .toren/environments.json", "local")
-    .action(async (dir: string | undefined, opts: { agent?: string; session?: string; env?: string }) => {
+    .action(async (dir: string | undefined, opts: { agent?: string; session?: string; env?: string; file: string[] }) => {
       const profile = resolveEnvProfile(opts.env, dir ?? ".");
       if (profile.kind === "api") {
         const { remoteChat } = await import("./remote.js");
-        return remoteChat(profile, opts, { out: (l) => console.log(l) });
+        return remoteChat(profile, { ...opts, files: opts.file }, { out: (l) => console.log(l) });
       }
       const { cmdChat } = await import("./commands.js");
-      return cmdChat(dir ?? ".", { ...opts, databaseUrl: profile.databaseUrl });
+      return cmdChat(dir ?? ".", { ...opts, files: opts.file, databaseUrl: profile.databaseUrl });
     });
 
   program.command("dev")

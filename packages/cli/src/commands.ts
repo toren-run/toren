@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
+  fileManifest, PgFiles,
   createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
   startRun, sweep, sweepSchedules,
@@ -29,11 +30,37 @@ export async function cmdInit(name: string, io: CmdIO = stdoutIO): Promise<strin
   return dir;
 }
 
-export async function cmdRun(dir: string, opts: { input: string; json?: boolean; detach?: boolean; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<(SettledRun | { status: "detached" }) & { runId: string }> {
+/** Parse local files through the upload pipeline and return the manifest to append. */
+export async function attachLocalFiles(
+  pool: ConstructorParameters<typeof PgFiles>[0],
+  agents: Record<string, import("@toren-run/core").AgentSpec>,
+  paths: string[],
+  io: CmdIO,
+): Promise<string> {
+  if (paths.length === 0) return "";
+  const canRead = Object.values(agents).some((a) => a.tools.some((t) => t.name === "read_file"));
+  if (!canRead) throw new Error('this agent cannot read files — add "builtin_tools: [read_file]" to its agent.yaml');
+  const { readFileSync } = await import("node:fs");
+  const { basename } = await import("node:path");
+  const { parseFile } = await import("./files.js");
+  const store = new PgFiles(pool);
+  const stored = [];
+  for (const p of paths) {
+    const data = readFileSync(p);
+    const parsed = await parseFile(basename(p), data);
+    const f = await store.put({ name: basename(p), mediaType: parsed.mediaType, data, pages: parsed.pages });
+    io.out(`attached ${f.name} (file_id ${f.id}, ${f.pages.length} page${f.pages.length === 1 ? "" : "s"})`);
+    stored.push(f);
+  }
+  return fileManifest(stored);
+}
+
+export async function cmdRun(dir: string, opts: { input: string; json?: boolean; detach?: boolean; databaseUrl?: string; files?: string[] }, io: CmdIO = stdoutIO): Promise<(SettledRun | { status: "detached" }) & { runId: string }> {
   const loaded = await loadAgentDir(dir);
   const rt = await buildRuntime(loaded, opts.databaseUrl);
   try {
-    const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input });
+    const manifest = await attachLocalFiles(rt.pool, loaded.agents, opts.files ?? [], io);
+    const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input + manifest });
     io.out(`run ${runId}  agent ${loaded.name}  started`);
     if (opts.detach) {
       io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `detached; workers will pick it up. Check: toren jobs show ${runId}`);
@@ -137,13 +164,14 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   process.exit(0);
 }
 
-export async function cmdChat(dir: string, opts: { agent?: string; session?: string; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+export async function cmdChat(dir: string, opts: { agent?: string; session?: string; databaseUrl?: string; files?: string[] }, io: CmdIO = stdoutIO): Promise<void> {
   const project = await loadProject([dir]);
   const rt = await buildFleetRuntime(project, opts.databaseUrl);
   const names = Object.keys(rt.byAgent);
   const agent = opts.agent ?? names[0]!;
   const deps = rt.byAgent[agent];
   if (!deps) throw new Error(`no agent "${agent}" here; agents: ${names.join(", ")}`);
+  const manifest = await attachLocalFiles(rt.pool, deps.agents, opts.files ?? [], io);
   const core = await import("@toren-run/core");
   const worker = new core.LocalWorkerRuntime(rt.byAgent, { concurrency: 2 });
   worker.start();
@@ -151,7 +179,7 @@ export async function cmdChat(dir: string, opts: { agent?: string; session?: str
   try {
     await runChatLoop({
       agentName: agent,
-      start: (m) => core.startSession(deps, { agent, message: m, channel: "cli" }),
+      start: (m) => core.startSession(deps, { agent, message: m + manifest, channel: "cli" }),
       send: (id, m, close) => core.sendSessionMessage(deps, id, { text: m, channel: "cli", close }),
       get: (id) => core.getSession(deps.store, id),
     }, { sessionId: opts.session }, io);

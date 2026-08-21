@@ -13,7 +13,7 @@ curl -X POST "$TOREN_URL/files" \
   -d "{\"name\": \"report.pdf\", \"content_base64\": \"$(base64 -i report.pdf)\"}"
 ```
 
-The response is `{"fileId": "ab12cd34ef567890", "pages": 12, ...}`. Attach the id to a run or a session message:
+The response is `{"fileId": "ab12cd34ef567890", "pages": 12, ...}`. Attach the id to a run or a session message (or skip the upload dance entirely from the CLI: `toren run . --input "Summarize the report" --file ./report.pdf`, and `toren chat --file` for conversations; both parse locally through the same pipeline):
 
 ```bash
 curl -X POST "$TOREN_URL/sessions" \

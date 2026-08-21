@@ -9,13 +9,27 @@ function clientFor(env: Extract<ResolvedEnv, { kind: "api" }>, io: CmdIO): Toren
   return new TorenClient({ url: env.url, token: env.token });
 }
 
+async function uploadLocalFiles(client: TorenClient, paths: string[], io: CmdIO): Promise<string[]> {
+  if (paths.length === 0) return [];
+  const { readFileSync } = await import("node:fs");
+  const { basename } = await import("node:path");
+  const ids: string[] = [];
+  for (const p of paths) {
+    const up = await client.uploadFile({ name: basename(p), data: readFileSync(p) });
+    io.out(`attached ${up.name} (file_id ${up.fileId}, ${up.pages} page${up.pages === 1 ? "" : "s"})`);
+    ids.push(up.fileId);
+  }
+  return ids;
+}
+
 export async function remoteRun(
   env: Extract<ResolvedEnv, { kind: "api" }>,
-  opts: { input: string; json?: boolean; detach?: boolean },
+  opts: { input: string; json?: boolean; detach?: boolean; files?: string[] },
   io: CmdIO,
 ): Promise<void> {
   const client = clientFor(env, io);
-  const { runId } = await client.startRun({ input: opts.input });
+  const files = await uploadLocalFiles(client, opts.files ?? [], io);
+  const { runId } = await client.startRun({ input: opts.input, ...(files.length ? { files } : {}) });
   if (opts.detach) {
     io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `run ${runId}  detached; check: toren jobs show ${runId} --env ${env.name}`);
     return;
@@ -71,16 +85,17 @@ export async function remoteJobsApprove(
 
 export async function remoteChat(
   env: Extract<ResolvedEnv, { kind: "api" }>,
-  opts: { agent?: string; session?: string },
+  opts: { agent?: string; session?: string; files?: string[] },
   io: CmdIO,
 ): Promise<void> {
   const client = clientFor(env, io);
   const { runChatLoop } = await import("./chat.js");
+  const files = await uploadLocalFiles(client, opts.files ?? [], io);
   let agentName = opts.agent ?? "agent";
   await runChatLoop({
     get agentName() { return agentName; },
     start: async (m) => {
-      const r = await client.startSession({ message: m, agent: opts.agent, channel: "cli" });
+      const r = await client.startSession({ message: m, agent: opts.agent, channel: "cli", ...(files.length ? { files } : {}) });
       agentName = r.agent;
       return r.runId;
     },
