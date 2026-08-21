@@ -138,6 +138,16 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       const principal = await authenticate(req, cfg);
       if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
 
+      // POST /channels/telegram/invites — admin-token only; mints a one-time
+      // pairing code for the deny-by-default Telegram bot.
+      if (req.method === "POST" && parts[0] === "channels" && parts[1] === "telegram" && parts[2] === "invites") {
+        if (principal.kind !== "admin") return send(res, 403, { error: "invite minting requires the admin token" });
+        if (!cfg.pool) return send(res, 501, { error: "invite minting unavailable (no database pool configured)" });
+        const { createTelegramInvite } = await import("./telegram.js");
+        const code = await createTelegramInvite(cfg.pool);
+        return send(res, 201, { code });
+      }
+
       // /keys — admin-token only; issued keys cannot mint or revoke keys.
       if (parts[0] === "keys") {
         if (principal.kind !== "admin") return send(res, 403, { error: "key management requires the admin token" });
