@@ -9,6 +9,18 @@ import { withSpan } from "./tracing.js";
 
 export class TaskLeaseLostError extends Error {}
 
+/**
+ * Thrown instead of appending yet another StreamInvalidated when a stream has
+ * been invalidated repeatedly in a short window — the signature of two worker
+ * versions fighting over one stream during a rolling deploy, each re-paying
+ * the other's voided model calls. The worker defers the message instead; the
+ * war starves until one version drains, and a legitimate re-edit waits out
+ * the window at worst.
+ */
+export class InvalidationStormError extends Error {}
+export const INVALIDATION_STORM_LIMIT = 3;
+export const INVALIDATION_STORM_WINDOW_MS = 5 * 60 * 1000;
+
 export interface AgentSpec {
   model: string;
   system: string;
@@ -118,7 +130,16 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     head = r.lastSeq;
   }
 
+  const recentInvalidations = raw.filter(
+    (e) => e.type === "StreamInvalidated" && Date.now() - e.recordedAt.getTime() < INVALIDATION_STORM_WINDOW_MS,
+  ).length;
+
   async function invalidateFrom(fromSeq: number, reason: string): Promise<void> {
+    if (recentInvalidations >= INVALIDATION_STORM_LIMIT) {
+      throw new InvalidationStormError(
+        `invalidation storm: ${recentInvalidations} invalidations on ${streamId} in the last 5m — deferring instead of re-paying (likely mixed worker versions mid-deploy); latest cause: ${reason}`,
+      );
+    }
     await append([ev("StreamInvalidated", { fromSeq, reason })]);
     invalidated = true;
   }

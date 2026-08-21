@@ -123,7 +123,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     io.out("toren telegram: channel up (deny-by-default; pair via invite code or TELEGRAM_ALLOWED_USERS)");
   }
   const interval = setInterval(() => {
-    for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);
+    for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* transient DB error — next tick retries */ });
     void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
   }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {

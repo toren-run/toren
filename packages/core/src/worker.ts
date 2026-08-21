@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { runTaskLoop, TaskLeaseLostError } from "./loop.js";
+import { InvalidationStormError, runTaskLoop, TaskLeaseLostError } from "./loop.js";
 import { findTaskSpec, tick, type TickDeps } from "./orchestrator.js";
 import type { Delivery } from "./queue.js";
 
@@ -80,10 +80,22 @@ export class LocalWorkerRuntime {
   }
 
   private async pollLoop(owner: string): Promise<void> {
+    let errorStreak = 0;
     while (!this.stopped) {
-      const d =
-        (await this.shared.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0] ??
-        (await this.shared.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0];
+      let d: Delivery | undefined;
+      try {
+        d =
+          (await this.shared.queue.receive("orchestrator", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0] ??
+          (await this.shared.queue.receive("tasks-short", { max: 1, visibilitySeconds: this.opts.visibilitySeconds, agents: this.agentScope }))[0];
+        errorStreak = 0;
+      } catch {
+        // Transient infrastructure error (DB restart, network blip). Back off
+        // and keep polling — an uncaught throw here would kill this loop for
+        // good and leave a worker that looks healthy but processes nothing.
+        errorStreak = Math.min(errorStreak + 1, 6);
+        await sleep(Math.min(this.opts.pollMs * 2 ** errorStreak, 30_000));
+        continue;
+      }
       if (!d) {
         await sleep(this.opts.pollMs);
         continue;
@@ -141,11 +153,22 @@ export class LocalWorkerRuntime {
         await deps.leases.release(lease);
       }
     } catch (e) {
-      if (e instanceof TaskLeaseLostError) {
-        await this.shared.queue.ack(d);
-        return;
+      try {
+        if (e instanceof TaskLeaseLostError) {
+          await this.shared.queue.ack(d);
+          return;
+        }
+        if (e instanceof InvalidationStormError) {
+          // Mixed worker versions are fighting over this stream. Back off well past
+          // a deploy's drain window so the surviving version picks it up.
+          await this.shared.queue.nack(d, { delaySeconds: 20 });
+          return;
+        }
+        await this.shared.queue.nack(d, { delaySeconds: 0.2 });
+      } catch {
+        // Queue unreachable too: do nothing. The visibility timeout redelivers
+        // the message; hints are never truth, so losing an ack costs a retry.
       }
-      await this.shared.queue.nack(d, { delaySeconds: 0.2 });
     }
   }
 }
