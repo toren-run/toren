@@ -206,6 +206,33 @@ input:focus, textarea:focus { outline: none; border-color: var(--teal); }
 .tool-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 .tool-table tr:last-child td { border-bottom: none; }
 
+/* ---- sessions chat */
+.chat-page { display: flex; flex-direction: column; min-height: calc(100vh - 140px); }
+.chat { flex: 1; display: flex; flex-direction: column; gap: 14px; padding: 8px 0 18px; }
+.bubble { max-width: 76%; }
+.bubble.user { align-self: flex-end; }
+.bubble.assistant { align-self: flex-start; }
+.bubble-meta {
+  font: 700 9.5px "JetBrains Mono", monospace; letter-spacing: .12em;
+  color: var(--muted); margin: 0 4px 4px;
+}
+.bubble.user .bubble-meta { text-align: right; }
+.bubble-text {
+  border: 2px solid var(--ink); border-radius: 6px; padding: 10px 14px;
+  background: var(--card); box-shadow: 3px 3px 0 rgba(18,33,52,.08);
+  white-space: pre-wrap; word-break: break-word; font-size: 15px; line-height: 1.5;
+}
+.bubble.user .bubble-text { background: var(--navy); color: var(--navy-ink); border-color: var(--navy); }
+.bubble.assistant .bubble-text { border-left: 5px solid var(--teal); }
+.bubble.thinking .bubble-text { color: var(--muted); font-style: italic; }
+.dots { animation: pulse 1.4s infinite; }
+.chat-input { display: flex; gap: 10px; position: sticky; bottom: 0; padding: 12px 0 4px; background: var(--paper); }
+.chat-input input { flex: 1; font-family: "Source Sans 3", sans-serif; font-size: 15px; }
+.chat-closed {
+  text-align: center; padding: 14px; border: 2px dashed var(--line); border-radius: 6px;
+  color: var(--muted); font-size: 14px;
+}
+
 /* ---- schedules */
 .sched-form { margin-bottom: 16px; display: grid; gap: 10px; }
 .sched-row { display: grid; grid-template-columns: 1fr 1.4fr 1fr auto; gap: 10px; }

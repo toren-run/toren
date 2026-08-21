@@ -390,6 +390,149 @@ function AgentPage() {
   );
 }
 
+/* ------------------------------------------------------------- sessions */
+
+function SessionsPage({ nav }) {
+  const [sessions, setSessions] = useState(null);
+  const [agents, setAgents] = useState([]);
+  const [showNew, setShowNew] = useState(false);
+  usePoll(async () => setSessions((await api("GET", "/sessions")).sessions), 3000);
+  useEffect(() => {
+    api("GET", "/agent").then((r) => {
+      setAgents(r.agent?.crews ? Object.keys(r.agent.crews) : [r.agent?.name].filter(Boolean));
+    }).catch(() => {});
+  }, []);
+
+  return (
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="overline">SHT 05 · CONVERSATIONS</div>
+          <h1>Sessions</h1>
+        </div>
+        <div class="head-actions">
+          <span class="live-dot"><i />LIVE</span>
+          <button class="btn-primary" onClick={() => setShowNew(true)}>+ New session</button>
+        </div>
+      </div>
+      {sessions === null ? <div class="empty">Loading…</div> : sessions.length === 0 ? (
+        <div class="empty"><b>No conversations yet.</b><span>Sessions park at zero compute between turns — and never re-pay a completed one.</span></div>
+      ) : (
+        <table class="sheet-table">
+          <thead><tr><th>Session</th><th>Agent</th><th>Status</th><th>Started</th></tr></thead>
+          <tbody>
+            {sessions.map((s) => (
+              <tr key={s.runId} class="rowlink" onClick={() => nav(`#/sessions/${s.runId}`)}>
+                <td class="mono">{short(s.runId)}<span class="dim">…</span></td>
+                <td>{s.agent}</td>
+                <td><StatusChip status={s.status} /></td>
+                <td class="dim">{ago(s.createdAt)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {showNew && <NewSession agents={agents} onClose={() => setShowNew(false)} nav={nav} />}
+    </div>
+  );
+}
+
+function NewSession({ agents, onClose, nav }) {
+  const [agent, setAgent] = useState(agents[0] ?? "");
+  const [message, setMessage] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async (e) => {
+    e.preventDefault(); setBusy(true); setErr("");
+    try {
+      const { runId } = await api("POST", "/sessions", { agent: agent || undefined, message });
+      onClose(); nav(`#/sessions/${runId}`);
+    } catch (ex) { setErr(String(ex.message)); } finally { setBusy(false); }
+  };
+  return (
+    <div class="modal-back" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <form class="modal" onSubmit={submit}>
+        <div class="overline">NEW SESSION</div>
+        <h2>Start a conversation</h2>
+        {agents.length > 1 && (
+          <div class="agent-select">
+            {agents.map((n) => <button type="button" key={n} class={`agent-opt${n === agent ? " on" : ""}`} onClick={() => setAgent(n)}>{n}</button>)}
+          </div>
+        )}
+        <textarea rows="3" autofocus placeholder="First message to the agent…" value={message} onInput={(e) => setMessage(e.currentTarget.value)} />
+        {err && <div class="form-err">{err}</div>}
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" onClick={onClose}>Cancel</button>
+          <button class="btn-primary" disabled={busy || !message.trim()}>Start</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function ChatPage({ runId }) {
+  const [session, setSession] = useState(null);
+  const [draft, setDraft] = useState("");
+  const [err, setErr] = useState("");
+  const endRef = useRef(null);
+  const lastCount = useRef(0);
+  usePoll(async () => setSession(await api("GET", `/sessions/${runId}`)), 2000, [runId]);
+  useEffect(() => {
+    const n = session?.transcript?.length ?? 0;
+    if (n > lastCount.current) { lastCount.current = n; endRef.current?.scrollIntoView({ behavior: "smooth" }); }
+  }, [session]);
+
+  if (!session) return <div class="page"><div class="empty">Loading…</div></div>;
+  const open = session.state === "awaiting_input";
+  const working = session.state === "working";
+
+  const sendMsg = async (close) => {
+    setErr("");
+    try {
+      await api("POST", `/sessions/${runId}/messages`, close ? { close: true } : { message: draft, channel: "console" });
+      if (!close) setDraft("");
+      setSession({ ...session, state: "working" });
+    } catch (ex) { setErr(String(ex.message)); }
+  };
+
+  return (
+    <div class="page chat-page">
+      <div class="page-head">
+        <div>
+          <div class="overline">SESSION <span class="mono">{short(runId)}</span> <button class="copy" onClick={() => copy(runId)} title="copy full id">⧉</button></div>
+          <h1 class="h-run">{session.agent} <StatusChip status={session.state === "awaiting_input" ? "running" : session.state} /></h1>
+        </div>
+        {open && <button class="btn-deny sm" onClick={() => sendMsg(true)}>End session</button>}
+      </div>
+
+      <div class="chat">
+        {session.transcript.map((t) => (
+          <div key={t.seq} class={`bubble ${t.role}`}>
+            <div class="bubble-meta">{t.role === "user" ? `YOU${t.channel ? ` · ${t.channel.toUpperCase()}` : ""}` : session.agent.toUpperCase()}</div>
+            <div class="bubble-text">{t.text}</div>
+          </div>
+        ))}
+        {working && <div class="bubble assistant thinking"><div class="bubble-meta">{session.agent.toUpperCase()}</div><div class="bubble-text">working<span class="dots">…</span></div></div>}
+        <div ref={endRef} />
+      </div>
+
+      {err && <div class="form-err">{err}</div>}
+      {session.state === "completed" ? (
+        <div class="chat-closed">Session ended. The full transcript is durable — and never re-paid a turn.</div>
+      ) : (
+        <form class="chat-input" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) sendMsg(false); }}>
+          <input
+            placeholder={open ? "Your message…" : "The agent is working — it has the floor"}
+            disabled={!open}
+            value={draft} onInput={(e) => setDraft(e.currentTarget.value)}
+          />
+          <button class="btn-primary" disabled={!open || !draft.trim()}>Send</button>
+        </form>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ schedules */
 
 const until = (iso) => {
@@ -572,12 +715,14 @@ function App() {
   if (!authed) return <Login onIn={() => { setAuthed(true); nav("#/runs"); }} />;
 
   const runMatch = route.match(/^#\/runs\/(.+)$/);
+  const sessionMatch = route.match(/^#\/sessions\/(.+)$/);
   return (
     <div class="shell">
       <header class="topbar">
         <a class="brand" href="#/runs"><Mark /> <b>TOREN</b> <span class="dwg">CONSOLE · DWG № TRN-003</span></a>
         <nav>
           <a class={route.startsWith("#/runs") ? "on" : ""} href="#/runs">Runs</a>
+          <a class={route.startsWith("#/sessions") ? "on" : ""} href="#/sessions">Sessions</a>
           <a class={route === "#/agent" ? "on" : ""} href="#/agent">Agent</a>
           {isAdmin && <a class={route === "#/schedules" ? "on" : ""} href="#/schedules">Schedules</a>}
           {isAdmin && <a class={route === "#/keys" ? "on" : ""} href="#/keys">API keys</a>}
@@ -587,7 +732,9 @@ function App() {
           <button class="btn-ghost sm" onClick={() => { clearToken(); location.reload(); }}>Sign out</button>
         </div>
       </header>
-      {runMatch ? <RunPage runId={runMatch[1]} isAdmin={isAdmin} />
+      {sessionMatch ? <ChatPage runId={sessionMatch[1]} />
+        : route.startsWith("#/sessions") ? <SessionsPage nav={nav} />
+        : runMatch ? <RunPage runId={runMatch[1]} isAdmin={isAdmin} />
         : route === "#/agent" ? <AgentPage />
         : route === "#/schedules" && isAdmin ? <SchedulesPage />
         : route === "#/keys" && isAdmin ? <KeysPage />
