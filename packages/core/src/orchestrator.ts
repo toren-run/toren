@@ -24,8 +24,8 @@ export interface TickDeps {
 
 export type TickResult = "leased" | "terminal" | "blocked" | "completed" | "failed";
 
-export async function startRun(deps: TickDeps, req: { agent: string; input: string }): Promise<string> {
-  const runId = randomUUID();
+export async function startRun(deps: TickDeps, req: { agent: string; input: string; runId?: string }): Promise<string> {
+  const runId = req.runId ?? randomUUID();
   await deps.store.createRun({ runId, agent: req.agent, input: req.input });
   const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input })]);
   if (!r.ok) throw new Error("fresh run stream was not empty");

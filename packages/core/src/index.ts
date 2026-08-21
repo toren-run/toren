@@ -14,6 +14,7 @@ export * from "./providers/mock.js";
 export * from "./providers/echo.js";
 export * from "./approvals.js";
 export * from "./apiKeys.js";
+export * from "./schedules.js";
 export * from "./tracing.js";
 export * from "./loop.js";
 export * from "./workflow.js";

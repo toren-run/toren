@@ -102,6 +102,9 @@ importers:
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1
+      croner:
+        specifier: ^8.1.0
+        version: 8.1.2
       pg:
         specifier: ^8.13.0
         version: 8.23.0
@@ -1111,6 +1114,10 @@ packages:
   copy-anything@4.0.5:
     resolution: {integrity: sha512-7Vv6asjS4gMOuILabD3l739tsaxFQmC+a7pLZm02zyvs8p977bL3zEgq3yDk5rn9B0PbYgIv++jmHcuUab4RhA==}
     engines: {node: '>=18'}
+
+  croner@8.1.2:
+    resolution: {integrity: sha512-ypfPFcAXHuAZRCzo3vJL6ltENzniTjwe/qsLleH1V2/7SRDjgvRQyrLmumFTLmjFax4IuSxfGXEn79fozXcJog==}
+    engines: {node: '>=18.0'}
 
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
@@ -2624,6 +2631,8 @@ snapshots:
   copy-anything@4.0.5:
     dependencies:
       is-what: 5.5.0
+
+  croner@8.1.2: {}
 
   csstype@3.2.3: {}
 

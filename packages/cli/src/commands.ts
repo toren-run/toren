@@ -1,8 +1,9 @@
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import {
-  createApiKey, effectiveEvents, foldRunStream, listApiKeys, listPendingApprovals,
-  resolveApproval, revokeApiKey, startRun, sweep,
+  createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
+  listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
+  startRun, sweep, sweepSchedules,
 } from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -110,6 +111,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   }
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);
+    void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
   }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {
     const stop = () => {
@@ -157,6 +159,56 @@ export async function cmdKeysRevoke(dir: string, id: string, opts: { databaseUrl
   try {
     if (!(await revokeApiKey(rt.pool, id))) throw new Error(`no active key with id ${id}`);
     io.out(`revoked ${id}`);
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdScheduleCreate(
+  dir: string,
+  opts: { cron: string; input: string; agent?: string; name?: string; tz?: string; databaseUrl?: string },
+  io: CmdIO = stdoutIO,
+): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const s = await createSchedule(rt.pool, {
+      agent: opts.agent ?? loaded.name,
+      name: opts.name ?? `${opts.cron}`,
+      cron: opts.cron,
+      input: opts.input,
+      tz: opts.tz,
+    });
+    io.out(`created schedule ${s.id}  ${s.agent}  "${s.cron}" (${s.tz})  next fire ${s.nextFireAt.toISOString()}`);
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdScheduleList(dir: string, opts: { json?: boolean; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const schedules = await listSchedules(rt.pool);
+    if (opts.json) {
+      io.out(JSON.stringify({ schedules }));
+      return;
+    }
+    for (const s of schedules) {
+      io.out(`${s.id}  ${s.agent}  "${s.cron}" (${s.tz})  ${s.enabled ? `next ${s.nextFireAt.toISOString()}` : "paused"}  ${s.name}`);
+    }
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdScheduleSet(dir: string, id: string, action: "pause" | "resume" | "rm", opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const ok = action === "rm" ? await deleteSchedule(rt.pool, id) : await setScheduleEnabled(rt.pool, id, action === "resume");
+    if (!ok) throw new Error(`no schedule with id ${id}`);
+    io.out(`${action === "rm" ? "deleted" : action === "pause" ? "paused" : "resumed"} ${id}`);
   } finally {
     await rt.close();
   }

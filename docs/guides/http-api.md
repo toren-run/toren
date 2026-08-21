@@ -58,6 +58,10 @@ curl -s -X POST "$API/keys" -H "Authorization: Bearer $ADMIN_TOKEN" \
 
 The `secret` appears in that response exactly once — only its SHA-256 hash is stored. `GET /keys` lists keys (never secrets); `DELETE /keys/:id` revokes immediately. Issued keys can trigger and inspect runs and resolve approvals, but cannot mint or revoke keys. The same operations exist on the CLI: `toren keys create|list|revoke`.
 
+## Schedules
+
+Standing configuration, admin-token only (like `/keys`): `GET /schedules`, `POST /schedules` (`{cron, input, agent?, name?, tz?}`), `DELETE /schedules/:id`, `POST /schedules/:id/pause|resume`. Firing semantics — exactly-once, crash-safe, catch-up on downtime — are in the [scheduling guide](scheduling.md).
+
 ## Notes
 
 - Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap).

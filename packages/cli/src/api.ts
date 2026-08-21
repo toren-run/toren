@@ -3,8 +3,9 @@ import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
-  createApiKey, createPool, effectiveEvents, foldRunStream, listApiKeys,
-  listPendingApprovals, resolveApproval, revokeApiKey, startRun, verifyApiKey,
+  createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, foldRunStream,
+  listApiKeys, listPendingApprovals, listSchedules, resolveApproval, revokeApiKey,
+  setScheduleEnabled, startRun, verifyApiKey,
   type TickDeps,
 } from "@toren-run/core";
 
@@ -142,6 +143,45 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
           }
           const revoked = await revokeApiKey(cfg.pool, id);
           return revoked ? send(res, 200, { revoked: true }) : send(res, 404, { error: "no such active key" });
+        }
+        return send(res, 404, { error: "not found" });
+      }
+
+      // /schedules — standing configuration: admin-token only, like /keys.
+      if (parts[0] === "schedules") {
+        if (principal.kind !== "admin") return send(res, 403, { error: "schedule management requires the admin token" });
+        if (!cfg.pool) return send(res, 501, { error: "schedule management unavailable (no database pool configured)" });
+        if (req.method === "GET" && parts.length === 1) {
+          return send(res, 200, { schedules: await listSchedules(cfg.pool, agentNames) });
+        }
+        if (req.method === "POST" && parts.length === 1) {
+          const body = await readJson(req);
+          if (typeof body.cron !== "string" || typeof body.input !== "string") {
+            return send(res, 400, { error: "body must be {cron, input, agent?, name?, tz?}" });
+          }
+          const agent = typeof body.agent === "string" ? body.agent : defaultAgent;
+          if (!byAgent[agent]) return send(res, 400, { error: `unknown agent "${agent}" — this deployment serves: ${agentNames.join(", ")}` });
+          try {
+            const schedule = await createSchedule(cfg.pool, {
+              agent, cron: body.cron, input: body.input,
+              name: typeof body.name === "string" ? body.name : body.cron,
+              tz: typeof body.tz === "string" ? body.tz : undefined,
+            });
+            return send(res, 201, { schedule });
+          } catch (e) {
+            return send(res, 400, { error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+        const id = parts[1];
+        if (id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+          return send(res, 404, { error: "no such schedule" });
+        }
+        if (req.method === "DELETE" && parts.length === 2 && id) {
+          return (await deleteSchedule(cfg.pool, id)) ? send(res, 200, { deleted: true }) : send(res, 404, { error: "no such schedule" });
+        }
+        if (req.method === "POST" && parts.length === 3 && id && (parts[2] === "pause" || parts[2] === "resume")) {
+          const ok = await setScheduleEnabled(cfg.pool, id, parts[2] === "resume");
+          return ok ? send(res, 200, { enabled: parts[2] === "resume" }) : send(res, 404, { error: "no such schedule" });
         }
         return send(res, 404, { error: "not found" });
       }

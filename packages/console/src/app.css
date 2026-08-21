@@ -206,6 +206,12 @@ input:focus, textarea:focus { outline: none; border-color: var(--teal); }
 .tool-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
 .tool-table tr:last-child td { border-bottom: none; }
 
+/* ---- schedules */
+.sched-form { margin-bottom: 16px; display: grid; gap: 10px; }
+.sched-row { display: grid; grid-template-columns: 1fr 1.4fr 1fr auto; gap: 10px; }
+@media (max-width: 760px) { .sched-row { grid-template-columns: 1fr; } }
+.sched-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
 /* ---- keys */
 .key-form { display: flex; gap: 12px; margin-bottom: 16px; }
 .key-form input { max-width: 380px; }

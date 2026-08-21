@@ -38,6 +38,7 @@ export default defineConfig({
           { text: "Defining agents", link: "/guides/defining-agents" },
           { text: "Workflows & waves", link: "/guides/workflows-and-waves" },
           { text: "Approvals", link: "/guides/approvals" },
+          { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },
           { text: "Deploy to AWS", link: "/guides/deploy-aws" },

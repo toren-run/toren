@@ -390,6 +390,94 @@ function AgentPage() {
   );
 }
 
+/* ------------------------------------------------------------ schedules */
+
+const until = (iso) => {
+  const s = (new Date(iso).getTime() - Date.now()) / 1000;
+  if (s <= 0) return "due";
+  if (s < 90) return `in ${Math.round(s)}s`;
+  if (s < 5400) return `in ${Math.round(s / 60)}m`;
+  return `in ${Math.round(s / 3600)}h`;
+};
+
+function SchedulesPage() {
+  const [schedules, setSchedules] = useState(null);
+  const [agents, setAgents] = useState([]);
+  const [form, setForm] = useState({ agent: "", cron: "", input: "", name: "" });
+  const [err, setErr] = useState("");
+  usePoll(async () => setSchedules((await api("GET", "/schedules")).schedules), 5000);
+  useEffect(() => {
+    api("GET", "/agent").then((r) => {
+      const names = r.agent?.crews ? Object.keys(r.agent.crews) : [r.agent?.name].filter(Boolean);
+      setAgents(names);
+      setForm((f) => ({ ...f, agent: r.agent?.default ?? names[0] ?? "" }));
+    }).catch(() => {});
+  }, []);
+
+  const create = async (e) => {
+    e.preventDefault(); setErr("");
+    try {
+      await api("POST", "/schedules", { ...form, name: form.name || form.cron });
+      setForm((f) => ({ ...f, cron: "", input: "", name: "" }));
+    } catch (ex) { setErr(String(ex.message)); }
+  };
+  const act = async (id, verb) => {
+    setErr("");
+    try { verb === "rm" ? await api("DELETE", `/schedules/${id}`) : await api("POST", `/schedules/${id}/${verb}`); }
+    catch (ex) { setErr(String(ex.message)); }
+  };
+
+  return (
+    <div class="page">
+      <div class="page-head">
+        <div>
+          <div class="overline">SHT 04 · TIMETABLE</div>
+          <h1>Schedules</h1>
+        </div>
+        <span class="live-dot"><i />LIVE</span>
+      </div>
+
+      <form class="sched-form" onSubmit={create}>
+        {agents.length > 1 && (
+          <div class="agent-select">
+            {agents.map((n) => <button type="button" key={n} class={`agent-opt${n === form.agent ? " on" : ""}`} onClick={() => setForm((f) => ({ ...f, agent: n }))}>{n}</button>)}
+          </div>
+        )}
+        <div class="sched-row">
+          <input placeholder='cron — "0 9 * * *"' value={form.cron} onInput={(e) => setForm((f) => ({ ...f, cron: e.currentTarget.value }))} />
+          <input placeholder='input — ["topic"]' value={form.input} onInput={(e) => setForm((f) => ({ ...f, input: e.currentTarget.value }))} />
+          <input placeholder="name (optional)" value={form.name} onInput={(e) => setForm((f) => ({ ...f, name: e.currentTarget.value }))} />
+          <button class="btn-primary" disabled={!form.cron.trim() || !form.input.trim()}>Schedule</button>
+        </div>
+      </form>
+      {err && <div class="form-err">{err}</div>}
+
+      {schedules === null ? <div class="empty">Loading…</div> : schedules.length === 0 ? (
+        <div class="empty"><b>Nothing scheduled.</b><span>Cron-triggered runs fire from the workers — exactly once, crash-safe.</span></div>
+      ) : (
+        <table class="sheet-table">
+          <thead><tr><th>Name</th><th>Agent</th><th>Cron</th><th>Next fire</th><th>Last fired</th><th /></tr></thead>
+          <tbody>
+            {schedules.map((s) => (
+              <tr key={s.id} class={s.enabled ? "" : "row-dead"}>
+                <td>{s.name}</td>
+                <td>{s.agent}</td>
+                <td class="mono">{s.cron} <span class="dim">{s.tz}</span></td>
+                <td>{s.enabled ? <b class="mono">{until(s.nextFireAt)}</b> : <span class="chip chip-cancelled">paused</span>}</td>
+                <td class="dim">{ago(s.lastFiredAt)}</td>
+                <td class="sched-actions">
+                  <button class="btn-ghost sm" onClick={() => act(s.id, s.enabled ? "pause" : "resume")}>{s.enabled ? "Pause" : "Resume"}</button>
+                  <button class="btn-deny sm" onClick={() => act(s.id, "rm")}>Delete</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- keys */
 
 function KeysPage() {
@@ -491,6 +579,7 @@ function App() {
         <nav>
           <a class={route.startsWith("#/runs") ? "on" : ""} href="#/runs">Runs</a>
           <a class={route === "#/agent" ? "on" : ""} href="#/agent">Agent</a>
+          {isAdmin && <a class={route === "#/schedules" ? "on" : ""} href="#/schedules">Schedules</a>}
           {isAdmin && <a class={route === "#/keys" ? "on" : ""} href="#/keys">API keys</a>}
         </nav>
         <div class="topbar-right">
@@ -500,6 +589,7 @@ function App() {
       </header>
       {runMatch ? <RunPage runId={runMatch[1]} isAdmin={isAdmin} />
         : route === "#/agent" ? <AgentPage />
+        : route === "#/schedules" && isAdmin ? <SchedulesPage />
         : route === "#/keys" && isAdmin ? <KeysPage />
         : <RunsPage nav={nav} />}
       <footer class="foot">TOREN CONSOLE · single deployment · credentials never leave this browser</footer>

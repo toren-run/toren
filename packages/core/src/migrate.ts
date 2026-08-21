@@ -26,6 +26,30 @@ CREATE TABLE IF NOT EXISTS toren_control.dead_letters (
   attempts int NOT NULL,
   failed_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS toren_control.schedules (
+  id uuid PRIMARY KEY,
+  agent text NOT NULL,
+  name text NOT NULL,
+  cron text NOT NULL,
+  tz text NOT NULL DEFAULT 'UTC',
+  input text NOT NULL,
+  enabled boolean NOT NULL DEFAULT true,
+  next_fire_at timestamptz NOT NULL,
+  last_fired_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS schedules_due_idx ON toren_control.schedules (next_fire_at) WHERE enabled;
+CREATE TABLE IF NOT EXISTS toren_control.schedule_fires (
+  schedule_id uuid NOT NULL,
+  scheduled_for timestamptz NOT NULL,
+  run_id uuid NOT NULL,
+  agent text NOT NULL,
+  input text NOT NULL,
+  fired_at timestamptz NOT NULL DEFAULT now(),
+  settled boolean NOT NULL DEFAULT false,
+  PRIMARY KEY (schedule_id, scheduled_for)
+);
+CREATE INDEX IF NOT EXISTS schedule_fires_open_idx ON toren_control.schedule_fires (agent) WHERE NOT settled;
 CREATE TABLE IF NOT EXISTS toren_control.api_keys (
   id uuid PRIMARY KEY,
   name text NOT NULL,

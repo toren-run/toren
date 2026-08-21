@@ -3,7 +3,8 @@ import { Command } from "commander";
 import { resolveEnvProfile } from "./environments.js";
 import { remoteJobsApprove, remoteJobsList, remoteJobsShow, remoteRun } from "./remote.js";
 import {
-  cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdKeysCreate, cmdKeysList, cmdKeysRevoke, cmdRun,
+  cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdKeysCreate, cmdKeysList, cmdKeysRevoke,
+  cmdRun, cmdScheduleCreate, cmdScheduleList, cmdScheduleSet,
 } from "./commands.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
@@ -105,6 +106,37 @@ export async function main(argv: string[]): Promise<void> {
       if (profile.kind === "api") throw new Error("key management runs against the database — use a db-backed environment profile");
       return cmdKeysRevoke(opts.dir, id, { databaseUrl: profile.databaseUrl });
     });
+
+  const schedule = program.command("schedule").description("Cron-triggered runs — fired by the workers, exactly once, crash-safe");
+  schedule.command("create")
+    .requiredOption("--cron <expr>", 'cron expression, e.g. "0 9 * * *"')
+    .requiredOption("--input <input>", "run input (string)")
+    .option("--agent <name>", "agent to run (default: the --dir agent)")
+    .option("--name <name>", "display name")
+    .option("--tz <zone>", "IANA timezone for the cron expression", "UTC")
+    .option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (opts: { cron: string; input: string; agent?: string; name?: string; tz?: string; dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("schedule management runs against the database — use a db-backed environment profile");
+      return cmdScheduleCreate(opts.dir, { ...opts, databaseUrl: profile.databaseUrl });
+    });
+  schedule.command("list").option("--dir <dir>", "agent directory", ".").option("--json")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (opts: { dir: string; json?: boolean; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") throw new Error("schedule management runs against the database — use a db-backed environment profile");
+      return cmdScheduleList(opts.dir, { ...opts, databaseUrl: profile.databaseUrl });
+    });
+  for (const action of ["pause", "resume", "rm"] as const) {
+    schedule.command(`${action} <id>`).option("--dir <dir>", "agent directory", ".")
+      .option("--env <name>", "environment profile", "local")
+      .action(async (id: string, opts: { dir: string; env?: string }) => {
+        const profile = resolveEnvProfile(opts.env, opts.dir);
+        if (profile.kind === "api") throw new Error("schedule management runs against the database — use a db-backed environment profile");
+        return cmdScheduleSet(opts.dir, id, action, { databaseUrl: profile.databaseUrl });
+      });
+  }
 
   await program.parseAsync(argv);
 }

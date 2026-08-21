@@ -12,6 +12,7 @@ The docs follow [Diátaxis](https://diataxis.fr/): learn by doing → solve a ta
 | Define my own agent, tools, subagents | [Defining agents](guides/defining-agents.md) |
 | Orchestrate parallel work and iteration | [Workflows & waves](guides/workflows-and-waves.md) |
 | Gate dangerous actions behind a human | [Approvals](guides/approvals.md) |
+| Run agents on a cron schedule | [Scheduling](guides/scheduling.md) |
 | Trigger runs over HTTP from anywhere | [HTTP API](guides/http-api.md) |
 | Deploy into my AWS account | [Deploy to AWS](guides/deploy-aws.md) |
 | Trace and monitor runs | [Observability](guides/observability.md) |
