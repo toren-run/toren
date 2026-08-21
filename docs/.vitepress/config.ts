@@ -38,12 +38,32 @@ export default defineConfig({
           { text: "Defining agents", link: "/guides/defining-agents" },
           { text: "Workflows & waves", link: "/guides/workflows-and-waves" },
           { text: "Approvals", link: "/guides/approvals" },
-          { text: "Sessions & channels", link: "/guides/sessions" },
+          { text: "Sessions", link: "/guides/sessions" },
           { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },
           { text: "Deploy to AWS", link: "/guides/deploy-aws" },
           { text: "Observability", link: "/guides/observability" },
+        ],
+      },
+      {
+        text: "Channels",
+        items: [
+          { text: "Overview", link: "/channels/" },
+          { text: "Console", link: "/channels/console" },
+          { text: "CLI", link: "/channels/cli" },
+          { text: "HTTP API", link: "/channels/http-api" },
+          { text: "Telegram", link: "/channels/telegram" },
+          { text: "MCP (soon)", link: "/channels/mcp" },
+          { text: "WhatsApp (soon)", link: "/channels/whatsapp" },
+        ],
+      },
+      {
+        text: "Tools",
+        items: [
+          { text: "Defining tools", link: "/tools/defining-tools" },
+          { text: "Web search (soon)", link: "/tools/web-search" },
+          { text: "File parsing (soon)", link: "/tools/file-parsing" },
         ],
       },
       {

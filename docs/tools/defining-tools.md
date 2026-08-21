@@ -1,0 +1,43 @@
+# Defining tools
+
+A tool is a typed function your agent can call. Drop one file per tool into the agent's `tools/` directory, each default-exporting a `defineTool()`:
+
+```ts
+// tools/search-tickets.ts
+import { z } from "zod";
+import { defineTool } from "@toren-run/core";
+
+export default defineTool({
+  name: "search_tickets",
+  description: "Search the support ticket index by free text.",
+  input: z.object({ query: z.string(), limit: z.number().default(10) }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ query, limit }, ctx) => {
+    const res = await fetch(`https://tickets.internal/search?q=${encodeURIComponent(query)}&n=${limit}`, {
+      headers: { authorization: `Bearer ${ctx.env.TICKETS_API_KEY}` },
+    });
+    return JSON.stringify(await res.json());
+  },
+});
+```
+
+Every field is part of the durability contract, not decoration:
+
+- **`input`** is a Zod schema. The model's arguments are validated before your handler runs, and the schema becomes the JSON Schema the model sees.
+- **`effects`** declares what the tool touches: `none` (pure lookup), `sandbox` (writes something recoverable), or `external` (emails, payments, anything the outside world sees). The runtime uses this to decide what is safe to replay.
+- **`idempotency: "keyed"`** means the call is recorded in the event log under a deterministic key, so a crashed and resumed task never executes it twice. Use `"none"` only for pure reads where a duplicate call is harmless.
+- **`approval`** gates the call on a human: `"never"`, `"always"`, or a predicate over the parsed args (`(args) => args.amount > 100`). A gated call parks the run at zero compute until someone approves it in the console, CLI, or API. See [Approvals](/guides/approvals).
+- **`ctx.env`** holds the values your agent declared in `agent.yaml` under `env:`. Handlers never read raw `process.env`; declared variables are validated at startup and fail fast with the full missing list. Never pass secrets in a run's input, because inputs live in the event log forever by design.
+
+The handler returns a string (JSON-encode structured results). Whatever it returns is recorded in the event log, so a resumed run replays the recorded result instead of calling the tool again.
+
+## Built-in tools
+
+Shipping soon, batteries included:
+
+- **Web search** <Badge type="warning" text="coming soon" />: a Tavily-backed search tool your agents get by declaring it in `agent.yaml`, no handler to write. See [Web search](/tools/web-search).
+- **File parsing** <Badge type="warning" text="coming soon" />: hand a run PDFs, spreadsheets, and documents as inputs and let agents read them. See [File parsing](/tools/file-parsing).
+
+Until then, both are a `defineTool()` away, like the example above.

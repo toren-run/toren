@@ -137,6 +137,30 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   process.exit(0);
 }
 
+export async function cmdChat(dir: string, opts: { agent?: string; session?: string; databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const project = await loadProject([dir]);
+  const rt = await buildFleetRuntime(project, opts.databaseUrl);
+  const names = Object.keys(rt.byAgent);
+  const agent = opts.agent ?? names[0]!;
+  const deps = rt.byAgent[agent];
+  if (!deps) throw new Error(`no agent "${agent}" here; agents: ${names.join(", ")}`);
+  const core = await import("@toren-run/core");
+  const worker = new core.LocalWorkerRuntime(rt.byAgent, { concurrency: 2 });
+  worker.start();
+  const { runChatLoop } = await import("./chat.js");
+  try {
+    await runChatLoop({
+      agentName: agent,
+      start: (m) => core.startSession(deps, { agent, message: m, channel: "cli" }),
+      send: (id, m, close) => core.sendSessionMessage(deps, id, { text: m, channel: "cli", close }),
+      get: (id) => core.getSession(deps.store, id),
+    }, { sessionId: opts.session }, io);
+  } finally {
+    await worker.stop();
+    await rt.close();
+  }
+}
+
 export async function cmdTelegramInvite(dir: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
   const loaded = await loadAgentDir(dir);
   const rt = await buildRuntime(loaded, opts.databaseUrl);

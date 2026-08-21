@@ -33,6 +33,21 @@ export async function main(argv: string[]): Promise<void> {
       if (settled.status === "failed") process.exitCode = 1;
     });
 
+  program.command("chat [dir]")
+    .description("Talk to an agent from the terminal — a durable session; Ctrl+C leaves it open to resume")
+    .option("--agent <name>", "agent to talk to (default: the first agent found)")
+    .option("--session <runId>", "resume an open session")
+    .option("--env <name>", "environment profile from .toren/environments.json", "local")
+    .action(async (dir: string | undefined, opts: { agent?: string; session?: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, dir ?? ".");
+      if (profile.kind === "api") {
+        const { remoteChat } = await import("./remote.js");
+        return remoteChat(profile, opts, { out: (l) => console.log(l) });
+      }
+      const { cmdChat } = await import("./commands.js");
+      return cmdChat(dir ?? ".", { ...opts, databaseUrl: profile.databaseUrl });
+    });
+
   program.command("dev")
     .description("Serve a fleet of process agents: workers + guardians for every agent in every --dir (HTTP API + console when TOREN_API_TOKEN is set)")
     .option("--dir <dir>", "agent directory, or a folder of agent directories (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])

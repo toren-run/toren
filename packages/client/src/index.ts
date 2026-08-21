@@ -18,6 +18,8 @@ export interface RunEvents {
   run: { seq: number; type: string; payload: Record<string, unknown> }[];
   tasks: Record<string, { seq: number; type: string; payload: Record<string, unknown> }[]>;
 }
+export interface SessionTurn { role: "user" | "assistant"; text: string; channel?: string; seq: number }
+export interface SessionDetail { runId: string; agent: string; state: string; transcript: SessionTurn[] }
 
 export class TorenApiError extends Error {
   status: number;
@@ -85,6 +87,24 @@ export class TorenClient {
 
   async approve(runId: string, req: { taskId: string; stepId: string; granted: boolean; comment?: string }): Promise<void> {
     await this.request("POST", `/runs/${encodeURIComponent(runId)}/approvals`, req);
+  }
+
+  async startSession(req: { message: string; agent?: string; channel?: string }): Promise<{ runId: string; agent: string }> {
+    return this.request("POST", "/sessions", req);
+  }
+
+  async listSessions(): Promise<RunSummary[]> {
+    const r = await this.request<{ sessions: RunSummary[] }>("GET", "/sessions");
+    return r.sessions;
+  }
+
+  async getSession(runId: string): Promise<SessionDetail> {
+    return this.request("GET", `/sessions/${encodeURIComponent(runId)}`);
+  }
+
+  /** Send the next turn. Throws TorenApiError(409) while the agent is mid-turn. */
+  async sendSessionMessage(runId: string, req: { message: string; channel?: string; close?: boolean }): Promise<void> {
+    await this.request("POST", `/sessions/${encodeURIComponent(runId)}/messages`, req);
   }
 
   /**

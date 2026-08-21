@@ -77,7 +77,7 @@ beforeAll(async () => {
   const deps: TickDeps = {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: providerFor(),
-    agents: { echoer: plainAgent, publisher: gatedAgent },
+    agents: { main: plainAgent, echoer: plainAgent, publisher: gatedAgent },
     workflows: { apitest: wf },
   };
   worker = new LocalWorkerRuntime(deps, { concurrency: 2 });
@@ -151,4 +151,24 @@ test("input validation: bad bodies are 400, unknown run 404", async () => {
   expect((await api("POST", "/runs", { input: "x", agent: "other" })).status).toBe(400);
   expect((await api("GET", "/runs/00000000-0000-0000-0000-000000000000")).status).toBe(404);
   expect((await api("POST", "/runs/00000000-0000-0000-0000-000000000000/approvals", { taskId: "t", stepId: "s" })).status).toBe(404);
+});
+
+test("client SDK sessions: start, reply, close — the toren chat wire path", async () => {
+  const { TorenClient } = await import("@toren-run/client");
+  const client = new TorenClient({ url: base, token: TOKEN });
+  const { runId } = await client.startSession({ message: "hi from the terminal", channel: "cli" });
+
+  let s = await client.getSession(runId);
+  const deadline = Date.now() + 15_000;
+  while (s.state === "working" && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 100));
+    s = await client.getSession(runId);
+  }
+  expect(s.state).toBe("awaiting_input");
+  expect(s.transcript[0]!.text).toBe("hi from the terminal");
+  expect(s.transcript[1]!.role).toBe("assistant");
+
+  await client.sendSessionMessage(runId, { message: "", close: true });
+  const sessions = await client.listSessions();
+  expect(sessions.some((x) => x.runId === runId)).toBe(true);
 });

@@ -68,3 +68,23 @@ export async function remoteJobsApprove(
   if (opts.json) return void io.out(JSON.stringify({ runId, status: detail.status, output: detail.run.output }));
   io.out(detail.status === "completed" ? `run ${runId}  completed\n${String(detail.run.output ?? "")}` : `run ${runId}  ${detail.status}`);
 }
+
+export async function remoteChat(
+  env: Extract<ResolvedEnv, { kind: "api" }>,
+  opts: { agent?: string; session?: string },
+  io: CmdIO,
+): Promise<void> {
+  const client = clientFor(env, io);
+  const { runChatLoop } = await import("./chat.js");
+  let agentName = opts.agent ?? "agent";
+  await runChatLoop({
+    get agentName() { return agentName; },
+    start: async (m) => {
+      const r = await client.startSession({ message: m, agent: opts.agent, channel: "cli" });
+      agentName = r.agent;
+      return r.runId;
+    },
+    send: (id, m, close) => client.sendSessionMessage(id, { message: m, channel: "cli", close }),
+    get: (id) => client.getSession(id),
+  }, { sessionId: opts.session }, io);
+}
