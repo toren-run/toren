@@ -119,13 +119,20 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
 
       if (req.method === "GET" && url.pathname === "/healthz") return send(res, 200, { ok: true });
       if (req.method === "GET" && cfg.consoleDir && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
+        // The app's asset URLs are page-relative, so the page must live at
+        // /console/ — without the slash the browser asks the API root for
+        // app.js and renders nothing. Fragments (#token=…) survive redirects.
+        if (url.pathname === "/console") {
+          res.writeHead(302, { location: "/console/" });
+          return res.end();
+        }
         return serveConsole(res, url.pathname, cfg.consoleDir);
       }
       // A browser landing on the bare domain wants the console, not a 401.
       // API clients never GET / with an html Accept header, so this stays
-      // out of their way. The URL fragment (#token=…) survives the redirect.
+      // out of their way.
       if (req.method === "GET" && cfg.consoleDir && url.pathname === "/" && (req.headers.accept ?? "").includes("text/html")) {
-        res.writeHead(302, { location: "/console" });
+        res.writeHead(302, { location: "/console/" });
         return res.end();
       }
       const principal = await authenticate(req, cfg);
