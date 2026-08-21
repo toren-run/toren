@@ -1,0 +1,15 @@
+# Remote state for real deployments — never keep production state on a laptop.
+# Usage:
+#   1. Create a versioned S3 bucket once (see the deploy guide's production checklist).
+#   2. Copy this file to backend.hcl and fill in your values.
+#   3. Add a backend.tf next to the module's .tf files containing exactly:
+#        terraform {
+#          backend "s3" {}
+#        }
+#   4. tofu init -backend-config=envs/backend.hcl        # fresh setup
+#      tofu init -backend-config=envs/backend.hcl -migrate-state   # moving existing local state
+bucket       = "yourco-toren-tfstate"
+key          = "toren/terraform.tfstate"
+region       = "eu-central-1"
+profile      = "your-aws-profile"
+use_lockfile = true   # OpenTofu >= 1.10: native S3 locking, no DynamoDB table needed

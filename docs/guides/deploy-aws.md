@@ -75,6 +75,33 @@ Parked runs cost nothing regardless — approvals and timers hold no worker, so 
 
 The public front door is the [HTTP API](http-api.md): `terraform output api_url` gives the endpoint, `api_token_secret_arn` names the Secrets Manager secret holding the bearer token. `POST /runs` to trigger, `GET /runs/:id` for status and output, `POST /runs/:id/approvals` to approve — no VPC access needed. (Direct CLI access against Postgres still works from inside the VPC.)
 
+## Production checklist
+
+The quickstart flow keeps Terraform state on your machine — fine for a rehearsal, wrong for anything that outlives your laptop. Before a real deployment:
+
+**1. Remote state (do this first).** Create a versioned S3 bucket once:
+
+```bash
+aws s3api create-bucket --bucket yourco-toren-tfstate --region eu-central-1 \
+  --create-bucket-configuration LocationConstraint=eu-central-1
+aws s3api put-bucket-versioning --bucket yourco-toren-tfstate \
+  --versioning-configuration Status=Enabled
+aws s3api put-public-access-block --bucket yourco-toren-tfstate \
+  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+```
+
+Then vendor `infra/terraform-aws` into your own repo, add a `backend.tf` with `terraform { backend "s3" {} }` (multi-line), copy [`envs/backend.hcl.example`](https://github.com/toren-run/toren/blob/main/infra/terraform-aws/envs/backend.hcl.example) to `backend.hcl`, and run `tofu init -backend-config=envs/backend.hcl` (`-migrate-state` if you started local). `use_lockfile = true` gives you native S3 state locking — no DynamoDB table required (OpenTofu ≥ 1.10).
+
+**2. HTTPS.** Set `acm_certificate_arn` — without it the ALB listener is plain HTTP, acceptable only behind a strong token during a rehearsal.
+
+**3. Pin the image.** Deploy `image = "<ecr>:<git-sha>"`, never `:latest`, so a rollback is a one-variable change.
+
+**4. Secrets via ARN references.** Use `agent_env_secret_arns` for anything sensitive rather than the `anthropic_api_key` convenience variable — ARN references never touch Terraform state.
+
+**5. Issue API keys per consumer** (`toren keys create ci-pipeline`) instead of sharing the admin token; the admin token stays in the operator's hands only.
+
+**6. Size the database for agent activity.** The event log writes on every step; `db.t4g.micro` is a pilot size, not a production one, if agents run continuously.
+
 ## Costs & teardown
 
 Full greenfield stack: roughly $50–70/month while up (NAT gateway, `db.t4g.micro`, two 1vCPU Fargate tasks). Reusing your VPC and Postgres removes the NAT and RDS line items — the marginal cost is the Fargate tasks and pennies of SQS. Tear down with `terraform -chdir=infra/terraform-aws destroy` — with `create_*=false`, destroy only removes what Toren created; your VPC and database are never touched.
