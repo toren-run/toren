@@ -9,7 +9,8 @@ export type EventType =
   | "ApprovalRequested" | "ApprovalResolved"
   | "StreamInvalidated"
   | "TaskCompleted" | "TaskFailed"
-  | "InputRequested" | "UserMessage";
+  | "InputRequested" | "UserMessage"
+  | "ContextCompacted";
 
 export interface NewEvent { type: EventType; payload: Record<string, unknown> & { v: 1 } }
 export interface RecordedEvent extends NewEvent { seq: number; recordedAt: Date }

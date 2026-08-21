@@ -19,6 +19,7 @@ interface AgentYaml {
   model?: string;
   maxTokens?: number;
   limits?: { maxStepsPerTask?: number };
+  contextWindow?: number;
   env?: { required?: string[]; optional?: Record<string, string> };
   /** Built-in tools by name, e.g. [web_search]. Their required env folds into env.required. */
   builtin_tools?: string[];
@@ -81,6 +82,7 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
       tools,
       maxTokens: yaml.maxTokens ?? 16_000,
       maxSteps: yaml.limits?.maxStepsPerTask ?? 50,
+      ...(yaml.contextWindow ? { contextWindow: yaml.contextWindow } : {}),
       env: resolveEnv(env, where, missing),
     },
   };

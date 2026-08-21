@@ -24,6 +24,8 @@ Every run is two-plus append-only streams in the agent's schema: `run` (written 
 | `LlmCallStarted` / `LlmCallCompleted` | Model request (with digest) / durable response + token usage |
 | `ToolCallStarted` / `ToolCallCompleted` | Handler about to run (idempotency key recorded) / result |
 | `ApprovalRequested` / `ApprovalResolved` | Task parked for a human / their decision |
+| `InputRequested` / `UserMessage` | Session turn boundary: the agent yields the floor / the user's next turn (with channel) |
+| `ContextCompacted` | Context fold recorded by value: `kind: "elide"` stubs old tool results, `kind: "summary"` replaces history before `keepFrom` with a recorded summary. Replay applies the payload, never recomputes |
 | `StreamInvalidated` | Prompt/tool edit detected on replay; steps from `fromSeq` re-run |
 | `TaskCompleted` / `TaskFailed` | Terminal for the task (`willRetry` marks retryable failures) |
 

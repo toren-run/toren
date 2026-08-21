@@ -18,7 +18,34 @@ export interface AgentSpec {
   outputSchema?: z.ZodTypeAny;
   /** Declared env values (from agent.yaml `env:`) passed to tool handlers as ctx.env. */
   env?: Record<string, string>;
+  /** Model context window in tokens; drives compaction. Defaults per provider; unset for mock disables compaction. */
+  contextWindow?: number;
 }
+
+/** Provider defaults; agent.yaml `contextWindow:` overrides. mock/ gets none, so tests never compact by surprise. */
+export function defaultContextWindow(model: string): number | undefined {
+  if (model.startsWith("anthropic/")) return 200_000;
+  if (model.startsWith("openai/")) return 128_000;
+  return undefined;
+}
+
+// ---- context compaction constants. Changing these mid-run invalidates in-flight
+// suffixes (same contract as changing a prompt); recorded compactions replay by value.
+export const COMPACT_ELIDE_AT = 0.5; // of contextWindow: replace old tool results with stubs
+export const COMPACT_SUMMARY_AT = 0.78; // of contextWindow: fold history into a recorded summary
+export const COMPACT_KEEP_RESULTS = 3; // most recent tool results always kept verbatim
+export const COMPACT_KEEP_TAIL = 6; // minimum recent messages kept verbatim through a summary fold
+export const COMPACT_MIN_ELIDE_CHARS = 500; // tool results smaller than this are never elided
+export const COMPACT_SUMMARY_MAX_TOKENS = 2048;
+const ELIDE_MARK = "[elided:";
+
+export const SUMMARIZE_SYSTEM =
+  "You compress an agent conversation so the agent can continue it in less space. " +
+  "Write a summary that preserves, in this order: (1) the original task or request, quoted; " +
+  "(2) every user message so far, enumerated verbatim; (3) decisions made and constraints discovered; " +
+  "(4) facts, numbers, names, and URLs learned from tools that are still needed; " +
+  "(5) current state of the work; (6) the immediate next step. " +
+  "Be dense and specific. Output only the summary text.";
 
 export interface TaskLoopArgs {
   store: PgStateStore;
@@ -45,6 +72,7 @@ const WALK_TYPES = new Set([
   "ToolCallStarted", "ToolCallCompleted",
   "ApprovalRequested", "TaskCompleted",
   "InputRequested", "UserMessage",
+  "ContextCompacted",
 ]);
 
 /** Layered onto the system prompt in session mode; constant, so replay digests stay stable. */
@@ -102,6 +130,167 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
   const specs = toolSpecs(agent.tools);
   const system = args.sessionMode ? agent.system + SESSION_PREAMBLE : agent.system;
   let steps = 0;
+
+  // ---- context pressure: exact usage from the previous model call plus a
+  // chars/3 bound on what we appended since. Deterministic on replay because
+  // usage rides in LlmCallCompleted and appends are reconstructed identically.
+  const contextWindow = agent.contextWindow ?? defaultContextWindow(agent.model);
+  let lastUsage: { inputTokens: number; outputTokens: number } | undefined;
+  let pendingChars = 0;
+  let elidedSavingsTokens = 0;
+  const pressure = (): number =>
+    lastUsage ? lastUsage.inputTokens + lastUsage.outputTokens + Math.ceil(pendingChars / 3) - elidedSavingsTokens : 0;
+
+  /** The record/replay dance for one model call; identical semantics for the main loop and summarization. */
+  async function recordedLlmCall(request: ModelRequest): Promise<ModelResponse> {
+    const digest = canonicalDigest(request);
+    let next = peek();
+    if (next?.type === "ContextCompacted") {
+      // A recorded compaction the live code no longer performs here: stale suffix.
+      await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+      next = peek();
+    }
+    if (next?.type === "LlmCallStarted" && next.payload.requestDigest !== digest) {
+      await invalidateFrom(next.seq, "request digest mismatch (prompt or code changed)");
+      next = peek();
+    }
+    let response: ModelResponse;
+    if (next?.type === "LlmCallStarted") {
+      const completed = walk[ptr + 1];
+      if (completed?.type === "LlmCallCompleted" && completed.payload.stepId === next.payload.stepId) {
+        response = completed.payload.response as ModelResponse; // replayed — zero tokens spent
+        ptr += 2;
+      } else {
+        // Crash window: call was issued but the response never landed. Re-issue (at-least-once).
+        ptr += 1;
+        response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, () => provider.complete(request));
+        await append([ev("LlmCallCompleted", { stepId: next.payload.stepId, response, usage: response.usage })]);
+      }
+    } else {
+      const stepId = `s${head + 1}`;
+      await append([ev("LlmCallStarted", { stepId, requestDigest: digest, model: request.model })]);
+      response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, () => provider.complete(request));
+      await append([ev("LlmCallCompleted", { stepId, response, usage: response.usage })]);
+    }
+    if (response.usage) {
+      lastUsage = response.usage;
+      pendingChars = 0;
+      elidedSavingsTokens = 0;
+    }
+    return response;
+  }
+
+  /** Old, large tool results not among the last COMPACT_KEEP_RESULTS and not already stubbed. */
+  function elidableTargets(): string[] {
+    const hits: { id: string; chars: number }[] = [];
+    for (const m of messages) {
+      if (m.role !== "user") continue;
+      for (const b of m.content) {
+        if (b.type === "toolResult" && typeof b.content === "string"
+          && b.content.length >= COMPACT_MIN_ELIDE_CHARS && !b.content.startsWith(ELIDE_MARK)) {
+          hits.push({ id: b.toolUseId, chars: b.content.length });
+        }
+      }
+    }
+    return hits.slice(0, Math.max(0, hits.length - COMPACT_KEEP_RESULTS)).map((h) => h.id);
+  }
+
+  function toolNameFor(toolUseId: string): string {
+    for (const m of messages) {
+      if (m.role !== "assistant") continue;
+      for (const b of m.content) if (b.type === "toolUse" && b.id === toolUseId) return b.name;
+    }
+    return "the tool";
+  }
+
+  function applyElide(toolUseIds: unknown): void {
+    const ids = new Set(Array.isArray(toolUseIds) ? toolUseIds.map(String) : []);
+    for (const m of messages) {
+      if (m.role !== "user") continue;
+      m.content = m.content.map((b) => {
+        if (b.type !== "toolResult" || !ids.has(b.toolUseId) || typeof b.content !== "string") return b;
+        const name = toolNameFor(b.toolUseId);
+        elidedSavingsTokens += Math.floor(b.content.length / 3);
+        return {
+          ...b,
+          content: `${ELIDE_MARK} earlier ${name} result removed to save context. The full output is preserved in the run's event log; call ${name} again if you need it.]`,
+        };
+      });
+    }
+  }
+
+  /** Largest boundary landing on an assistant message, keeping at least COMPACT_KEEP_TAIL recent messages. */
+  function summaryBoundary(): number {
+    for (let b = messages.length - COMPACT_KEEP_TAIL; b >= 1; b--) {
+      if (messages[b]!.role === "assistant") return b;
+    }
+    return 0;
+  }
+
+  function applySummary(payload: Record<string, unknown>): void {
+    const keepFrom = Number(payload.keepFrom);
+    const summary = String(payload.summary ?? "");
+    messages.splice(0, keepFrom, {
+      role: "user",
+      content: [{
+        type: "text",
+        text: `[The earlier conversation was compacted to save context. Summary of everything before this point:]\n\n${summary}\n\n[Continue the task from here. The recent messages below are verbatim.]`,
+      }],
+    });
+  }
+
+  /**
+   * Compaction pass, run before each model call. Both tiers are recorded events:
+   * replay applies the recorded payload by value, so the fold is a pure function
+   * of the log and survives prompt, threshold, and code changes.
+   */
+  async function maybeCompact(): Promise<void> {
+    if (!contextWindow || !lastUsage || invalidated) return;
+
+    if (pressure() >= COMPACT_ELIDE_AT * contextWindow) {
+      const targets = elidableTargets();
+      if (targets.length > 0) {
+        const next = peek();
+        if (next?.type === "ContextCompacted" && next.payload.kind === "elide") {
+          ptr += 1;
+          applyElide(next.payload.toolUseIds);
+        } else {
+          // A differing recorded suffix (older code compacted differently) is
+          // voided first; the append then lands after the StreamInvalidated cut.
+          if (next) await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+          await append([ev("ContextCompacted", { kind: "elide", toolUseIds: targets })]);
+          applyElide(targets);
+        }
+      }
+    }
+
+    if (pressure() >= COMPACT_SUMMARY_AT * contextWindow) {
+      const keepFrom = summaryBoundary();
+      if (keepFrom <= 1) return; // nothing worth folding
+      const sumRequest: ModelRequest = {
+        model: agent.model,
+        system: SUMMARIZE_SYSTEM,
+        messages: messages.slice(0, keepFrom),
+        tools: specs,
+        maxTokens: COMPACT_SUMMARY_MAX_TOKENS,
+      };
+      const sumResponse = await recordedLlmCall(sumRequest);
+      const summary = sumResponse.content
+        .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
+        .map((b) => b.text).join("\n");
+      const next = peek();
+      if (next?.type === "ContextCompacted" && next.payload.kind === "summary") {
+        ptr += 1;
+        applySummary(next.payload);
+      } else {
+        if (next) await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+        await append([ev("ContextCompacted", { kind: "summary", keepFrom, summary })]);
+        applySummary({ keepFrom, summary });
+      }
+      // The summary replaces the history the trigger measured; usage resets on the next call.
+      lastUsage = undefined;
+    }
+  }
 
   async function runHandlerAndComplete(def: ToolDefAny, tu: ToolUseBlock, stepId: string): Promise<ContentBlock> {
     let result: string;
@@ -178,32 +367,10 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
       return { status: "failed", error };
     }
 
-    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens };
-    const digest = canonicalDigest(request);
+    await maybeCompact();
 
-    let response: ModelResponse;
-    const next = peek();
-    if (next?.type === "LlmCallStarted") {
-      if (next.payload.requestDigest !== digest) {
-        await invalidateFrom(next.seq, "request digest mismatch (prompt or code changed)");
-        continue;
-      }
-      const completed = walk[ptr + 1];
-      if (completed?.type === "LlmCallCompleted" && completed.payload.stepId === next.payload.stepId) {
-        response = completed.payload.response as ModelResponse; // replayed — zero tokens spent
-        ptr += 2;
-      } else {
-        // Crash window: call was issued but the response never landed. Re-issue (at-least-once).
-        ptr += 1;
-        response = await withSpan("toren.llm", { "gen_ai.request.model": agent.model }, () => provider.complete(request));
-        await append([ev("LlmCallCompleted", { stepId: next.payload.stepId, response, usage: response.usage })]);
-      }
-    } else {
-      const stepId = `s${head + 1}`;
-      await append([ev("LlmCallStarted", { stepId, requestDigest: digest, model: agent.model })]);
-      response = await withSpan("toren.llm", { "gen_ai.request.model": agent.model }, () => provider.complete(request));
-      await append([ev("LlmCallCompleted", { stepId, response, usage: response.usage })]);
-    }
+    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens };
+    const response = await recordedLlmCall(request);
 
     messages.push({ role: "assistant", content: response.content });
 
@@ -216,6 +383,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         results.push(r);
       }
       messages.push({ role: "user", content: results });
+      pendingChars += JSON.stringify(results).length;
       continue;
     }
 
@@ -252,6 +420,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         return { status: "completed", output: text };
       }
       messages.push({ role: "user", content: [{ type: "text", text: String(userMsg.payload.text ?? "") }] });
+      pendingChars += String(userMsg.payload.text ?? "").length;
       steps = 0; // each user turn gets a fresh step budget
       continue;
     }

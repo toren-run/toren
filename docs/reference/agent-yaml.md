@@ -6,6 +6,7 @@ model: anthropic/claude-opus-5   # or openai/gpt-4o, mock/echo (offline). Prefix
 maxTokens: 16000           # per model call (default 16000)
 limits:
   maxStepsPerTask: 50      # hard cap on loop steps per task (default 50)
+contextWindow: 200000      # tokens; defaults per provider (anthropic 200k, openai 128k). Drives compaction
 builtin_tools: [web_search]      # tools shipped in the box; see the Tools docs
 env:
   required: [TICKETS_API_KEY]    # missing values fail fast at startup

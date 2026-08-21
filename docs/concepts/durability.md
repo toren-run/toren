@@ -28,6 +28,15 @@ Each event stream has one writer at a time, enforced by **leases with fencing ep
 
 A run waiting for a human approval, a timer, or (roadmap) the next conversation message holds **no** resources, no process, no poll loop, no container. It is rows in Postgres until an event wakes it.
 
+## Context compaction: an event in the log
+
+An agent that works for days outgrows its model's context window. Toren compacts in two recorded tiers, both driven by the provider's own reported token usage against the agent's `contextWindow` (defaulted per provider, settable in `agent.yaml`):
+
+1. At about half the window, old tool results are replaced with restorable stubs. The stub names the tool, the full output stays in the event log, and the agent can simply call the tool again if it needs the data. No model call, and the freshest results always stay verbatim.
+2. Near the top of the window, older history folds into a structured summary. The summarization call is recorded like any other model call, so it is paid exactly once, and the fold itself lands as a `ContextCompacted` event carrying the summary by value.
+
+Because both tiers are events, prompt assembly stays a pure function of the log: a compacted, killed, and resumed agent recalls the same summary, verified by digest, without paying for it twice. Session transcripts are untouched, since they fold from turn events, not from the model's message array. A compaction kill matrix in CI crashes the stack after every write across the fold and asserts exactly that.
+
 ## How we know it works
 
 Two chaos suites run in CI: they kill the entire stack after **every single database write** in a run (task-level and full multi-wave), then recover on a fresh stack and assert the run completes with identical output and every model call paid exactly once. The same invariant is verified live against real Anthropic billing in the key-gated live tests.
