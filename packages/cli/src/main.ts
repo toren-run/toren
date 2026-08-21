@@ -49,7 +49,8 @@ export async function main(argv: string[]): Promise<void> {
     .option("--profile <name>", "AWS shared-config profile")
     .option("--state-bucket <name>", "S3 bucket for remote terraform state (created if missing: versioned, public access blocked)")
     .option("--state-key <key>", "state object key", "toren/terraform.tfstate")
-    .action(async (opts: { region: string; planOnly?: boolean; yes?: boolean; image?: string; agentDir?: string; moduleDir?: string; profile?: string; stateBucket?: string; stateKey?: string }) => {
+    .option("--image-context <dir>", "build the agent image from this directory (linux/arm64), push to the stack's ECR, deploy with the tag pinned")
+    .action(async (opts: { region: string; planOnly?: boolean; yes?: boolean; image?: string; agentDir?: string; moduleDir?: string; profile?: string; stateBucket?: string; stateKey?: string; imageContext?: string }) => {
       const { cmdDeployAws } = await import("./deploy.js");
       await cmdDeployAws({ ...opts, anthropicApiKey: process.env.ANTHROPIC_API_KEY });
     });

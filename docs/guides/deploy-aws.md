@@ -14,11 +14,13 @@ Either way it's your account and your data boundary — Toren has no access to a
 ## Mode 1 — create everything
 
 ```bash
-toren deploy-aws --region eu-central-1 --plan-only    # preview every resource, creates nothing
-toren deploy-aws --region eu-central-1 --yes          # terraform apply (billable resources!)
+toren deploy-aws --region eu-central-1 --plan-only                      # preview, creates nothing
+toren deploy-aws --region eu-central-1 --image-context . --yes          # the whole pipeline
 ```
 
-Then build and push the image to the ECR repo from the outputs (`docker build --platform linux/arm64`, `docker tag`, `docker push`), and the service pulls `:latest`. The apply prints the env lines (`TOREN_QUEUE=sqs` + queue URLs) for pointing a local CLI at the deployment.
+With `--image-context`, one command does the full deployment in the right order: the ECR repo is created first (targeted apply), your agent image is built for `linux/arm64` (matching the Fargate runtime platform) and **tagged with your git SHA — never `:latest`**, docker logs into ECR via the AWS SDK (no `get-login-password` incantation), the image is pushed, and the final apply pins that exact tag into the task definition — which is what rolls the service. Every deploy is a rollback-able version by construction. `toren init` scaffolds the Dockerfile this builds.
+
+Prefer to manage images yourself? Skip `--image-context`, push to the ECR repo from the outputs manually, and pass `--image <uri:tag>`. Either way the apply prints the env lines (`TOREN_QUEUE=sqs` + queue URLs) for pointing a local CLI at the deployment.
 
 `ANTHROPIC_API_KEY` in your environment at deploy time is stored in Secrets Manager and injected into the workers — it never lands in the image. Like any Terraform-managed secret it does appear in your local state file, so protect the state (or skip the variable and wire the key through `agent_env_secret_arns` instead — that path never touches state).
 
@@ -92,7 +94,7 @@ Driving Terraform by hand instead? The same setup manually: versioned S3 bucket,
 
 **2. HTTPS.** Set `acm_certificate_arn` — without it the ALB listener is plain HTTP, acceptable only behind a strong token during a rehearsal.
 
-**3. Pin the image.** Deploy `image = "<ecr>:<git-sha>"`, never `:latest`, so a rollback is a one-variable change.
+**3. Pin the image.** `--image-context` does this automatically (git-SHA tags). If you manage images yourself, deploy `image = "<ecr>:<git-sha>"`, never `:latest`, so a rollback is a one-variable change.
 
 **4. Secrets via ARN references.** Use `agent_env_secret_arns` for anything sensitive rather than the `anthropic_api_key` convenience variable — ARN references never touch Terraform state.
 

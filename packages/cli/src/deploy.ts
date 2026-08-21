@@ -21,6 +21,12 @@ export interface DeployOpts {
   stateKey?: string;
   /** Directory containing the terraform module (default: repo's infra/terraform-aws, or the copy shipped in this package). */
   moduleDir?: string;
+  /**
+   * Docker build context for the agent image. When set, deploy-aws builds for
+   * linux/arm64, pushes to the stack's ECR repo (created first via a targeted
+   * apply), and applies with the pinned tag — the whole image pipeline.
+   */
+  imageContext?: string;
 }
 
 function findModuleDir(explicit?: string): string {
@@ -80,6 +86,51 @@ export async function ensureStateBucket(bucket: string, region: string, io: CmdI
   io.out(`created state bucket s3://${bucket} (versioned, public access blocked)`);
 }
 
+/** Pure: image tag from git state — sha when clean, sha-epoch when dirty, t-epoch without git. Unit-tested. */
+export function imageTag(gitSha: string | null, dirty: boolean, epochSeconds: number): string {
+  if (!gitSha) return `t${epochSeconds}`;
+  return dirty ? `${gitSha}-${epochSeconds}` : gitSha;
+}
+
+function gitState(context: string): { sha: string | null; dirty: boolean } {
+  try {
+    const sha = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: context, stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    const dirty = execFileSync("git", ["status", "--porcelain"], { cwd: context, stdio: ["ignore", "pipe", "ignore"] }).toString().trim().length > 0;
+    return { sha, dirty };
+  } catch {
+    return { sha: null, dirty: false };
+  }
+}
+
+/** Logs docker into the ECR registry that owns `repoUri` using the AWS SDK (no aws CLI needed). */
+export async function ecrDockerLogin(repoUri: string, region: string, io: CmdIO): Promise<void> {
+  const { ECRClient, GetAuthorizationTokenCommand } = await import("@aws-sdk/client-ecr");
+  const ecr = new ECRClient({ region });
+  const res = await ecr.send(new GetAuthorizationTokenCommand({}));
+  const auth = res.authorizationData?.[0]?.authorizationToken;
+  if (!auth) throw new Error("ECR returned no authorization token");
+  const [user, password] = Buffer.from(auth, "base64").toString("utf8").split(":");
+  const registry = repoUri.split("/")[0]!;
+  execFileSync("docker", ["login", "--username", user!, "--password-stdin", registry], { input: password, stdio: ["pipe", "ignore", "inherit"] });
+  io.out(`docker logged in to ${registry}`);
+}
+
+/** Builds the agent image for linux/arm64 (matching the Fargate runtime platform) and pushes it. */
+export function buildAndPushImage(context: string, imageUri: string, io: CmdIO): void {
+  try {
+    execSync("docker info", { stdio: "ignore" });
+  } catch {
+    throw new Error("docker is not running — start Docker to build the agent image (or pass --image with a prebuilt URI)");
+  }
+  if (!existsSync(join(context, "Dockerfile"))) {
+    throw new Error(`${context} has no Dockerfile — toren init scaffolds one, or pass --image with a prebuilt URI`);
+  }
+  io.out(`building ${imageUri} (linux/arm64) from ${context}`);
+  execFileSync("docker", ["build", "--platform", "linux/arm64", "-t", imageUri, context], { stdio: "inherit" });
+  execFileSync("docker", ["push", imageUri], { stdio: "inherit" });
+  io.out(`pushed ${imageUri}`);
+}
+
 /** Pure: the init args for a remote-state setup — unit-tested. */
 export function backendInitArgs(opts: { bucket: string; key: string; region: string; profile?: string; migrating: boolean }): string[] {
   return [
@@ -133,6 +184,7 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
   }
 
   if (opts.planOnly) {
+    if (opts.imageContext) io.out("note: --plan-only skips the image build/push");
     execFileSync(tf, ["plan", "-input=false", ...varArgs], { cwd: moduleDir, stdio: "inherit" });
     io.out("plan complete — nothing was created (--plan-only)");
     return;
@@ -140,7 +192,27 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
   if (!opts.yes) {
     throw new Error("refusing to apply without --yes (this creates billable AWS resources); use --plan-only to preview");
   }
+
+  if (opts.imageContext) {
+    if (opts.image) throw new Error("--image and --image-context are mutually exclusive (prebuilt URI vs build-from-source)");
+    const context = resolve(opts.imageContext);
+    // ECR repo must exist before we can push, and the service should never
+    // start against a missing image — so: repo first, push, then everything
+    // else with the freshly pushed tag pinned into the task definition.
+    execFileSync(tf, ["apply", "-input=false", "-auto-approve", "-target=aws_ecr_repository.toren", ...varArgs], { cwd: moduleDir, stdio: "inherit" });
+    const repoUri = execFileSync(tf, ["output", "-raw", "ecr_repository_url"], { cwd: moduleDir }).toString().trim();
+    const { sha, dirty } = gitState(context);
+    const tag = imageTag(sha, dirty, Math.floor(Date.now() / 1000));
+    const imageUri = `${repoUri}:${tag}`;
+    await ecrDockerLogin(repoUri, opts.region, io);
+    buildAndPushImage(context, imageUri, io);
+    varArgs.push("-var", `image=${imageUri}`);
+    io.out(`task definition will pin ${tag} — the apply rolls the service onto it`);
+  }
+
   execFileSync(tf, ["apply", "-input=false", "-auto-approve", ...varArgs], { cwd: moduleDir, stdio: "inherit" });
   execFileSync(tf, ["output", "worker_env"], { cwd: moduleDir, stdio: "inherit" });
-  io.out("deployed. Push your image to the ECR repo above (docker build/tag/push), then the service will pull :latest.");
+  io.out(opts.imageContext
+    ? "deployed — image built, pushed, and pinned; the service is rolling onto it."
+    : "deployed. Push your image to the ECR repo (docker build/tag/push) — or rerun with --image-context <dir> to have toren do it.");
 }

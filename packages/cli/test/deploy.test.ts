@@ -1,5 +1,11 @@
 import { expect, test } from "vitest";
-import { backendInitArgs } from "../src/deploy.js";
+import { backendInitArgs, imageTag } from "../src/deploy.js";
+
+test("image tag: clean git uses the sha; dirty appends epoch; no git falls back to epoch", () => {
+  expect(imageTag("abc1234", false, 1_700_000_000)).toBe("abc1234");
+  expect(imageTag("abc1234", true, 1_700_000_000)).toBe("abc1234-1700000000");
+  expect(imageTag(null, false, 1_700_000_000)).toBe("t1700000000");
+});
 
 test("backend init args: fresh setup with profile", () => {
   expect(backendInitArgs({ bucket: "b", key: "k", region: "eu-central-1", profile: "acme", migrating: false })).toEqual([

@@ -17,7 +17,8 @@
     "jiti": "^2.4.0",
     "yaml": "^2.5.0",
     "@toren-run/console": "workspace:^",
-    "@aws-sdk/client-s3": "^3.650.0"
+    "@aws-sdk/client-s3": "^3.650.0",
+    "@aws-sdk/client-ecr": "^3.650.0"
   },
   "devDependencies": {
     "zod": "^3.23.0"

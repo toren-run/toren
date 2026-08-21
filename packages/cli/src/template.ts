@@ -59,6 +59,22 @@ Swap \`model: mock/echo\` for \`anthropic/claude-sonnet-5\` and set \`ANTHROPIC_
   ".gitignore": `node_modules/
 .env
 `,
+  ".dockerignore": `node_modules/
+.env
+.git/
+docker-compose.yml
+`,
+  "Dockerfile": `# Production image for this agent project — deploy it with:
+#   toren deploy-aws --region <r> --state-bucket <b> --image-context . --yes
+FROM node:22-slim
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
+ENV NODE_ENV=production
+EXPOSE 7433
+CMD ["npx", "toren", "dev", "--dir", "."]
+`,
   "agent.yaml": `name: ${name}
 model: mock/echo          # swap to anthropic/claude-sonnet-5 when you add a key
 maxTokens: 16000
