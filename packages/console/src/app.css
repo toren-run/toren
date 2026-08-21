@@ -287,3 +287,13 @@ input:focus, textarea:focus { outline: none; border-color: var(--teal); }
   .role { display: none; }
   .head-actions .live-dot { display: none; }
 }
+
+/* ---- chat attachments */
+.attach-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.attach-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: 600 12px "JetBrains Mono", monospace; color: var(--teal);
+  border: 1.5px solid var(--teal); border-radius: 4px; padding: 3px 8px; background: var(--card);
+}
+.attach-x { background: none; border: none; color: var(--muted); font-size: 14px; padding: 0 2px; }
+.attach-btn { padding: 8px 12px; }

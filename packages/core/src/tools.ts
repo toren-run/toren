@@ -8,6 +8,8 @@ export interface ToolCtx {
   taskId: string;
   /** Env values declared in agent.yaml `env:` — never raw process.env. */
   env: Record<string, string>;
+  /** Attached-file access for the read_file builtin; wired by the runtime. */
+  files?: { get(id: string): Promise<{ id: string; name: string; pages: string[] } | null> };
 }
 
 export interface ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> {

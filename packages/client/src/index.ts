@@ -21,6 +21,14 @@ export interface RunEvents {
 export interface SessionTurn { role: "user" | "assistant"; text: string; channel?: string; seq: number }
 export interface SessionDetail { runId: string; agent: string; state: string; transcript: SessionTurn[] }
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
 export class TorenApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -68,7 +76,7 @@ export class TorenClient {
     }
   }
 
-  async startRun(req: { input: string }): Promise<{ runId: string }> {
+  async startRun(req: { input: string; agent?: string; files?: string[] }): Promise<{ runId: string }> {
     return this.request("POST", "/runs", req);
   }
 
@@ -89,7 +97,13 @@ export class TorenClient {
     await this.request("POST", `/runs/${encodeURIComponent(runId)}/approvals`, req);
   }
 
-  async startSession(req: { message: string; agent?: string; channel?: string }): Promise<{ runId: string; agent: string }> {
+  /** Upload a file for attachment; data is raw bytes or an already-base64 string. */
+  async uploadFile(req: { name: string; data: Uint8Array | string }): Promise<{ fileId: string; name: string; mediaType: string; bytes: number; pages: number }> {
+    const content_base64 = typeof req.data === "string" ? req.data : bytesToBase64(req.data);
+    return this.request("POST", "/files", { name: req.name, content_base64 });
+  }
+
+  async startSession(req: { message: string; agent?: string; channel?: string; files?: string[] }): Promise<{ runId: string; agent: string }> {
     return this.request("POST", "/sessions", req);
   }
 
@@ -103,7 +117,7 @@ export class TorenClient {
   }
 
   /** Send the next turn. Throws TorenApiError(409) while the agent is mid-turn. */
-  async sendSessionMessage(runId: string, req: { message: string; channel?: string; close?: boolean }): Promise<void> {
+  async sendSessionMessage(runId: string, req: { message: string; channel?: string; close?: boolean; files?: string[] }): Promise<void> {
     await this.request("POST", `/sessions/${encodeURIComponent(runId)}/messages`, req);
   }
 

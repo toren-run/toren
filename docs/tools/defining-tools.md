@@ -42,6 +42,6 @@ builtin_tools: [web_search]
 ```
 
 - **[Web search](/tools/web-search)**: Tavily-backed live search. Needs `TAVILY_API_KEY`, which the loader folds into the agent's required env automatically.
-- **File parsing** <Badge type="warning" text="coming soon" />: hand a run PDFs, spreadsheets, and documents as inputs and let agents read them. See [File parsing](/tools/file-parsing).
+- **[File parsing](/tools/file-parsing)** (`read_file`): paged access to attached files: PDF, docx, xlsx, and text formats, parsed once at upload.
 
 A builtin whose name collides with one of your own tools is a startup error, never a silent override.

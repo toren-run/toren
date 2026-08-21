@@ -1,11 +1,41 @@
-# File parsing <Badge type="warning" text="coming soon" />
+# File parsing
 
-Hand a run files, not just strings: PDFs, spreadsheets, and documents as first-class inputs, parsed into text your agents can read, with the extracted content recorded in the event log so replay never re-parses.
+Hand your agents files, not just strings: PDF, Word (docx), Excel (xlsx), and any text format (markdown, CSV, JSON, YAML, HTML, logs). Files are parsed to plain text exactly once at upload, stored by content hash, and read by agents page by page, so a 200-page PDF never detonates a context window.
 
-The planned shape:
+## Upload, attach, read
 
-- Upload through the API (`POST /runs` and `POST /sessions` grow a files field) or reference an S3 object your deployment can read.
-- Files land in blob storage keyed by content hash; the event log stores the reference, never the bytes.
-- A built-in `read_file` tool gives agents paged access to the parsed text, so a 200-page PDF does not detonate the context window.
+Upload through the API (or the console's paperclip button in any chat):
 
-Until it ships, the pattern that works today: put the file where your tool can reach it (S3, a URL, a database) and write a `defineTool()` that fetches and extracts the part the agent asks for. See [Defining tools](/tools/defining-tools).
+```bash
+curl -X POST "$TOREN_URL/files" \
+  -H "Authorization: Bearer $TOREN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"report.pdf\", \"content_base64\": \"$(base64 -i report.pdf)\"}"
+```
+
+The response is `{"fileId": "ab12cd34ef567890", "pages": 12, ...}`. Attach the id to a run or a session message:
+
+```bash
+curl -X POST "$TOREN_URL/sessions" \
+  -H "Authorization: Bearer $TOREN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"agent": "analyst", "message": "Summarize the attached report.", "files": ["ab12cd34ef567890"]}'
+```
+
+The attachment becomes a manifest line in the recorded message, visible in the transcript, and the agent reads the content with the `read_file` builtin:
+
+```yaml
+name: analyst
+model: anthropic/claude-sonnet-5
+builtin_tools: [read_file]
+```
+
+Attaching a file to an agent that lacks `read_file` is a clear 400 at the API, never a silent no-op. The typed client wraps the whole flow: `client.uploadFile({name, data})`, then `files: [...]` on `startRun`, `startSession`, and `sendSessionMessage`.
+
+## Durability
+
+Parsing happens once, at upload. Every `read_file` call is recorded in the event log with keyed idempotency, so a killed and resumed run replays its recorded reads: the agent reasons over the same pages before and after a crash, verified by digest, and never re-reads what it already read. Large tool results from reading, like everything else, are subject to [context compaction](/concepts/durability#context-compaction-an-event-in-the-log): old pages elide to restorable stubs the agent can re-fetch by calling `read_file` again.
+
+## Limits
+
+Files up to 15 MB. Pages are ~4,000 characters of extracted text. Excel sheets extract as per-sheet CSV. Scanned PDFs without a text layer extract poorly (no OCR yet). Images are not supported yet.

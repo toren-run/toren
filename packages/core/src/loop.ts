@@ -66,6 +66,8 @@ export interface TaskLoopArgs {
   taskId: string;
   agent: AgentSpec;
   input: string;
+  /** Attached-file access, passed through to tool handlers (read_file builtin). */
+  files?: import("./tools.js").ToolCtx["files"];
   /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
   sessionMode?: boolean;
 }
@@ -318,7 +320,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     let isError = false;
     try {
       const parsed = def.input.parse(tu.input);
-      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, env: agent.env ?? {} }));
+      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, env: agent.env ?? {}, files: args.files }));
     } catch (e) {
       result = `tool error: ${e instanceof Error ? e.message : String(e)}`;
       isError = true;

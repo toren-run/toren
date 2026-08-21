@@ -42,7 +42,30 @@ const webSearch = defineTool({
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch };
+const readFile = defineTool({
+  name: "read_file",
+  description:
+    "Read one page of an attached file. Attachments are listed in the conversation with their file_id and page count; call again with the next page number to keep reading.",
+  input: z.object({
+    file_id: z.string().describe("from the attachment list"),
+    page: z.number().int().min(1).default(1),
+  }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ file_id, page }, ctx) => {
+    if (!ctx.files) throw new Error("read_file: this deployment has no file store configured");
+    const f = await ctx.files.get(file_id);
+    if (!f) return JSON.stringify({ error: `no file with id ${file_id}; check the attachment list` });
+    const text = f.pages[page - 1];
+    if (text === undefined) {
+      return JSON.stringify({ error: `page ${page} is out of range`, name: f.name, pages: f.pages.length });
+    }
+    return JSON.stringify({ name: f.name, page, of: f.pages.length, text });
+  },
+});
+
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_file: readFile };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_file: [] };

@@ -143,7 +143,7 @@ export class LocalWorkerRuntime {
         const run = await deps.store.getRun(msg.runId);
         await runTaskLoop({
           store: deps.store, provider: deps.provider,
-          runId: msg.runId, taskId, agent, input: spec.input,
+          runId: msg.runId, taskId, agent, input: spec.input, files: deps.files,
           sessionMode: run?.mode === "session",
         });
         await this.shared.queue.ack(d);

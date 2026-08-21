@@ -1,4 +1,5 @@
 import {
+  PgFiles,
   createPool, migrateControl, provisionAgent, tx,
   PgStateStore, PgQueue, PgLeases,
   LocalWorkerRuntime, listPendingApprovals,
@@ -48,6 +49,7 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
     provider: new RouterProvider(),
     agents: loaded.agents,
     workflows: loaded.workflows,
+    files: new PgFiles(pool),
   };
   return { pool, deps, schema, close: () => pool.end() };
 }
@@ -67,6 +69,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
     for (const name of Object.keys(project.crews)) await provisionAgent(c, name);
   });
   const queue = selectQueue(pool);
+  const files = new PgFiles(pool);
   const byAgent: Record<string, TickDeps> = {};
   for (const [name, loaded] of Object.entries(project.crews)) {
     const schema = `agent_${name}`;
@@ -77,6 +80,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       provider: new RouterProvider(),
       agents: loaded.agents,
       workflows: loaded.workflows,
+      files,
     };
   }
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };

@@ -80,6 +80,15 @@ CREATE TABLE IF NOT EXISTS toren_control.telegram_state (
   id int PRIMARY KEY DEFAULT 1,
   last_update_id bigint NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS toren_control.files (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  media_type text NOT NULL,
+  bytes int NOT NULL,
+  pages jsonb NOT NULL,
+  data bytea,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 const AGENT_TABLES_SQL = (s: string) => `

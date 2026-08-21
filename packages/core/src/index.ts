@@ -7,6 +7,7 @@ export * from "./store.js";
 export * from "./leases.js";
 export * from "./queue.js";
 export * from "./blobs.js";
+export * from "./files.js";
 export * from "./model.js";
 export * from "./digest.js";
 export * from "./tools.js";

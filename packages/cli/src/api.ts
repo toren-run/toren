@@ -3,8 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
-  createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, foldRunStream,
-  getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, resolveApproval,
+  createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, fileManifest, foldRunStream,
+  getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
   revokeApiKey, SessionBusyError, sendSessionMessage, setScheduleEnabled, startRun, startSession,
   verifyApiKey,
   type TickDeps,
@@ -79,12 +79,12 @@ async function authenticate(req: IncomingMessage, cfg: ApiConfig): Promise<Princ
   return null;
 }
 
-async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
+async function readJson(req: IncomingMessage, maxBytes = 1_000_000): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > 1_000_000) throw Object.assign(new Error("body too large"), { status: 413 });
+    if (size > maxBytes) throw Object.assign(new Error("body too large"), { status: 413 });
     chunks.push(chunk as Buffer);
   }
   if (chunks.length === 0) return {};
@@ -137,6 +137,25 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       }
       const principal = await authenticate(req, cfg);
       if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
+
+      // POST /files — upload a file; parsed to pages once, stored by content
+      // hash. Attach the returned fileId to runs and session messages.
+      if (req.method === "POST" && parts.length === 1 && parts[0] === "files") {
+        if (!cfg.pool) return send(res, 501, { error: "file uploads unavailable (no database pool configured)" });
+        const body = await readJson(req, 25_000_000);
+        if (typeof body.name !== "string" || typeof body.content_base64 !== "string") {
+          return send(res, 400, { error: "body must be {name: string, content_base64: string}" });
+        }
+        try {
+          const data = Buffer.from(body.content_base64, "base64");
+          const { parseFile } = await import("./files.js");
+          const parsed = await parseFile(body.name, data);
+          const stored = await new PgFiles(cfg.pool).put({ name: body.name, mediaType: parsed.mediaType, data, pages: parsed.pages });
+          return send(res, 201, { fileId: stored.id, name: stored.name, mediaType: stored.mediaType, bytes: stored.bytes, pages: stored.pages.length });
+        } catch (e) {
+          return send(res, 400, { error: e instanceof Error ? e.message : String(e) });
+        }
+      }
 
       // POST /channels/telegram/invites — admin-token only; mints a one-time
       // pairing code for the deny-by-default Telegram bot.
@@ -217,16 +236,35 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       }
 
       // /sessions — turn-based conversations (any principal, like /runs)
+      // Attachment ids on a run or message become a manifest appended to the
+      // recorded text: transcript-visible, digest-stable, replay-safe.
+      const resolveAttachments = async (deps: (typeof byAgent)[string], ids: unknown): Promise<{ manifest: string } | { error: string }> => {
+        if (!Array.isArray(ids) || ids.length === 0) return { manifest: "" };
+        if (!cfg.pool) return { error: "file attachments unavailable (no database pool configured)" };
+        const store = new PgFiles(cfg.pool);
+        const found = [];
+        for (const id of ids.slice(0, 10)) {
+          const f = await store.get(String(id));
+          if (!f) return { error: `no uploaded file with id ${String(id)} — upload via POST /files first` };
+          found.push(f);
+        }
+        const canRead = Object.values(deps.agents).some((a) => a.tools.some((t) => t.name === "read_file"));
+        if (!canRead) return { error: 'this agent cannot read files — add "builtin_tools: [read_file]" to its agent.yaml' };
+        return { manifest: fileManifest(found) };
+      };
+
       if (parts[0] === "sessions") {
         if (req.method === "POST" && parts.length === 1) {
           const body = await readJson(req);
           if (typeof body.message !== "string" || !body.message.trim()) {
-            return send(res, 400, { error: "body must be {message: string, agent?: string, channel?: string}" });
+            return send(res, 400, { error: "body must be {message: string, agent?: string, channel?: string, files?: string[]}" });
           }
           const target = typeof body.agent === "string" ? body.agent : defaultAgent;
           const targetDeps = byAgent[target];
           if (!targetDeps) return send(res, 400, { error: `unknown agent "${target}" — this deployment serves: ${agentNames.join(", ")}` });
-          const runId = await startSession(targetDeps, { agent: target, message: body.message, channel: body.channel as string | undefined });
+          const att = await resolveAttachments(targetDeps, body.files);
+          if ("error" in att) return send(res, 400, { error: att.error });
+          const runId = await startSession(targetDeps, { agent: target, message: body.message + att.manifest, channel: body.channel as string | undefined });
           return send(res, 202, { runId, agent: target });
         }
         if (req.method === "GET" && parts.length === 1) {
@@ -244,11 +282,13 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
         if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
           const body = await readJson(req);
           if (typeof body.message !== "string" && body.close !== true) {
-            return send(res, 400, { error: "body must be {message: string, channel?, close?}" });
+            return send(res, 400, { error: "body must be {message: string, channel?, close?, files?: string[]}" });
           }
+          const att = await resolveAttachments(found.deps, body.files);
+          if ("error" in att) return send(res, 400, { error: att.error });
           try {
             await sendSessionMessage(found.deps, found.run.runId, {
-              text: typeof body.message === "string" ? body.message : "",
+              text: (typeof body.message === "string" ? body.message : "") + att.manifest,
               channel: body.channel as string | undefined,
               close: body.close === true,
             });
@@ -264,13 +304,15 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       // POST /runs — routes by body.agent (defaults to the deployment's default agent)
       if (req.method === "POST" && parts.length === 1 && parts[0] === "runs") {
         const body = await readJson(req);
-        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string, agent?: string}" });
+        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string, agent?: string, files?: string[]}" });
         const target = typeof body.agent === "string" ? body.agent : defaultAgent;
         const targetDeps = byAgent[target];
         if (!targetDeps) {
           return send(res, 400, { error: `unknown agent "${target}" — this deployment serves: ${agentNames.join(", ")}` });
         }
-        const runId = await startRun(targetDeps, { agent: target, input: body.input });
+        const att = await resolveAttachments(targetDeps, body.files);
+        if ("error" in att) return send(res, 400, { error: att.error });
+        const runId = await startRun(targetDeps, { agent: target, input: body.input + att.manifest });
         return send(res, 202, { runId, agent: target });
       }
 

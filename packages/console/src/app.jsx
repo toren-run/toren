@@ -476,6 +476,9 @@ function ChatPage({ runId }) {
   const [session, setSession] = useState(null);
   const [draft, setDraft] = useState("");
   const [err, setErr] = useState("");
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
   const endRef = useRef(null);
   const lastCount = useRef(0);
   usePoll(async () => setSession(await api("GET", `/sessions/${runId}`)), 2000, [runId]);
@@ -491,10 +494,26 @@ function ChatPage({ runId }) {
   const sendMsg = async (close) => {
     setErr("");
     try {
-      await api("POST", `/sessions/${runId}/messages`, close ? { close: true } : { message: draft, channel: "console" });
-      if (!close) setDraft("");
+      await api("POST", `/sessions/${runId}/messages`,
+        close ? { close: true } : { message: draft, channel: "console", ...(attachments.length ? { files: attachments.map((a) => a.fileId) } : {}) });
+      if (!close) { setDraft(""); setAttachments([]); }
       setSession({ ...session, state: "working" });
     } catch (ex) { setErr(String(ex.message)); }
+  };
+
+  const attachFile = async (file) => {
+    setErr(""); setUploading(true);
+    try {
+      const b64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1]);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+      const up = await api("POST", "/files", { name: file.name, content_base64: b64 });
+      setAttachments((a) => [...a, up]);
+    } catch (ex) { setErr(String(ex.message)); }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
 
   return (
@@ -522,14 +541,30 @@ function ChatPage({ runId }) {
       {session.state === "completed" ? (
         <div class="chat-closed">Session ended. The full transcript is durable, and it never re-paid a turn.</div>
       ) : (
-        <form class="chat-input" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) sendMsg(false); }}>
-          <input
-            placeholder={open ? "Your message…" : "The agent is working; it has the floor"}
-            disabled={!open}
-            value={draft} onInput={(e) => setDraft(e.currentTarget.value)}
-          />
-          <button class="btn-primary" disabled={!open || !draft.trim()}>Send</button>
-        </form>
+        <div>
+          {attachments.length > 0 && (
+            <div class="attach-row">
+              {attachments.map((a) => (
+                <span key={a.fileId} class="attach-chip">
+                  {a.name} · {a.pages}p
+                  <button type="button" class="attach-x" onClick={() => setAttachments(attachments.filter((x) => x.fileId !== a.fileId))}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <form class="chat-input" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) sendMsg(false); }}>
+            <input type="file" ref={fileRef} style="display:none" accept=".pdf,.docx,.xlsx,.xls,.txt,.md,.csv,.json,.yaml,.yml,.html,.xml,.log"
+              onChange={(e) => { const f = e.currentTarget.files?.[0]; if (f) attachFile(f); }} />
+            <button type="button" class="btn-ghost attach-btn" title="Attach a file (pdf, docx, xlsx, text)"
+              disabled={!open || uploading} onClick={() => fileRef.current?.click()}>{uploading ? "…" : "📎"}</button>
+            <input
+              placeholder={open ? "Your message…" : "The agent is working; it has the floor"}
+              disabled={!open}
+              value={draft} onInput={(e) => setDraft(e.currentTarget.value)}
+            />
+            <button class="btn-primary" disabled={!open || !draft.trim()}>Send</button>
+          </form>
+        </div>
       )}
     </div>
   );
