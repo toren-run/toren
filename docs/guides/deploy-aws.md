@@ -79,18 +79,16 @@ The public front door is the [HTTP API](http-api.md): `terraform output api_url`
 
 The quickstart flow keeps Terraform state on your machine — fine for a rehearsal, wrong for anything that outlives your laptop. Before a real deployment:
 
-**1. Remote state (do this first).** Create a versioned S3 bucket once:
+**1. Remote state (do this first).** One flag does everything:
 
 ```bash
-aws s3api create-bucket --bucket yourco-toren-tfstate --region eu-central-1 \
-  --create-bucket-configuration LocationConstraint=eu-central-1
-aws s3api put-bucket-versioning --bucket yourco-toren-tfstate \
-  --versioning-configuration Status=Enabled
-aws s3api put-public-access-block --bucket yourco-toren-tfstate \
-  --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+toren deploy-aws --region eu-central-1 --profile yourco \
+  --state-bucket yourco-toren-tfstate --plan-only
 ```
 
-Then vendor `infra/terraform-aws` into your own repo, add a `backend.tf` with `terraform { backend "s3" {} }` (multi-line), copy [`envs/backend.hcl.example`](https://github.com/toren-run/toren/blob/main/infra/terraform-aws/envs/backend.hcl.example) to `backend.hcl`, and run `tofu init -backend-config=envs/backend.hcl` (`-migrate-state` if you started local). `use_lockfile = true` gives you native S3 state locking — no DynamoDB table required (OpenTofu ≥ 1.10).
+If the bucket doesn't exist, Toren creates it (versioned, all public access blocked), wires the S3 backend with native state locking (no DynamoDB table needed), and migrates any existing local state in automatically. Without `--state-bucket` the CLI warns that state is local — fine for a rehearsal, wrong for anything that outlives your laptop.
+
+Driving Terraform by hand instead? The same setup manually: versioned S3 bucket, a multi-line `backend.tf` with `terraform { backend "s3" {} }`, and [`envs/backend.hcl.example`](https://github.com/toren-run/toren/blob/main/infra/terraform-aws/envs/backend.hcl.example) as your `-backend-config`.
 
 **2. HTTPS.** Set `acm_certificate_arn` — without it the ALB listener is plain HTTP, acceptable only behind a strong token during a rehearsal.
 

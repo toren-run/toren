@@ -13,6 +13,6 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 | `toren keys create <name> [--dir]` | Issue an API key for the deployment (secret shown once, stored hashed) |
 | `toren keys list [--dir] [--json]` | List keys — id, prefix, name, active/revoked; never secrets |
 | `toren keys revoke <id> [--dir]` | Revoke a key immediately |
-| `toren deploy-aws --region <r> [--plan-only \| --yes] [--image] [--agent-dir] [--module-dir]` | Terraform the AWS stack; refuses to apply without `--yes` |
+| `toren deploy-aws --region <r> [--plan-only \| --yes] [--profile] [--state-bucket <b>] [--image] [--agent-dir] [--module-dir]` | Terraform the AWS stack; refuses to apply without `--yes`. `--state-bucket` sets up remote S3 state (bucket auto-created, versioned, locked) — use it for anything real |
 
 All run/jobs commands take `--env <name>` (profiles from `.toren/environments.json` — see the [environments guide](../guides/environments.md)). Known gaps (roadmap): `toren jobs tail` (live event stream), `toren schedule` (cron triggers), `toren jobs cancel`.

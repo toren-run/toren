@@ -16,7 +16,8 @@
     "commander": "^12.1.0",
     "jiti": "^2.4.0",
     "yaml": "^2.5.0",
-    "@toren-run/console": "workspace:^"
+    "@toren-run/console": "workspace:^",
+    "@aws-sdk/client-s3": "^3.650.0"
   },
   "devDependencies": {
     "zod": "^3.23.0"
@@ -43,11 +44,13 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "prepack": "node scripts/sync-module.mjs"
   },
   "files": [
     "dist",
-    "bin"
+    "bin",
+    "terraform-aws"
   ],
   "publishConfig": {
     "exports": {

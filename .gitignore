@@ -10,3 +10,5 @@ docs/.vitepress/cache/
 *.tfstate
 *.tfstate.*
 terraform.tfstate.d/
+infra/terraform-aws/backend.tf
+packages/cli/terraform-aws/
