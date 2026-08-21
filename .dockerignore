@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+**/dist
+**/.cache
+.git
+docs/.vitepress/cache
+docs/.vitepress/dist
+infra/terraform-aws/.terraform
+infra/terraform-aws/terraform.tfstate*
+infra/terraform-aws/backend.tf
+site
