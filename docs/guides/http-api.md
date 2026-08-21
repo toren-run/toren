@@ -61,5 +61,5 @@ The `secret` appears in that response exactly once — only its SHA-256 hash is 
 ## Notes
 
 - Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap).
-- Without `acm_certificate_arn` the AWS listener is plain HTTP — fine for a pilot behind a strong token, but set a certificate for anything real.
+- On AWS the API is HTTPS out of the box (CloudFront fronts the stack — `terraform output api_url`); custom domains are a two-CNAME exercise, see [HTTPS & custom domains](deploy-aws.md#https--custom-domains).
 - The API only calls the same core functions the CLI uses; durability semantics are identical however a run is triggered.

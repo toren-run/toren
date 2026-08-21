@@ -52,7 +52,7 @@ export async function main(argv: string[]): Promise<void> {
     .option("--image-context <dir>", "build the agent image from this directory (linux/arm64), push to the stack's ECR, deploy with the tag pinned")
     .action(async (opts: { region: string; planOnly?: boolean; yes?: boolean; image?: string; agentDir?: string; moduleDir?: string; profile?: string; stateBucket?: string; stateKey?: string; imageContext?: string }) => {
       const { cmdDeployAws } = await import("./deploy.js");
-      await cmdDeployAws({ ...opts, anthropicApiKey: process.env.ANTHROPIC_API_KEY });
+      await cmdDeployAws({ ...opts, anthropicApiKey: process.env.ANTHROPIC_API_KEY, openaiApiKey: process.env.OPENAI_API_KEY });
     });
 
   const io = { out: (l: string) => console.log(l) };

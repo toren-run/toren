@@ -13,6 +13,7 @@ export interface DeployOpts {
   image?: string;
   agentDir?: string;
   anthropicApiKey?: string;
+  openaiApiKey?: string;
   /** AWS shared-config profile for terraform, the state backend, and bucket setup. */
   profile?: string;
   /** S3 bucket for remote terraform state. Created (versioned, public-access-blocked) if missing. */
@@ -160,6 +161,7 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     ...(opts.image ? ["-var", `image=${opts.image}`] : []),
     ...(opts.agentDir ? ["-var", `agent_dir=${opts.agentDir}`] : []),
     ...(opts.anthropicApiKey ? ["-var", `anthropic_api_key=${opts.anthropicApiKey}`] : []),
+    ...(opts.openaiApiKey ? ["-var", `openai_api_key=${opts.openaiApiKey}`] : []),
   ];
 
   io.out(`using ${tf} with module ${moduleDir}`);

@@ -102,7 +102,14 @@ resource "aws_secretsmanager_secret_version" "api_token" {
 }
 
 output "api_url" {
-  value = var.create_alb ? "http://${aws_lb.api[0].dns_name}" : "(no ALB — reach the workers on :7433 inside the VPC, or front them with your own load balancer)"
+  value = !var.create_alb ? "(no ALB — reach the workers on :7433 inside the VPC, or front them with your own load balancer)" : (
+    var.create_cdn ? "https://${aws_cloudfront_distribution.api[0].domain_name}" : "http://${aws_lb.api[0].dns_name}"
+  )
+}
+
+output "alb_dns" {
+  description = "The load balancer's own DNS name — the target for custom-domain CNAMEs when fronting the ALB directly"
+  value       = var.create_alb ? aws_lb.api[0].dns_name : "(no ALB)"
 }
 
 output "api_token_secret_arn" {

@@ -73,6 +73,25 @@ autoscaling_cpu_target = 60   # average CPU % the scaler holds
 
 Parked runs cost nothing regardless — approvals and timers hold no worker, so scale-in goes all the way down to `autoscaling_min` overnight.
 
+## HTTPS & custom domains
+
+**Out of the box you already have HTTPS.** The stack fronts the load balancer with CloudFront, whose `*.cloudfront.net` domain ships with a trusted certificate — so `terraform output api_url` gives you an `https://…cloudfront.net` URL that every browser accepts on the first click. That one URL is the front door for *everything*: the web console (`…/console`), the HTTP API, the TypeScript SDK (`new TorenClient({ url })`), and `.toren/environments.json` profiles. The CDN is a pure pass-through (caching disabled, all methods and auth headers forwarded); it exists for its certificate, not for caching. Turn it off with `create_cdn = false` if you bring your own ingress.
+
+**Connecting your own domain** (e.g. `agents.yourco.com`) — pick one of two paths:
+
+*Path A — through the built-in CDN (recommended):*
+
+1. Request a free ACM certificate for `agents.yourco.com` — **in `us-east-1`**, regardless of your stack's region (CloudFront requirement): `aws acm request-certificate --domain-name agents.yourco.com --validation-method DNS --region us-east-1`
+2. ACM gives you one validation CNAME — add it at your DNS provider; the cert issues in minutes.
+3. Apply with the cert attached: `cdn_aliases = ["agents.yourco.com"]` and `cdn_certificate_arn = "<the us-east-1 cert arn>"`.
+4. Add the routing CNAME: `agents.yourco.com → <terraform output cdn_domain>`.
+
+Done — `https://agents.yourco.com/console` and the same host for the API and SDK.
+
+*Path B — directly on the ALB (no CDN):* set `create_cdn = false` and `acm_certificate_arn` to a certificate **in the stack's own region**; the module's HTTPS `:443` listener activates automatically. CNAME your domain to `terraform output alb_dns`. Choose this when you already run a CDN or WAF of your own in front.
+
+Hardening note (roadmap): with the CDN in place, edge→ALB traffic inside AWS is plain HTTP and the ALB remains directly reachable; locking the ALB to CloudFront-only requests is a planned option.
+
 ## Triggering and observing runs
 
 The public front door is the [HTTP API](http-api.md): `terraform output api_url` gives the endpoint, `api_token_secret_arn` names the Secrets Manager secret holding the bearer token. `POST /runs` to trigger, `GET /runs/:id` for status and output, `POST /runs/:id/approvals` to approve — no VPC access needed. (Direct CLI access against Postgres still works from inside the VPC.)
@@ -92,7 +111,7 @@ If the bucket doesn't exist, Toren creates it (versioned, all public access bloc
 
 Driving Terraform by hand instead? The same setup manually: versioned S3 bucket, a multi-line `backend.tf` with `terraform { backend "s3" {} }`, and [`envs/backend.hcl.example`](https://github.com/toren-run/toren/blob/main/infra/terraform-aws/envs/backend.hcl.example) as your `-backend-config`.
 
-**2. HTTPS.** Set `acm_certificate_arn` — without it the ALB listener is plain HTTP, acceptable only behind a strong token during a rehearsal.
+**2. HTTPS.** Already on by default via the CloudFront front (`api_url` is `https://`). For a branded domain, follow [HTTPS & custom domains](#https--custom-domains).
 
 **3. Pin the image.** `--image-context` does this automatically (git-SHA tags). If you manage images yourself, deploy `image = "<ecr>:<git-sha>"`, never `:latest`, so a rollback is a one-variable change.
 
