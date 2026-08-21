@@ -1,6 +1,6 @@
 # Toren documentation
 
-*Toren is the open-source runtime for long-running, durable agents — in your own cloud.*
+*Toren is the open-source runtime for long-running, durable agents, in your own cloud.*
 
 The docs follow [Diátaxis](https://diataxis.fr/): learn by doing → solve a task → look something up → understand why.
 
@@ -27,9 +27,9 @@ The design rationale behind these guarantees is summarized in [Durability & repl
 | Area | Status |
 |---|---|
 | Quickstart, guides, concepts, CLI/config reference | ✅ written, matches shipped code |
-| TypeScript API reference (`@toren-run/core` symbols) | ❌ gap — needs typedoc generation |
-| HTTP intake API (runs, status, events, approvals) | ✅ v0 shipped — see the [guide](guides/http-api.md); sessions/SSE remain roadmap (roadmap) |
-| Troubleshooting / FAQ | ❌ gap — collect from first external users |
-| Versioning & compatibility policy | ❌ gap — needed before first public release |
+| TypeScript API reference (`@toren-run/core` symbols) | ❌ gap, needs typedoc generation |
+| HTTP intake API (runs, status, events, approvals) | ✅ shipped, see the [guide](guides/http-api.md); sessions shipped too, SSE still on the roadmap |
+| Troubleshooting / FAQ | ❌ gap, collect from first external users |
+| Versioning & compatibility policy | ❌ gap, needed before first public release |
 | Examples gallery beyond research-crew | ❌ gap |
 | Client SDK (`@toren-run/client`), env declarations, environment profiles | ✅ shipped |

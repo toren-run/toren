@@ -1,6 +1,6 @@
 # Workflows & waves
 
-*How-to — orchestrate parallel agents and multi-step pipelines.*
+*How-to: orchestrate parallel agents and multi-step pipelines.*
 
 A workflow is a default-exported async function. It runs under record/replay: on every scheduler tick it re-executes from the top, and everything already done returns instantly from the event log. Parallelism comes from **waves**:
 
@@ -12,7 +12,7 @@ export default async function (ctx: WorkflowCtx) {
   const plan = await ctx.wave("plan", [ctx.task("planner", ctx.input)]);
   const topics = parseLines(plan.results[0].output ?? "");
 
-  // dynamic fan-out — N researchers decided at runtime by the model's plan
+  // dynamic fan-out, N researchers decided at runtime by the model's plan
   const research = await ctx.wave(
     "research",
     topics.map((t) => ctx.task("researcher", t)),
@@ -29,11 +29,11 @@ export default async function (ctx: WorkflowCtx) {
 
 Workflow code re-executes on resume, so between `await`s it must be deterministic:
 
-1. No ambient time or randomness — use `await ctx.now()` / `await ctx.random()` (recorded once, replayed forever).
-2. No I/O in workflow code — effects belong in tools, inside tasks.
-3. Sleep with `await ctx.sleep(ms)` — the run parks at zero compute and wakes itself.
+1. No ambient time or randomness, use `await ctx.now()` / `await ctx.random()` (recorded once, replayed forever).
+2. No I/O in workflow code, effects belong in tools, inside tasks.
+3. Sleep with `await ctx.sleep(ms)`, the run parks at zero compute and wakes itself.
 
-Plain computation (parsing, filtering, branching, loops) is fine and encouraged — that's what makes waves more expressive than a static DAG.
+Plain computation (parsing, filtering, branching, loops) is fine and encouraged, that's what makes waves more expressive than a static DAG.
 
 ## Editing mid-flight
 
@@ -41,4 +41,4 @@ Change a wave's inputs or an agent's prompt while runs are in flight: only the s
 
 ## Results & coverage
 
-`ctx.wave` returns results in planned order, each `{ taskId, status, output?, error? }`. With `"collect"`, your code decides what a partial wave means — a run that stops early reports *declared* gaps, never a silent success.
+`ctx.wave` returns results in planned order, each `{ taskId, status, output?, error? }`. With `"collect"`, your code decides what a partial wave means, a run that stops early reports *declared* gaps, never a silent success.

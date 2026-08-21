@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Toren</title>
-<meta name="description" content="Toren is the open-source runtime for long-running, durable AI agents — in your own cloud. A resumed run never re-pays for a completed model call.">
+<meta name="description" content="Toren is the open-source runtime for long-running, durable AI agents, in your own cloud. A resumed run never re-pays for a completed model call.">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,500;0,600;0,700;0,800;0,900;1,600&family=Source+Sans+3:ital,wght@0,400;0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <style>
 :root {
@@ -292,14 +292,14 @@ footer { margin-top: 110px; }
 <!-- ======== 01 HERO ======== -->
 <section class="hero" id="s1">
   <h1>Toren runs agents <br>that work for <em>days</em> <br><span class="tail">and survive anything.</span></h1>
-  <p class="sub">The open-source runtime for <strong>process-shaped agents</strong> — work measured in hours and days, not seconds, that shrugs off crashes, deploys, and a literal <span style="white-space:nowrap">kill&nbsp;-9</span>. In <em>your</em> cloud.</p>
+  <p class="sub">The open-source runtime for <strong>process-shaped agents</strong>: work measured in hours and days, not seconds, that shrugs off crashes, deploys, and a literal <span style="white-space:nowrap">kill&nbsp;-9</span>. In <em>your</em> cloud.</p>
   <div class="heroctas">
     <div class="install">npx toren-run init my-crew</div>
     <a class="ghost-link" href="#s3">Watch it survive a kill -9 ↓</a>
   </div>
 
   <figure class="figsheet">
-    <div class="fhead"><span>FIG. 1 — RUN r_9f2c1a · TWO WAVES, ONE MURDER</span><span>KILL TEST</span></div>
+    <div class="fhead"><span>FIG. 1 · RUN r_9f2c1a · TWO WAVES, ONE MURDER</span><span>KILL TEST</span></div>
     <svg class="diagram" id="herodiag" viewBox="0 0 440 250" role="img" aria-label="A run diagram cut by a kill-9 line, resuming past the cut">
       <path class="draw" d="M20 60 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
       <path class="draw d2" d="M20 125 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
@@ -330,25 +330,25 @@ footer { margin-top: 110px; }
   </figure>
 
   <div class="claims rev">
-    <div class="claim"><span class="no">CLAIM 01 — AN ASSERTION IN CI</span><p>A resumed run never re-pays for a completed model call.</p></div>
-    <div class="claim"><span class="no">CLAIM 02 — AN ASSERTION IN CI</span><p>Crash-tested after every single write point.</p></div>
-    <div class="claim"><span class="no">CLAIM 03 — BY CONSTRUCTION</span><p>Your VPC. Your keys. Apache-2.0, forever.</p></div>
+    <div class="claim"><span class="no">CLAIM 01 · AN ASSERTION IN CI</span><p>A resumed run never re-pays for a completed model call.</p></div>
+    <div class="claim"><span class="no">CLAIM 02 · AN ASSERTION IN CI</span><p>Crash-tested after every single write point.</p></div>
+    <div class="claim"><span class="no">CLAIM 03 · BY CONSTRUCTION</span><p>Your VPC. Your keys. Apache-2.0, forever.</p></div>
   </div>
 </section>
 
 <!-- ======== 02 MANIFESTO ======== -->
 <section class="manifesto" id="s2">
   <span class="shnum" aria-hidden="true">02</span>
-  <blockquote class="bigq rev">"<mark>90% of the work</mark> is checkpointing, delivery tracking, and human oversight — agent logic is 10%."</blockquote>
-  <div class="attr rev">— practitioners building multi-agent systems in production, 2026</div>
-  <p class="therefore rev">Every serious agent team rebuilds the same plumbing: queues, checkpoints, retries, approval flows. Toren is that 90%, <b>built once, chaos-tested, and open</b> — so your team ships the 10% that's actually yours.</p>
+  <blockquote class="bigq rev">"<mark>90% of the work</mark> is checkpointing, delivery tracking, and human oversight. Agent logic is 10%."</blockquote>
+  <div class="attr rev">practitioners building multi-agent systems in production, 2026</div>
+  <p class="therefore rev">Every serious agent team rebuilds the same plumbing: queues, checkpoints, retries, approval flows. Toren is that 90%, <b>built once, chaos-tested, and open</b>, so your team ships the 10% that's actually yours.</p>
 </section>
 
 <!-- ======== 03 DEMO ======== -->
 <section id="s3">
   <span class="shnum" aria-hidden="true">03</span>
   <h2>Kill it. It keeps working.</h2>
-  <p class="lede">Every model call and tool call is recorded in a Postgres event log the moment it completes. The run's state <em>is</em> the log — so nothing that lives in a process can die with one.</p>
+  <p class="lede">Every model call and tool call is recorded in a Postgres event log the moment it completes. The run's state <em>is</em> the log, so nothing that lives in a process can die with one.</p>
   <div class="term rev">
     <div class="bar"><div class="dot o"></div><div class="dot"></div><div class="dot"></div><span>KILL TEST · LIVE TRANSCRIPT</span></div>
     <div class="body" id="termbody" data-typed="pending"></div>
@@ -359,9 +359,9 @@ footer { margin-top: 110px; }
 <section id="s4">
   <span class="shnum" aria-hidden="true">04</span>
   <h2>Agents as durable processes.</h2>
-  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. One deployment serves a whole fleet of process agents — and parked runs cost nothing: not a worker, not a container, not a poll loop.</p>
+  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. One deployment serves a whole fleet of process agents. Parked runs cost nothing: not a worker, not a container, not a poll loop.</p>
   <div class="bento rev">
-    <div class="bcard tall"><h3>workflow.ts <span class="tag">WAVES — YOUR CODE OWNS FANOUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
+    <div class="bcard tall"><h3>workflow.ts <span class="tag">WAVES · YOUR CODE OWNS FANOUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
   <span class="cm">// one planner task; the model decides</span>
   <span class="cm">// what deserves research</span>
   <span class="k">const</span> plan = <span class="k">await</span> ctx.wave(<span class="s">"plan"</span>,
@@ -374,7 +374,7 @@ footer { margin-top: 110px; }
     topics.map(t =&gt; ctx.task(<span class="s">"researcher"</span>, t)),
     { onTaskFailure: <span class="s">"collect"</span> });
 
-  <span class="cm">// park for a human — zero compute</span>
+  <span class="cm">// park for a human: zero compute</span>
   <span class="k">const</span> memo = <span class="k">await</span> ctx.wave(<span class="s">"write"</span>,
     [ctx.task(<span class="s">"writer"</span>, join(found))]);
   <span class="k">return</span> memo.results[0].output;
@@ -388,7 +388,7 @@ approval: <span class="s">"always"</span>
     <div class="bcard"><h3>anywhere.ts <span class="tag">TYPED CLIENT</span></h3><pre><span class="k">const</span> t = <span class="k">new</span> TorenClient({url, token});
 <span class="k">const</span> {runId} = <span class="k">await</span> t.startRun({input});
 <span class="k">const</span> run = <span class="k">await</span> t.waitForRun(runId);</pre></div>
-    <div class="bcard wide arch"><h3 style="border:none;padding:0 0 10px">The whole machine <span class="tag">FIG. 2 — ONE BORING DATABASE</span></h3>
+    <div class="bcard wide arch"><h3 style="border:none;padding:0 0 10px">The whole machine <span class="tag">FIG. 2 · ONE BORING DATABASE</span></h3>
       <svg viewBox="0 0 640 120" aria-label="Architecture: CLI and API feed a queue, workers execute, everything lands in the Postgres event log">
         <g font-family="JetBrains Mono, monospace" font-size="11" fill="#122134">
           <rect x="4" y="34" width="104" height="34" fill="none" stroke="#122134" stroke-width="1.5"/><text x="17" y="55">CLI · API</text>
@@ -397,7 +397,7 @@ approval: <span class="s">"always"</span>
           <rect x="500" y="20" width="136" height="62" fill="rgba(10,136,132,.08)" stroke="#0a8884" stroke-width="2"/><text x="514" y="46" fill="#0a8884" font-weight="600">EVENT LOG</text><text x="514" y="64" fill="#0a8884">(postgres)</text>
           <g stroke="#5b6b7b" stroke-width="1.2"><line x1="108" y1="51" x2="166" y2="51"/><line x1="272" y1="51" x2="330" y2="51"/><line x1="436" y1="51" x2="498" y2="51"/></g>
           <g fill="#5b6b7b" font-size="9"><text x="118" y="45">hints</text><text x="284" y="45">leases</text><text x="446" y="45">truth</text></g>
-          <text x="4" y="105" font-size="9.5" fill="#5b6b7b">LOCAL: postgres is all three boxes on the right · AWS: SQS + Fargate + RDS — same binary, same log</text>
+          <text x="4" y="105" font-size="9.5" fill="#5b6b7b">LOCAL: postgres is all three boxes on the right · AWS: SQS + Fargate + RDS · same binary, same log</text>
         </g>
       </svg>
     </div>
@@ -417,12 +417,12 @@ own schema, shared nothing</pre></div>
 <!-- ======== 05 SPEC STRIP ======== -->
 <section id="s5">
   <span class="shnum" aria-hidden="true">05</span>
-  <div class="sechead"><span class="cut">SPEC — MEASURED, NOT MARKETED</span></div>
+  <div class="sechead"><span class="cut">SPEC · MEASURED, NOT MARKETED</span></div>
   <div class="spec rev">
     <div class="cell"><div class="big"><em>0</em></div><div class="lbl">tokens re-paid on resume</div></div>
     <div class="cell"><div class="big">every</div><div class="lbl">write point crash-tested in CI</div></div>
     <div class="cell"><div class="big">1</div><div class="lbl">dependency to run locally</div></div>
-    <div class="cell"><div class="big">$0</div><div class="lbl">compute while a run waits — hours or weeks</div></div>
+    <div class="cell"><div class="big">$0</div><div class="lbl">compute while a run waits, hours or weeks</div></div>
   </div>
 </section>
 
@@ -433,11 +433,11 @@ own schema, shared nothing</pre></div>
   <div class="tablewrap rev"><table>
     <thead><tr><th></th><th></th><th>Long-running agents</th><th>Your cloud</th><th>Never re-pay tokens</th><th>Open source</th></tr></thead>
     <tbody>
-      <tr><td class="idx">01</td><td>Vercel Eve</td><td>limited</td><td>no — theirs</td><td>no</td><td>framework only</td></tr>
+      <tr><td class="idx">01</td><td>Vercel Eve</td><td>limited</td><td>no (theirs)</td><td>no</td><td>framework only</td></tr>
       <tr><td class="idx">02</td><td>Temporal</td><td>code, not agents</td><td>yes</td><td>no</td><td>yes</td></tr>
       <tr><td class="idx">03</td><td>LangGraph</td><td>checkpoints only</td><td>partly</td><td>no</td><td>yes</td></tr>
       <tr><td class="idx">04</td><td>Inngest / Restate</td><td>functions, not agents</td><td>partly</td><td>no</td><td>partly</td></tr>
-      <tr class="toren"><td class="idx">05</td><td>TOREN</td><td>yes — by design</td><td>yes — by design</td><td>yes</td><td>yes · Apache-2.0</td></tr>
+      <tr class="toren"><td class="idx">05</td><td>TOREN</td><td>yes, by design</td><td>yes, by design</td><td>yes</td><td>yes · Apache-2.0</td></tr>
     </tbody>
   </table></div>
 </section>
@@ -448,13 +448,13 @@ own schema, shared nothing</pre></div>
   <h2>One dependency locally. Your AWS in production.</h2>
   <div class="split rev">
     <div class="pane">
-      <span class="where">LOCAL — FREE FOREVER</span>
+      <span class="where">LOCAL · FREE FOREVER</span>
       <h3>docker compose up</h3>
-      <p>Postgres is the entire stack — state, queue, and event log in one boring database. The scaffold runs offline; no API keys required to feel it work.</p>
+      <p>Postgres is the entire stack: state, queue, and event log in one boring database. The scaffold runs offline; no API keys required to feel it work.</p>
       <p><code>npx toren-run init</code> → <code>toren run</code></p>
     </div>
     <div class="pane">
-      <span class="where">PRODUCTION — YOUR ACCOUNT</span>
+      <span class="where">PRODUCTION · YOUR ACCOUNT</span>
       <h3>toren deploy-aws</h3>
       <p>One Terraform apply into <em>your</em> AWS: SQS, RDS, Fargate workers, an authenticated HTTP API. Your VPC, your keys, your data boundary. Identical binary.</p>
       <p><code>toren deploy-aws --region eu-central-1 --yes</code></p>
@@ -468,11 +468,11 @@ own schema, shared nothing</pre></div>
   <h2>Free for developers. Paid where organizations need it.</h2>
   <div class="tiers rev">
     <div class="tier"><h3>Open source</h3><div class="price">Apache-2.0 · forever</div>
-      <ul><li>The full runtime + CLI</li><li>Built-in web console</li><li>Deploy to your own AWS</li><li>Durable timers &amp; approvals</li><li>Cron scheduling — crash-tested</li><li>HTTP API &amp; typed SDK</li></ul></div>
+      <ul><li>The full runtime + CLI</li><li>Built-in web console</li><li>Deploy to your own AWS</li><li>Durable timers &amp; approvals</li><li>Cron scheduling, crash-tested</li><li>HTTP API &amp; typed SDK</li></ul></div>
     <div class="tier soon"><h3>Toren Cloud</h3><div class="price">coming soon</div>
       <ul><li>Fully hosted, zero ops</li><li>Dashboard &amp; approvals UI</li><li>Hosted memory</li><li>For teams without infra</li></ul></div>
     <div class="tier flag soon"><h3>Toren BYOC</h3><div class="price">coming soon · design partners welcome</div>
-      <ul><li>Data plane in <strong>your</strong> cloud — payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>The self-improvement loop, fed by fleet telemetry</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
+      <ul><li>Data plane in <strong>your</strong> cloud: payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>The self-improvement loop, fed by fleet telemetry</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
   </div>
 </section>
 
@@ -480,16 +480,16 @@ own schema, shared nothing</pre></div>
 
 <footer>
   <div class="tblock">
-    <div class="tcell"><span class="k">Project</span>TOREN — durable agent runtime</div>
+    <div class="tcell"><span class="k">Project</span>TOREN · durable agent runtime</div>
     <div class="tcell"><span class="k">Drawing</span>TRN-001 · marketing sheet</div>
     <div class="tcell"><span class="k">Scale</span>hours : days : forever</div>
     <div class="tcell"><span class="k">License</span>Apache-2.0</div>
     <div class="tcell"><span class="k">Drawn by</span>humans + agents, durably</div>
   </div>
   <div class="revtable">
-    <span>REV A — Aug 2026 · first issue</span>
-    <span>CHECKED — 68 assertions in CI</span>
-    <span>APPROVED — pending your kill -9</span>
+    <span>REV A · Aug 2026 · first issue</span>
+    <span>CHECKED · 94 assertions in CI</span>
+    <span>APPROVED · pending your kill -9</span>
   </div>
 </footer>
 
@@ -513,9 +513,9 @@ const LINES = [
   ['c', '$ '], ['p', 'toren run research-crew --input \'["solar shipping","battery freight"]\'\n'],
   ['p', 'run r_9f2c1a  wave research   dispatched 2 tasks\n'],
   ['p', 'run r_9f2c1a  wave research   settled 2/2\n'],
-  ['o', '^C  — process killed mid-wave\n'],
+  ['o', '^C  process killed mid-wave\n'],
   ['c', '$ '], ['p', 'toren dev\n'],
-  ['g', 'run r_9f2c1a  resumed at step 14 — 13 completed calls replayed, 0 tokens re-paid\n'],
+  ['g', 'run r_9f2c1a  resumed at step 14: 13 completed calls replayed, 0 tokens re-paid\n'],
   ['b', 'run r_9f2c1a  completed  '], ['p', '"Solar-assisted shipping is…"\n'],
 ];
 const CLS = { c: 'c', g: 'g', o: 'o', b: '', p: '' };

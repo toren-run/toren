@@ -1,8 +1,8 @@
 # Environments
 
-*How-to — local, staging, and production without footguns.*
+*How-to: local, staging, and production without footguns.*
 
-**The model: one environment = one fully separate stack.** Local is docker compose; staging and prod are two independent applies of the same Terraform module (`envs/staging.tfvars`, `envs/prod.tfvars` — see the examples in `infra/terraform-aws/envs/`) with their own VPC, database, queues, and API tokens. Nothing is ever shared between environments.
+**The model: one environment = one fully separate stack.** Local is docker compose; staging and prod are two independent applies of the same Terraform module (`envs/staging.tfvars`, `envs/prod.tfvars`, see the examples in `infra/terraform-aws/envs/`) with their own VPC, database, queues, and API tokens. Nothing is ever shared between environments.
 
 ## Profiles: pointing the CLI at the right one
 
@@ -22,11 +22,11 @@ toren jobs list --env prod                      # prints "→ env: prod (…)" f
 toren jobs approve r_9f2c… w1t0 s4 --env staging
 ```
 
-Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll — the deployment's own workers execute it.
+Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll, the deployment's own workers execute it.
 
 ## Per-environment secrets
 
-Declare what an agent needs in `agent.yaml` (`env: { required: [...] }` — see [Defining agents](defining-agents.md)); supply values per environment: locally via `.env`, in AWS via the `agent_env_secret_arns` map (env-var name → Secrets Manager ARN), so staging keys and prod keys never meet. Toren stores no secret values anywhere.
+Declare what an agent needs in `agent.yaml` (`env: { required: [...] }`, see [Defining agents](defining-agents.md)); supply values per environment: locally via `.env`, in AWS via the `agent_env_secret_arns` map (env-var name → Secrets Manager ARN), so staging keys and prod keys never meet. Toren stores no secret values anywhere.
 
 ## Promotion
 

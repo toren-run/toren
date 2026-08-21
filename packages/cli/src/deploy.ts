@@ -171,7 +171,7 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     const backendTf = join(moduleDir, "backend.tf");
     if (!existsSync(backendTf)) writeFileSync(backendTf, `terraform {\n  backend "s3" {}\n}\n`);
     const migrating = existsSync(join(moduleDir, "terraform.tfstate"));
-    if (migrating) io.out("local state found — migrating it into the S3 backend");
+    if (migrating) io.out("local state found; migrating it into the S3 backend");
     execFileSync(tf, backendInitArgs({
       bucket: opts.stateBucket,
       key: opts.stateKey ?? "toren/terraform.tfstate",
@@ -182,13 +182,13 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     io.out(`remote state: s3://${opts.stateBucket}/${opts.stateKey ?? "toren/terraform.tfstate"} (native S3 locking)`);
   } else {
     execFileSync(tf, ["init", "-input=false"], { cwd: moduleDir, stdio: "inherit" });
-    io.out("state: LOCAL — fine for a rehearsal; pass --state-bucket <name> for anything real");
+    io.out("state: LOCAL. Fine for a rehearsal; pass --state-bucket <name> for anything real");
   }
 
   if (opts.planOnly) {
     if (opts.imageContext) io.out("note: --plan-only skips the image build/push");
     execFileSync(tf, ["plan", "-input=false", ...varArgs], { cwd: moduleDir, stdio: "inherit" });
-    io.out("plan complete — nothing was created (--plan-only)");
+    io.out("plan complete; nothing was created (--plan-only)");
     return;
   }
   if (!opts.yes) {
@@ -209,7 +209,7 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     await ecrDockerLogin(repoUri, opts.region, io);
     buildAndPushImage(context, imageUri, io);
     varArgs.push("-var", `image=${imageUri}`);
-    io.out(`task definition will pin ${tag} — the apply rolls the service onto it`);
+    io.out(`task definition will pin ${tag}; the apply rolls the service onto it`);
   }
 
   execFileSync(tf, ["apply", "-input=false", "-auto-approve", ...varArgs], { cwd: moduleDir, stdio: "inherit" });

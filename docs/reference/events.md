@@ -20,7 +20,7 @@ Every run is two-plus append-only streams in the agent's schema: `run` (written 
 
 | Event | Meaning |
 |---|---|
-| `TaskStarted` | Loop (re)entered — `attempt` counts retries |
+| `TaskStarted` | Loop (re)entered, `attempt` counts retries |
 | `LlmCallStarted` / `LlmCallCompleted` | Model request (with digest) / durable response + token usage |
 | `ToolCallStarted` / `ToolCallCompleted` | Handler about to run (idempotency key recorded) / result |
 | `ApprovalRequested` / `ApprovalResolved` | Task parked for a human / their decision |

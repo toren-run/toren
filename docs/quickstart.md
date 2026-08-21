@@ -1,8 +1,8 @@
 # Toren Quickstart
 
-*From zero to a durable multi-agent run — locally with one dependency, then the identical agent in your own AWS account.*
+*From zero to a durable multi-agent run, locally with one dependency, then the identical agent in your own AWS account.*
 
-> Everything below runs today, offline out of the box — and the AWS path has survived a live kill test on a real account (worker killed mid-run, resumed, zero tokens re-paid).
+> Everything below runs today, offline out of the box, and the AWS path has survived a live kill test on a real account (worker killed mid-run, resumed, zero tokens re-paid).
 
 ---
 
@@ -14,7 +14,7 @@ cd research-crew
 npm install                 # runtime + @toren-run/core for your tools
 ```
 
-You get a filesystem-first agent — files, not framework config:
+You get a filesystem-first agent: files, not framework config.
 
 ```
 research-crew/
@@ -32,7 +32,7 @@ research-crew/
 
 ## 2. Define a tool
 
-Tools are plain TypeScript with three durability attributes — what the tool touches (`effects`), whether retries are safe (`idempotency`), and whether a human must sign off (`approval`):
+Tools are plain TypeScript with three durability attributes: what the tool touches (`effects`), whether retries are safe (`idempotency`), and whether a human must sign off (`approval`):
 
 ```ts
 // tools/send-report.ts
@@ -53,7 +53,7 @@ export default defineTool({
 });
 ```
 
-Need an API key in a tool? Declare it — toren validates at startup and hands it to handlers as `ctx.env`, never storing it:
+Need an API key in a tool? Declare it; toren validates at startup and hands it to handlers as `ctx.env`, never storing it:
 
 ```yaml
 # agent.yaml
@@ -63,7 +63,7 @@ env:
 
 ## 3. Define the workflow
 
-The workflow is a short, deterministic script. Parallelism comes from **waves** — dispatch a batch of agent tasks, get their results, decide what's next:
+The workflow is a short, deterministic script. Parallelism comes from **waves**: dispatch a batch of agent tasks, get their results, decide what's next:
 
 ```ts
 // workflow.ts
@@ -79,7 +79,7 @@ export default async function (ctx: WorkflowCtx) {
     { onTaskFailure: "collect" },   // failures are reported, not fatal
   );
 
-  // Plain code between waves — filter, branch, iterate
+  // Plain code between waves, filter, branch, iterate
   const found = research.results.filter((r) => r.status === "completed");
 
   // Wave 2: one writer over the combined findings
@@ -96,7 +96,7 @@ export default async function (ctx: WorkflowCtx) {
 The whole local stack is Postgres. Nothing else.
 
 ```bash
-docker compose up -d db     # postgres — the whole local stack
+docker compose up -d db     # postgres, the whole local stack
 npx toren run . --input '["solar shipping","battery freight"]'
 ```
 
@@ -126,13 +126,13 @@ sleep 10 && kill -9 %1        # murder it mid-wave
 npx toren dev                  # bring the stack back
 ```
 
-The run resumes at the exact step it died on. Every completed model call is **replayed from the event log, not re-executed** — a resumed run re-pays zero tokens for finished work. This isn't best-effort: the test suite kills the stack after *every single write point* in a run and asserts each LLM step was paid for exactly once.
+The run resumes at the exact step it died on. Every completed model call is **replayed from the event log, not re-executed**. A resumed run re-pays zero tokens for finished work. This isn't best-effort: the test suite kills the stack after *every single write point* in a run and asserts each LLM step was paid for exactly once.
 
 Edit a prompt mid-flight? Only the steps your edit actually affects re-run; everything unchanged stays cached (each recorded step carries a digest of its exact request, verified on replay).
 
 ## 6. Approvals
 
-When the writer tries `send_report`, the run parks — durably, at **zero compute**. No worker polling, no idle container.
+When the writer tries `send_report`, the run parks durably at **zero compute**. No worker polling, no idle container.
 
 ```bash
 toren jobs list
@@ -154,27 +154,27 @@ The run wakes, executes the tool once, and continues.
 toren console: http://localhost:7433/console/#token=…
 ```
 
-Live runs, full event timelines (every model call with its token usage), one-click approve/deny on parked runs, and API-key management. Try the kill test again with the run's timeline open — you can watch it survive.
+Live runs, full event timelines (every model call with its token usage), one-click approve/deny on parked runs, and API-key management. Try the kill test again with the run's timeline open, you can watch it survive.
 
 Serving more than one agent is the same command: `toren dev --dir crews/` loads every agent directory in the folder (or repeat `--dir`), each crew with its own isolated event log. The console shows the whole fleet.
 
 ## 8. Trigger it from anywhere
 
-`toren dev` serves an HTTP API (bearer-token auth) — and `@toren-run/client` wraps it, typed:
+`toren dev` serves an HTTP API (bearer-token auth), and `@toren-run/client` wraps it, typed:
 
 ```ts
 import { TorenClient } from "@toren-run/client";
 
 const toren = new TorenClient({ url: process.env.TOREN_URL!, token: process.env.TOREN_TOKEN! });
 const { runId } = await toren.startRun({ input: JSON.stringify(topics) });
-const run = await toren.waitForRun(runId);          // terminal — or parked on an approval
+const run = await toren.waitForRun(runId);          // terminal, or parked on an approval
 if (run.status === "waiting_approval") await toren.approve(runId, { ...run.approvals[0], granted: true });
 ```
 
 Name your deployments once in `.toren/environments.json`, then every command targets any of them:
 
 ```bash
-toren run . --input '"hello"' --env staging     # → env: staging (http://…)  — via the API
+toren run . --input '"hello"' --env staging     # → env: staging (http://…), via the API
 toren jobs list --env prod
 ```
 
@@ -185,8 +185,8 @@ toren deploy-aws --region eu-central-1 --plan-only   # preview everything it wou
 toren deploy-aws --region eu-central-1 --yes         # terraform apply into YOUR account
 ```
 
-Locally: Postgres does queue + state + log. In AWS: SQS + Lambda/Fargate + RDS — bound behind the same four interfaces, in your VPC, inside your data boundary. The orchestrator binary is byte-identical in both.
+Locally: Postgres does queue + state + log. In AWS: SQS + Lambda/Fargate + RDS, bound behind the same four interfaces, in your VPC, inside your data boundary. The orchestrator binary is byte-identical in both.
 
 ---
 
-**Where it stands:** steps 1–8 run today and are chaos- and live-tested (HTTP API, typed SDK, console, environment profiles included). Step 9 is live-validated too: the Terraform module has been applied to real AWS accounts — greenfield and into an existing VPC — and passed the full kill test there: a Fargate worker killed mid-run on real Anthropic billing, resumed by a replacement task, **zero duplicate paid calls** in the event-log audit.
+**Where it stands:** steps 1–8 run today and are chaos- and live-tested (HTTP API, typed SDK, console, environment profiles included). Step 9 is live-validated too: the Terraform module has been applied to real AWS accounts, greenfield and into an existing VPC, and passed the full kill test there: a Fargate worker killed mid-run on real Anthropic billing, resumed by a replacement task, **zero duplicate paid calls** in the event-log audit.

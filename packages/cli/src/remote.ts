@@ -17,7 +17,7 @@ export async function remoteRun(
   const client = clientFor(env, io);
   const { runId } = await client.startRun({ input: opts.input });
   if (opts.detach) {
-    io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `run ${runId}  detached — check: toren jobs show ${runId} --env ${env.name}`);
+    io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `run ${runId}  detached; check: toren jobs show ${runId} --env ${env.name}`);
     return;
   }
   io.out(`run ${runId}  started`);

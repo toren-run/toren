@@ -20,7 +20,7 @@ export async function cmdInit(name: string, io: CmdIO = stdoutIO): Promise<strin
     mkdirSync(join(path, ".."), { recursive: true });
     writeFileSync(path, content);
   }
-  io.out(`created ${name}/ — next:
+  io.out(`created ${name}/. Next:
   cd ${name}
   npm install
   docker compose up -d db
@@ -36,7 +36,7 @@ export async function cmdRun(dir: string, opts: { input: string; json?: boolean;
     const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input });
     io.out(`run ${runId}  agent ${loaded.name}  started`);
     if (opts.detach) {
-      io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `detached — workers will pick it up; check: toren jobs show ${runId}`);
+      io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `detached; workers will pick it up. Check: toren jobs show ${runId}`);
       return { runId, status: "detached" };
     }
     const settled = await driveRun(rt, runId);
@@ -86,7 +86,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   const { LocalWorkerRuntime } = await import("@toren-run/core");
   const worker = new LocalWorkerRuntime(rt.byAgent, { concurrency: 4 });
   worker.start();
-  io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`} — workers + guardians. Ctrl+C to stop.`);
+  io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`}. Workers + guardians up; Ctrl+C to stop.`);
 
   // No configured token → mint an ephemeral one so the API + console work out
   // of the box. It rotates every restart; set TOREN_API_TOKEN to pin it.
@@ -107,7 +107,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
-    if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart) — set TOREN_API_TOKEN to pin one`);
+    if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart); set TOREN_API_TOKEN to pin one`);
   }
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name);

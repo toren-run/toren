@@ -179,7 +179,7 @@ function NewRun({ onClose, nav }) {
             ))}
           </div>
         )}
-        <p class="muted">Passed verbatim as the workflow's <code>ctx.input</code> string — many agents expect JSON, e.g. <code>["topic a","topic b"]</code>.</p>
+        <p class="muted">Passed verbatim as the workflow's <code>ctx.input</code> string; many agents expect JSON, e.g. <code>["topic a","topic b"]</code>.</p>
         <textarea rows="4" autofocus placeholder='["research this","and this"]' value={input} onInput={(e) => setInput(e.currentTarget.value)} />
         {err && <div class="form-err">{err}</div>}
         <div class="modal-actions">
@@ -259,7 +259,7 @@ function RunPage({ runId, isAdmin }) {
 
       {approvals.length > 0 && (
         <div class="approve-card">
-          <div class="overline signal">HELD FOR APPROVAL — ZERO COMPUTE WHILE PARKED</div>
+          <div class="overline signal">HELD FOR APPROVAL · ZERO COMPUTE WHILE PARKED</div>
           {approvals.map((a) => (
             <div class="approve-row" key={`${a.taskId}:${a.stepId}`}>
               <div class="approve-what">
@@ -293,7 +293,7 @@ function RunPage({ runId, isAdmin }) {
         </div>
       )}
 
-      <div class="overline" style="margin-top:26px">EVENT LOG — THE SOURCE OF TRUTH</div>
+      <div class="overline" style="margin-top:26px">EVENT LOG · THE SOURCE OF TRUTH</div>
       {events && (
         <div class="streams">
           <Stream name="run" events={events.run ?? []} />
@@ -359,10 +359,10 @@ function AgentPage() {
                     <span class="dim">max {a.maxSteps} steps · {a.maxTokens} tok · prompt {a.systemChars} chars</span>
                   </div>
                   {a.env.length > 0 && (
-                    <div class="agent-env">ENV: {a.env.map((n) => <code key={n}>{n}</code>)} <span class="dim">(names only — values never leave the worker)</span></div>
+                    <div class="agent-env">ENV: {a.env.map((n) => <code key={n}>{n}</code>)} <span class="dim">(names only; values never leave the worker)</span></div>
                   )}
                   {a.tools.length === 0 ? (
-                    <div class="dim" style="padding: 4px 0 2px">No tools — pure model reasoning.</div>
+                    <div class="dim" style="padding: 4px 0 2px">No tools; pure model reasoning.</div>
                   ) : (
                     <table class="tool-table">
                       <thead><tr><th>Tool</th><th>Description</th><th>Effects</th><th>Approval</th></tr></thead>
@@ -416,7 +416,7 @@ function SessionsPage({ nav }) {
         </div>
       </div>
       {sessions === null ? <div class="empty">Loading…</div> : sessions.length === 0 ? (
-        <div class="empty"><b>No conversations yet.</b><span>Sessions park at zero compute between turns — and never re-pay a completed one.</span></div>
+        <div class="empty"><b>No conversations yet.</b><span>Sessions park at zero compute between turns, and they never re-pay a completed one.</span></div>
       ) : (
         <table class="sheet-table">
           <thead><tr><th>Session</th><th>Agent</th><th>Status</th><th>Started</th></tr></thead>
@@ -518,11 +518,11 @@ function ChatPage({ runId }) {
 
       {err && <div class="form-err">{err}</div>}
       {session.state === "completed" ? (
-        <div class="chat-closed">Session ended. The full transcript is durable — and never re-paid a turn.</div>
+        <div class="chat-closed">Session ended. The full transcript is durable, and it never re-paid a turn.</div>
       ) : (
         <form class="chat-input" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) sendMsg(false); }}>
           <input
-            placeholder={open ? "Your message…" : "The agent is working — it has the floor"}
+            placeholder={open ? "Your message…" : "The agent is working; it has the floor"}
             disabled={!open}
             value={draft} onInput={(e) => setDraft(e.currentTarget.value)}
           />
@@ -587,8 +587,8 @@ function SchedulesPage() {
           </div>
         )}
         <div class="sched-row">
-          <input placeholder='cron — "0 9 * * *"' value={form.cron} onInput={(e) => setForm((f) => ({ ...f, cron: e.currentTarget.value }))} />
-          <input placeholder='input — ["topic"]' value={form.input} onInput={(e) => setForm((f) => ({ ...f, input: e.currentTarget.value }))} />
+          <input placeholder='cron: "0 9 * * *"' value={form.cron} onInput={(e) => setForm((f) => ({ ...f, cron: e.currentTarget.value }))} />
+          <input placeholder='input: ["topic"]' value={form.input} onInput={(e) => setForm((f) => ({ ...f, input: e.currentTarget.value }))} />
           <input placeholder="name (optional)" value={form.name} onInput={(e) => setForm((f) => ({ ...f, name: e.currentTarget.value }))} />
           <button class="btn-primary" disabled={!form.cron.trim() || !form.input.trim()}>Schedule</button>
         </div>
@@ -596,7 +596,7 @@ function SchedulesPage() {
       {err && <div class="form-err">{err}</div>}
 
       {schedules === null ? <div class="empty">Loading…</div> : schedules.length === 0 ? (
-        <div class="empty"><b>Nothing scheduled.</b><span>Cron-triggered runs fire from the workers — exactly once, crash-safe.</span></div>
+        <div class="empty"><b>Nothing scheduled.</b><span>Cron-triggered runs fire from the workers: exactly once, crash-safe.</span></div>
       ) : (
         <table class="sheet-table">
           <thead><tr><th>Name</th><th>Agent</th><th>Cron</th><th>Next fire</th><th>Last fired</th><th /></tr></thead>
@@ -653,13 +653,13 @@ function KeysPage() {
       </div>
 
       <form class="key-form" onSubmit={create}>
-        <input placeholder="key name — e.g. ci-pipeline" value={name} onInput={(e) => setName(e.currentTarget.value)} />
+        <input placeholder="key name, e.g. ci-pipeline" value={name} onInput={(e) => setName(e.currentTarget.value)} />
         <button class="btn-primary" disabled={!name.trim()}>Issue key</button>
       </form>
 
       {minted && (
         <div class="minted">
-          <div class="overline signal">SECRET — SHOWN ONCE, STORE IT NOW</div>
+          <div class="overline signal">SECRET · SHOWN ONCE, STORE IT NOW</div>
           <div class="minted-row">
             <code>{minted.secret}</code>
             <button class="btn-ghost" onClick={() => copy(minted.secret)}>Copy</button>
