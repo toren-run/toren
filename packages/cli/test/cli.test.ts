@@ -58,3 +58,30 @@ test("toren init scaffolds the template", async () => {
     process.chdir(prev);
   }
 });
+
+test("builtin_tools: web_search loads by name and requires its key at startup", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "toren-builtin-"));
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(join(dir, "agent.yaml"), "name: seeker\nbuiltin_tools: [web_search]\n");
+  writeFileSync(join(dir, "instructions.md"), "You search.");
+
+  const had = process.env.TAVILY_API_KEY;
+  delete process.env.TAVILY_API_KEY;
+  try {
+    await expect(loadAgentDir(dir)).rejects.toThrow(/TAVILY_API_KEY/);
+    process.env.TAVILY_API_KEY = "tvly-x";
+    const loaded = await loadAgentDir(dir);
+    expect(loaded.agents.main!.tools.map((t) => t.name)).toEqual(["web_search"]);
+    expect(loaded.agents.main!.env?.TAVILY_API_KEY).toBe("tvly-x");
+  } finally {
+    if (had === undefined) delete process.env.TAVILY_API_KEY;
+    else process.env.TAVILY_API_KEY = had;
+  }
+});
+
+test("builtin_tools: unknown names fail fast", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "toren-builtin-"));
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(join(dir, "agent.yaml"), "name: seeker\nbuiltin_tools: [teleport]\n");
+  await expect(loadAgentDir(dir)).rejects.toThrow(/unknown builtin tool "teleport"/);
+});

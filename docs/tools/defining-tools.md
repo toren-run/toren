@@ -35,9 +35,13 @@ The handler returns a string (JSON-encode structured results). Whatever it retur
 
 ## Built-in tools
 
-Shipping soon, batteries included:
+Some tools are common enough to ship in the box. Declare them by name in `agent.yaml` and skip the handler:
 
-- **Web search** <Badge type="warning" text="coming soon" />: a Tavily-backed search tool your agents get by declaring it in `agent.yaml`, no handler to write. See [Web search](/tools/web-search).
+```yaml
+builtin_tools: [web_search]
+```
+
+- **[Web search](/tools/web-search)**: Tavily-backed live search. Needs `TAVILY_API_KEY`, which the loader folds into the agent's required env automatically.
 - **File parsing** <Badge type="warning" text="coming soon" />: hand a run PDFs, spreadsheets, and documents as inputs and let agents read them. See [File parsing](/tools/file-parsing).
 
-Until then, both are a `defineTool()` away, like the example above.
+A builtin whose name collides with one of your own tools is a startup error, never a silent override.

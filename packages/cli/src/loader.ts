@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createJiti } from "jiti";
 import { parse as parseYaml } from "yaml";
-import type { AgentSpec, ToolDefAny, WorkflowFn } from "@toren-run/core";
+import { BUILTIN_TOOL_ENV, BUILTIN_TOOLS, type AgentSpec, type ToolDefAny, type WorkflowFn } from "@toren-run/core";
 
 const jiti = createJiti(import.meta.url);
 
@@ -20,6 +20,8 @@ interface AgentYaml {
   maxTokens?: number;
   limits?: { maxStepsPerTask?: number };
   env?: { required?: string[]; optional?: Record<string, string> };
+  /** Built-in tools by name, e.g. [web_search]. Their required env folds into env.required. */
+  builtin_tools?: string[];
 }
 
 /** Resolve a declared env block against process.env. Values never get logged. */
@@ -59,6 +61,18 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
     }
   }
 
+  for (const name of yaml.builtin_tools ?? []) {
+    const builtin = BUILTIN_TOOLS[name];
+    if (!builtin) throw new Error(`${where}: unknown builtin tool "${name}" (available: ${Object.keys(BUILTIN_TOOLS).join(", ")})`);
+    if (tools.some((t) => t.name === builtin.name)) throw new Error(`${where}: builtin "${name}" collides with a tool of the same name in tools/`);
+    tools.push(builtin);
+  }
+  const builtinEnv = (yaml.builtin_tools ?? []).flatMap((name) => BUILTIN_TOOL_ENV[name] ?? []);
+  const env = {
+    required: [...new Set([...(yaml.env?.required ?? []), ...builtinEnv])],
+    optional: yaml.env?.optional,
+  };
+
   return {
     yaml,
     spec: {
@@ -67,7 +81,7 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
       tools,
       maxTokens: yaml.maxTokens ?? 16_000,
       maxSteps: yaml.limits?.maxStepsPerTask ?? 50,
-      env: resolveEnv(yaml.env, where, missing),
+      env: resolveEnv(env, where, missing),
     },
   };
 }

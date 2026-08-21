@@ -1,30 +1,23 @@
-# Web search <Badge type="warning" text="coming soon" />
+# Web search
 
-A built-in, Tavily-backed search tool: declare it in `agent.yaml`, set `TAVILY_API_KEY`, and your agents can search the live web with no handler to write. Results will be recorded in the event log like any tool call, so a resumed run replays them instead of re-searching and answers stay reproducible.
+A built-in, Tavily-backed search tool. Declare it in `agent.yaml`, set `TAVILY_API_KEY`, and your agents search the live web with no handler to write:
 
-Today you can wire the same thing yourself in a few lines:
-
-```ts
-// tools/web-search.ts
-import { z } from "zod";
-import { defineTool } from "@toren-run/core";
-
-export default defineTool({
-  name: "web_search",
-  description: "Search the web and return the top results with snippets.",
-  input: z.object({ query: z.string() }),
-  effects: "none",
-  idempotency: "keyed",
-  approval: "never",
-  handler: async ({ query }, ctx) => {
-    const res = await fetch("https://api.tavily.com/search", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ api_key: ctx.env.TAVILY_API_KEY, query, max_results: 5 }),
-    });
-    return JSON.stringify(await res.json());
-  },
-});
+```yaml
+name: researcher
+model: anthropic/claude-sonnet-5
+builtin_tools: [web_search]
 ```
 
-Declare `TAVILY_API_KEY` under `env:` in `agent.yaml` and set it in your environment (locally `.env`; on AWS it rides Secrets Manager through `agent_env_secret_arns`).
+That is the whole setup. The loader folds `TAVILY_API_KEY` into the agent's required env, so a missing key fails fast at startup with a clear message instead of dying mid-run. Locally the key comes from your environment or `.env`; on AWS, `deploy-aws` reads `TAVILY_API_KEY` and stores it in Secrets Manager like the model keys.
+
+The agent sees a `web_search` tool taking `{query, max_results}` and gets back JSON: a short answer when Tavily can produce one, plus the top results as `{title, url, snippet}`.
+
+## Durability
+
+Searches are recorded in the event log with keyed idempotency, like every tool call. A crashed and resumed run replays the recorded results instead of re-searching: no double spend on your Tavily quota, and the agent reasons over the same facts before and after a resume, so replay verification holds.
+
+## Bring your own instead
+
+`web_search` is a convenience, not a lock-in. A different provider is a normal [`defineTool()`](/tools/defining-tools) in your agent's `tools/` directory; if you name it `web_search` while the builtin is declared, the loader refuses at startup rather than letting two tools collide.
+
+Get a key at [tavily.com](https://tavily.com); the free tier is plenty for development.

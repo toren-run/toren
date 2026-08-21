@@ -10,6 +10,7 @@ export * from "./blobs.js";
 export * from "./model.js";
 export * from "./digest.js";
 export * from "./tools.js";
+export * from "./builtins.js";
 export * from "./providers/mock.js";
 export * from "./providers/echo.js";
 export * from "./approvals.js";

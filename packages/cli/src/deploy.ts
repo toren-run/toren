@@ -15,6 +15,7 @@ export interface DeployOpts {
   anthropicApiKey?: string;
   openaiApiKey?: string;
   telegramBotToken?: string;
+  tavilyApiKey?: string;
   telegramAllowedUsers?: string;
   /** AWS shared-config profile for terraform, the state backend, and bucket setup. */
   profile?: string;
@@ -167,6 +168,7 @@ export async function cmdDeployAws(opts: DeployOpts, io: CmdIO = stdoutIO): Prom
     ...(opts.openaiApiKey ? ["-var", `openai_api_key=${opts.openaiApiKey}`] : []),
     ...(opts.telegramBotToken ? ["-var", `telegram_bot_token=${opts.telegramBotToken}`] : []),
     ...(opts.telegramAllowedUsers ? ["-var", `telegram_allowed_users=${opts.telegramAllowedUsers}`] : []),
+    ...(opts.tavilyApiKey ? ["-var", `tavily_api_key=${opts.tavilyApiKey}`] : []),
   ];
 
   io.out(`using ${tf} with module ${moduleDir}`);

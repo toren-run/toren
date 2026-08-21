@@ -3,3 +3,4 @@ model: mock/echo          # swap to anthropic/claude-opus-5 when you add a key
 maxTokens: 16000
 limits:
   maxStepsPerTask: 50
+# builtin_tools: [web_search]   # real web search via Tavily; needs TAVILY_API_KEY

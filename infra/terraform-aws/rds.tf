@@ -83,3 +83,14 @@ resource "aws_secretsmanager_secret_version" "telegram_bot_token" {
   secret_id     = aws_secretsmanager_secret.telegram_bot_token[0].id
   secret_string = var.telegram_bot_token
 }
+
+resource "aws_secretsmanager_secret" "tavily_api_key" {
+  count       = var.tavily_api_key == "" ? 0 : 1
+  name_prefix = "${var.project}-tavily-key-"
+}
+
+resource "aws_secretsmanager_secret_version" "tavily_api_key" {
+  count         = var.tavily_api_key == "" ? 0 : 1
+  secret_id     = aws_secretsmanager_secret.tavily_api_key[0].id
+  secret_string = var.tavily_api_key
+}

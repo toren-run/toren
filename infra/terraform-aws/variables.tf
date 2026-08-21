@@ -138,3 +138,10 @@ variable "telegram_allowed_users" {
   type        = string
   default     = ""
 }
+
+variable "tavily_api_key" {
+  description = "Tavily API key for the web_search builtin tool (stored in Secrets Manager). Empty disables the secret."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
