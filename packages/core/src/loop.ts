@@ -27,11 +27,14 @@ export interface TaskLoopArgs {
   taskId: string;
   agent: AgentSpec;
   input: string;
+  /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
+  sessionMode?: boolean;
 }
 
 export type TaskLoopResult =
   | { status: "completed"; output: string }
   | { status: "waitingApproval" }
+  | { status: "awaitingInput" }
   | { status: "failed"; error: string };
 
 type ToolUseBlock = Extract<ContentBlock, { type: "toolUse" }>;
@@ -41,7 +44,14 @@ const WALK_TYPES = new Set([
   "LlmCallStarted", "LlmCallCompleted",
   "ToolCallStarted", "ToolCallCompleted",
   "ApprovalRequested", "TaskCompleted",
+  "InputRequested", "UserMessage",
 ]);
+
+/** Layered onto the system prompt in session mode; constant, so replay digests stay stable. */
+export const SESSION_PREAMBLE =
+  "\n\nYou are in an interactive session with a user. Answer their current message directly; " +
+  "ask a clarifying question when the request is ambiguous. Keep responses conversational and " +
+  "sized to the question — the user can always ask for more.";
 
 export async function runTaskLoop(args: TaskLoopArgs): Promise<TaskLoopResult> {
   return withSpan("toren.task", { "toren.run_id": args.runId, "toren.task_id": args.taskId }, () => runTaskLoopImpl(args));
@@ -90,6 +100,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
 
   const messages: ChatMessage[] = [{ role: "user", content: [{ type: "text", text: args.input }] }];
   const specs = toolSpecs(agent.tools);
+  const system = args.sessionMode ? agent.system + SESSION_PREAMBLE : agent.system;
   let steps = 0;
 
   async function runHandlerAndComplete(def: ToolDefAny, tu: ToolUseBlock, stepId: string): Promise<ContentBlock> {
@@ -167,7 +178,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
       return { status: "failed", error };
     }
 
-    const request: ModelRequest = { model: agent.model, system: agent.system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens };
+    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens };
     const digest = canonicalDigest(request);
 
     let response: ModelResponse;
@@ -218,6 +229,32 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     const text = response.content
       .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
       .map((b) => b.text).join("\n");
+
+    if (args.sessionMode) {
+      // Turn boundary: park awaiting the user (or consume their recorded reply and go again).
+      const recInput = peek();
+      if (recInput?.type === "InputRequested") {
+        ptr += 1;
+      } else {
+        await append([ev("InputRequested", { text })]);
+        return { status: "awaitingInput" };
+      }
+      const userMsg = peek();
+      if (userMsg?.type !== "UserMessage") return { status: "awaitingInput" };
+      ptr += 1;
+      if (userMsg.payload.close) {
+        const recordedClose = peek();
+        if (recordedClose?.type === "TaskCompleted") {
+          ptr += 1;
+          return { status: "completed", output: String(recordedClose.payload.result ?? "") };
+        }
+        await append([ev("TaskCompleted", { result: text })]);
+        return { status: "completed", output: text };
+      }
+      messages.push({ role: "user", content: [{ type: "text", text: String(userMsg.payload.text ?? "") }] });
+      steps = 0; // each user turn gets a fresh step budget
+      continue;
+    }
 
     if (agent.outputSchema) {
       try {

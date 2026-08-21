@@ -69,9 +69,11 @@ CREATE TABLE IF NOT EXISTS ${s}.runs (
   status text NOT NULL DEFAULT 'created',
   input jsonb, output jsonb, error jsonb,
   code_hash text, trace_context jsonb,
+  mode text NOT NULL DEFAULT 'task',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'task';
 CREATE TABLE IF NOT EXISTS ${s}.streams (
   run_id uuid NOT NULL, stream_id text NOT NULL,
   head_seq bigint NOT NULL DEFAULT 0,

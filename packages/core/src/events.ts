@@ -8,7 +8,8 @@ export type EventType =
   | "ToolCallStarted" | "ToolCallCompleted"
   | "ApprovalRequested" | "ApprovalResolved"
   | "StreamInvalidated"
-  | "TaskCompleted" | "TaskFailed";
+  | "TaskCompleted" | "TaskFailed"
+  | "InputRequested" | "UserMessage";
 
 export interface NewEvent { type: EventType; payload: Record<string, unknown> & { v: 1 } }
 export interface RecordedEvent extends NewEvent { seq: number; recordedAt: Date }

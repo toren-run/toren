@@ -4,8 +4,9 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
   createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, foldRunStream,
-  listApiKeys, listPendingApprovals, listSchedules, resolveApproval, revokeApiKey,
-  setScheduleEnabled, startRun, verifyApiKey,
+  getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, resolveApproval,
+  revokeApiKey, SessionBusyError, sendSessionMessage, setScheduleEnabled, startRun, startSession,
+  verifyApiKey,
   type TickDeps,
 } from "@toren-run/core";
 
@@ -189,6 +190,51 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       // GET /agent — what this deployment serves
       if (req.method === "GET" && parts.length === 1 && parts[0] === "agent") {
         return send(res, 200, { agent: cfg.agentInfo ?? { name: cfg.agent } });
+      }
+
+      // /sessions — turn-based conversations (any principal, like /runs)
+      if (parts[0] === "sessions") {
+        if (req.method === "POST" && parts.length === 1) {
+          const body = await readJson(req);
+          if (typeof body.message !== "string" || !body.message.trim()) {
+            return send(res, 400, { error: "body must be {message: string, agent?: string, channel?: string}" });
+          }
+          const target = typeof body.agent === "string" ? body.agent : defaultAgent;
+          const targetDeps = byAgent[target];
+          if (!targetDeps) return send(res, 400, { error: `unknown agent "${target}" — this deployment serves: ${agentNames.join(", ")}` });
+          const runId = await startSession(targetDeps, { agent: target, message: body.message, channel: body.channel as string | undefined });
+          return send(res, 202, { runId, agent: target });
+        }
+        if (req.method === "GET" && parts.length === 1) {
+          const all = [];
+          for (const deps of Object.values(byAgent)) all.push(...(await listSessions(deps.store)));
+          all.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+          return send(res, 200, { sessions: all.slice(0, 50) });
+        }
+        const found = parts[1] ? await findRun(parts[1]) : null;
+        if (!found) return send(res, 404, { error: "no such session" });
+        if (req.method === "GET" && parts.length === 2) {
+          const session = await getSession(found.deps.store, found.run.runId);
+          return session ? send(res, 200, session) : send(res, 404, { error: "not a session" });
+        }
+        if (req.method === "POST" && parts.length === 3 && parts[2] === "messages") {
+          const body = await readJson(req);
+          if (typeof body.message !== "string" && body.close !== true) {
+            return send(res, 400, { error: "body must be {message: string, channel?, close?}" });
+          }
+          try {
+            await sendSessionMessage(found.deps, found.run.runId, {
+              text: typeof body.message === "string" ? body.message : "",
+              channel: body.channel as string | undefined,
+              close: body.close === true,
+            });
+            return send(res, 202, { accepted: true });
+          } catch (e) {
+            if (e instanceof SessionBusyError) return send(res, 409, { error: e.message });
+            return send(res, 400, { error: e instanceof Error ? e.message : String(e) });
+          }
+        }
+        return send(res, 404, { error: "not found" });
       }
 
       // POST /runs — routes by body.agent (defaults to the deployment's default agent)

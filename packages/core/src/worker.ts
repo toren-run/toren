@@ -128,9 +128,11 @@ export class LocalWorkerRuntime {
         }
         const agent = deps.agents[spec.agentRef];
         if (!agent) throw new Error(`no agent registered for ref ${spec.agentRef}`);
+        const run = await deps.store.getRun(msg.runId);
         await runTaskLoop({
           store: deps.store, provider: deps.provider,
           runId: msg.runId, taskId, agent, input: spec.input,
+          sessionMode: run?.mode === "session",
         });
         await this.shared.queue.ack(d);
         // Nudge the orchestrator to absorb the terminal/parked state.

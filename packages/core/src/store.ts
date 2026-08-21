@@ -6,24 +6,24 @@ export type AppendResult =
   | { ok: true; lastSeq: number }
   | { ok: false; conflict: true; actualSeq: number };
 
-export interface CreateRun { runId: string; agent: string; input?: unknown; codeHash?: string }
+export interface CreateRun { runId: string; agent: string; input?: unknown; codeHash?: string; mode?: "task" | "session" }
 
 export class PgStateStore {
   constructor(private pool: pg.Pool, private schema: string) {}
 
   async createRun(req: CreateRun): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ${this.schema}.runs (run_id, agent, input, code_hash) VALUES ($1,$2,$3,$4)`,
-      [req.runId, req.agent, JSON.stringify(req.input ?? null), req.codeHash ?? null],
+      `INSERT INTO ${this.schema}.runs (run_id, agent, input, code_hash, mode) VALUES ($1,$2,$3,$4,$5)`,
+      [req.runId, req.agent, JSON.stringify(req.input ?? null), req.codeHash ?? null, req.mode ?? "task"],
     );
   }
 
-  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; input: unknown; output: unknown; error: unknown } | null> {
+  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; mode: string; input: unknown; output: unknown; error: unknown } | null> {
     const r = await this.pool.query(
-      `SELECT run_id, agent, status, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
+      `SELECT run_id, agent, status, mode, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
     );
     const row = r.rows[0];
-    return row ? { runId: row.run_id, agent: row.agent, status: row.status, input: row.input, output: row.output, error: row.error } : null;
+    return row ? { runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, input: row.input, output: row.output, error: row.error } : null;
   }
 
   async updateRun(runId: string, patch: { status?: string; output?: unknown; error?: unknown }): Promise<void> {
@@ -43,12 +43,12 @@ export class PgStateStore {
     );
   }
 
-  async listRuns(limit = 50): Promise<{ runId: string; agent: string; status: string; createdAt: Date }[]> {
+  async listRuns(limit = 50): Promise<{ runId: string; agent: string; status: string; mode: string; createdAt: Date }[]> {
     const r = await this.pool.query(
-      `SELECT run_id, agent, status, created_at FROM ${this.schema}.runs ORDER BY created_at DESC LIMIT $1`,
+      `SELECT run_id, agent, status, mode, created_at FROM ${this.schema}.runs ORDER BY created_at DESC LIMIT $1`,
       [limit],
     );
-    return r.rows.map((row) => ({ runId: row.run_id, agent: row.agent, status: row.status, createdAt: row.created_at }));
+    return r.rows.map((row) => ({ runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, createdAt: row.created_at }));
   }
 
   async listNonTerminalRuns(): Promise<string[]> {

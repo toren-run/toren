@@ -24,9 +24,9 @@ export interface TickDeps {
 
 export type TickResult = "leased" | "terminal" | "blocked" | "completed" | "failed";
 
-export async function startRun(deps: TickDeps, req: { agent: string; input: string; runId?: string }): Promise<string> {
+export async function startRun(deps: TickDeps, req: { agent: string; input: string; runId?: string; mode?: "task" | "session" }): Promise<string> {
   const runId = req.runId ?? randomUUID();
-  await deps.store.createRun({ runId, agent: req.agent, input: req.input });
+  await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode });
   const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input })]);
   if (!r.ok) throw new Error("fresh run stream was not empty");
   await deps.queue.send("orchestrator", { kind: "tick", runId, agent: req.agent, dedupeKey: `start-${runId}` });
@@ -83,8 +83,16 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
           await appendRun([ev("WaveTaskSettled", { waveId: w.waveId, taskId: t.taskId, status: "failed", error: failed.payload.error })]);
         } else {
           const resolved = new Set(taskEff.filter((e) => e.type === "ApprovalResolved").map((e) => String(e.payload.stepId)));
-          const parked = taskEff.some((e) => e.type === "ApprovalRequested" && !resolved.has(String(e.payload.stepId)));
-          if (parked) parkedTasks.add(t.taskId);
+          const parkedOnApproval = taskEff.some((e) => e.type === "ApprovalRequested" && !resolved.has(String(e.payload.stepId)));
+          // Sessions park at the turn boundary: an InputRequested with no
+          // later UserMessage means the agent is waiting for a human.
+          let lastInputSeq = 0, lastUserSeq = 0;
+          for (const e of taskEff) {
+            if (e.type === "InputRequested") lastInputSeq = e.seq;
+            else if (e.type === "UserMessage") lastUserSeq = e.seq;
+          }
+          const parkedOnInput = lastInputSeq > 0 && lastUserSeq < lastInputSeq;
+          if (parkedOnApproval || parkedOnInput) parkedTasks.add(t.taskId);
         }
       }
     }
