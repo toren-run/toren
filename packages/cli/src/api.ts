@@ -121,6 +121,13 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       if (req.method === "GET" && cfg.consoleDir && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
         return serveConsole(res, url.pathname, cfg.consoleDir);
       }
+      // A browser landing on the bare domain wants the console, not a 401.
+      // API clients never GET / with an html Accept header, so this stays
+      // out of their way. The URL fragment (#token=…) survives the redirect.
+      if (req.method === "GET" && cfg.consoleDir && url.pathname === "/" && (req.headers.accept ?? "").includes("text/html")) {
+        res.writeHead(302, { location: "/console" });
+        return res.end();
+      }
       const principal = await authenticate(req, cfg);
       if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
 
