@@ -4,7 +4,7 @@ import {
   fileManifest, PgFiles,
   createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
-  startRun, sweep, sweepSchedules,
+  startRun, sweep, sweepSchedules, sweepWatchers,
 } from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -158,6 +158,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* transient DB error — next tick retries */ });
     void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
+    void sweepWatchers(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
   }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {
     const stop = () => {
@@ -181,6 +182,10 @@ export async function cmdChat(dir: string, opts: { agent?: string; session?: str
   const core = await import("@toren-run/core");
   const worker = new core.LocalWorkerRuntime(rt.byAgent, { concurrency: 2 });
   worker.start();
+  // Background spawns settle into the conversation even while the user idles at the prompt.
+  const watcherSweep = setInterval(() => {
+    void core.sweepWatchers(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
+  }, 2_000);
   const { runChatLoop } = await import("./chat.js");
   try {
     await runChatLoop({
@@ -190,6 +195,7 @@ export async function cmdChat(dir: string, opts: { agent?: string; session?: str
       get: (id) => core.getSession(deps.store, id),
     }, { sessionId: opts.session }, io);
   } finally {
+    clearInterval(watcherSweep);
     await worker.stop();
     await rt.close();
   }

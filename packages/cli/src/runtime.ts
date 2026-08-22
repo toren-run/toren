@@ -2,7 +2,7 @@ import {
   PgFiles,
   createPool, migrateControl, provisionAgent, tx,
   PgStateStore, PgQueue, PgLeases,
-  LocalWorkerRuntime, listPendingApprovals,
+  LocalWorkerRuntime, listPendingApprovals, makeProcessesFacet,
   type QueueAdapter, type TickDeps,
 } from "@toren-run/core";
 import { SqsQueue } from "@toren-run/adapters-aws";
@@ -99,6 +99,7 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
   };
   const sandbox = await makeSandboxProvider(pool, loaded);
   if (sandbox) deps.sandbox = sandbox;
+  deps.processes = makeProcessesFacet(pool, loaded.name, deps, { defaultProcess: loaded.defaultProcess });
   return { pool, deps, schema, close: () => pool.end() };
 }
 
@@ -132,6 +133,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       files,
       ...(sandbox ? { sandbox } : {}),
     };
+    byAgent[name]!.processes = makeProcessesFacet(pool, name, byAgent[name]!, { defaultProcess: loaded.defaultProcess });
   }
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };
 }

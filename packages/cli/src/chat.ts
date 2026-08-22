@@ -30,6 +30,15 @@ export async function runChatLoop(backend: ChatBackend, opts: { sessionId?: stri
     }
   };
 
+  // Background wakes (a spawned run settling) land while the user sits at the
+  // prompt; poll so the agent's message prints live instead of on the next send.
+  const watcher = setInterval(() => {
+    if (!runId) return;
+    void backend.get(runId).then((s) => {
+      if (s) printNew(s.transcript.filter((t) => t.role === "assistant"));
+    }).catch(() => { /* transient; next poll */ });
+  }, 1_500);
+
   /** Wait out the agent's turn, printing replies as they land. */
   const drain = async (): Promise<string> => {
     for (;;) {
@@ -80,6 +89,7 @@ export async function runChatLoop(backend: ChatBackend, opts: { sessionId?: stri
     if (e instanceof Error && /closed/i.test(e.message)) return;
     throw e;
   } finally {
+    clearInterval(watcher);
     rl.close();
   }
 }
