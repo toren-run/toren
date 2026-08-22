@@ -42,6 +42,7 @@ builtin_tools: [web_search]
 ```
 
 - **[Web search](/tools/web-search)**: Tavily-backed live search. Needs `TAVILY_API_KEY`, which the loader folds into the agent's required env automatically.
+- **[Database](/tools/database)** (`sql_query`): read-only SQL access to a database; needs `SQL_DATABASE_URL`.
 - **[File parsing](/tools/file-parsing)** (`read_attachment`): paged access to attached files: PDF, docx, xlsx, and text formats, parsed once at upload.
 
 The [sandbox](/tools/sandbox) is its own switch: `sandbox: true` grants bash plus the workspace file tools. A builtin whose name collides with one of your own tools is a startup error, never a silent override.

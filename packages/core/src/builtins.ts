@@ -1,3 +1,4 @@
+import pg from "pg";
 import { z } from "zod";
 import { defineTool, type ToolDefAny } from "./tools.js";
 
@@ -155,10 +156,53 @@ const bash = defineTool({
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, bash };
+// ---- sql_query: read-only database access as a tool.
+// Defense in depth on top of the STRONGLY RECOMMENDED read-only DB role:
+// only a single SELECT/WITH runs, forbidden keywords are rejected, stacked
+// statements are blocked, the result is row-capped, and a statement timeout
+// bounds a heavy query. Pools are cached per connection string.
+const sqlPools = new Map<string, pg.Pool>();
+function sqlPool(url: string): pg.Pool {
+  let p = sqlPools.get(url);
+  if (!p) { p = new pg.Pool({ connectionString: url, max: 2, statement_timeout: 10_000, query_timeout: 12_000 }); sqlPools.set(url, p); }
+  return p;
+}
+const SELECT_ONLY = /^\s*(with[\s\S]+\bselect\b|select)\b/i;
+const FORBIDDEN = /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|merge|vacuum|reindex|comment|do|set|begin|commit)\b/i;
+
+const sqlQuery = defineTool({
+  name: "sql_query",
+  description:
+    "Run a READ-ONLY SQL query (a single SELECT) against the configured database and get the rows back as JSON. Use standard SQL; results are capped.",
+  input: z.object({
+    query: z.string().describe("a single read-only SELECT statement"),
+    limit: z.number().int().min(1).max(500).default(100),
+  }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ query, limit }, ctx) => {
+    const url = ctx.env.SQL_DATABASE_URL;
+    if (!url) throw new Error("sql_query: SQL_DATABASE_URL is not configured for this agent");
+    const q = query.trim().replace(/;\s*$/, "");
+    if (q.includes(";")) return JSON.stringify({ error: "only one statement is allowed (no ';')" });
+    if (!SELECT_ONLY.test(q)) return JSON.stringify({ error: "only a read-only SELECT (or WITH ... SELECT) is allowed" });
+    if (FORBIDDEN.test(q)) return JSON.stringify({ error: "the query contains a forbidden (write/DDL) keyword; this tool is read-only" });
+    try {
+      // Wrap so a missing LIMIT can never return an unbounded result set.
+      const res = await sqlPool(url).query(`SELECT * FROM (${q}) AS _toren_q LIMIT ${limit}`);
+      const out = JSON.stringify({ rowCount: res.rowCount, truncated: (res.rowCount ?? 0) >= limit, rows: res.rows });
+      return out.length > 24_000 ? JSON.stringify({ rowCount: res.rowCount, note: "result too large; add columns/filters or a smaller limit", rows: res.rows.slice(0, 10) }) : out;
+    } catch (e) {
+      return JSON.stringify({ error: `query failed: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  },
+});
+
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], bash: [] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [] };
 
 /**
  * The toolkit `sandbox: true` grants: a computer for the agent. bash gates on

@@ -1,0 +1,6 @@
+name: db_assistant
+model: anthropic/claude-sonnet-5
+maxTokens: 4000
+builtin_tools: [sql_query]
+limits:
+  maxStepsPerTask: 20
