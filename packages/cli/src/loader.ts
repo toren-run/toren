@@ -13,6 +13,8 @@ export interface LoadedAgent {
   agents: Record<string, AgentSpec>;
   /** Named processes, keyed by process name ("main" is the single/default workflow). */
   workflows: Record<string, WorkflowFn>;
+  /** Process used when a trigger names none; undefined when ambiguous (several processes, no main, none declared). */
+  defaultProcess?: string;
   /** Root agent's sandbox settings with granted env resolved to values. */
   sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
 }
@@ -28,6 +30,8 @@ interface AgentYaml {
   builtin_tools?: string[];
   /** `true` (or a settings block) gives the agent a computer: bash + read_file/write_file/edit_file on a durable workspace. */
   sandbox?: boolean | { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] };
+  /** Process run when a trigger names none. Defaults to "main", or the sole process. */
+  default_process?: string;
 }
 
 function sandboxConfig(yaml: AgentYaml): { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] } | null {
@@ -53,6 +57,14 @@ export function sanitizeName(raw: string): string {
   const s = raw.toLowerCase().replace(/[^a-z0-9_]/g, "_").replace(/^[^a-z]+/, "");
   if (!/^[a-z][a-z0-9_]{0,40}$/.test(s)) throw new Error(`cannot derive a valid agent name from "${raw}"`);
   return s;
+}
+
+function processNameFromFile(file: string): string {
+  const stem = file.replace(/\.(ts|js)$/, "");
+  if (!/^[a-z][a-z0-9_-]{0,40}$/.test(stem)) {
+    throw new Error(`workflow filename "${file}" is not a valid process name (lowercase letters, digits, "_", "-")`);
+  }
+  return stem;
 }
 
 async function loadAgentSpec(dir: string, where: string, missing: string[]): Promise<{ spec: AgentSpec; yaml: AgentYaml }> {
@@ -141,20 +153,41 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     sandbox = { image: sandboxYaml?.image, network: sandboxYaml?.network, env: grantedEnv };
   }
 
-  let workflow: WorkflowFn;
+  let workflows: Record<string, WorkflowFn>;
   const workflowPath = join(dir, "workflow.ts");
-  if (existsSync(workflowPath)) {
+  const workflowsDir = join(dir, "workflows");
+  if (existsSync(workflowPath) && existsSync(workflowsDir)) {
+    throw new Error(`${dir}: has both workflow.ts and workflows/ — move workflow.ts into workflows/`);
+  }
+  if (existsSync(workflowsDir)) {
+    workflows = {};
+    for (const f of readdirSync(workflowsDir).filter((f) => f.endsWith(".ts") || f.endsWith(".js")).sort()) {
+      const mod = await jiti.import<{ default?: WorkflowFn }>(join(workflowsDir, f));
+      if (typeof mod.default !== "function") throw new Error(`${join(workflowsDir, f)}: expected a default-exported workflow function`);
+      workflows[processNameFromFile(f)] = mod.default;
+    }
+    if (Object.keys(workflows).length === 0) throw new Error(`${workflowsDir} has no workflow files (*.ts / *.js)`);
+  } else if (existsSync(workflowPath)) {
     const mod = await jiti.import<{ default?: WorkflowFn }>(workflowPath);
     if (typeof mod.default !== "function") throw new Error(`${workflowPath}: expected a default-exported workflow function`);
-    workflow = mod.default;
+    workflows = { main: mod.default };
   } else {
-    workflow = async (ctx) => {
-      const w = await ctx.wave("main", [ctx.task("main", ctx.input)]);
-      return w.results[0]?.output ?? "";
+    workflows = {
+      main: async (ctx) => {
+        const w = await ctx.wave("main", [ctx.task("main", ctx.input)]);
+        return w.results[0]?.output ?? "";
+      },
     };
   }
 
-  return { name, dir, agents, workflows: { main: workflow }, ...(sandbox ? { sandbox } : {}) };
+  const declared = root.yaml.default_process;
+  if (declared && !workflows[declared]) {
+    throw new Error(`agent.yaml default_process "${declared}" is not a process of this agent (has: ${Object.keys(workflows).join(", ")})`);
+  }
+  const processNames = Object.keys(workflows);
+  const defaultProcess = declared ?? (workflows.main ? "main" : processNames.length === 1 ? processNames[0] : undefined);
+
+  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {
