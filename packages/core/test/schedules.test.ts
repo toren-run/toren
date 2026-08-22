@@ -17,12 +17,13 @@ const pool = createPool();
 const SCHEMA = "agent_schedtest";
 const spec: AgentSpec = { model: "mock/m", system: "s", tools: [], maxTokens: 50, maxSteps: 3 };
 const wf: WorkflowFn = async () => "";
+const weeklyWf: WorkflowFn = async () => "weekly";
 
 function deps(p: pg.Pool): Record<string, TickDeps> {
   return {
     schedtest: {
       store: new PgStateStore(p, SCHEMA), queue: new PgQueue(p), leases: new PgLeases(p, SCHEMA),
-      provider: new MockProvider([]), agents: { main: spec }, workflows: { main: wf },
+      provider: new MockProvider([]), agents: { main: spec }, workflows: { main: wf, "weekly-report": weeklyWf },
     },
   };
 }
@@ -148,5 +149,18 @@ test("kill matrix: crash after every write point in the fire path — never a mi
     const expected = runsAfterBaseline + k;
     expect(await runCount(), `kill point ${k}/${baselineQueries}`).toBe(expected);
   }
+  await deleteSchedule(pool, s.id);
+});
+
+test("a schedule with a named process fires a run recorded with that process", async () => {
+  const d = deps(pool);
+  const s = await createSchedule(pool, { agent: "schedtest", name: "weekly", cron: "0 9 * * 1", input: '"go"', process: "weekly-report" });
+  await makeDue(s.id, 60);
+  await sweepSchedules(pool, d);
+  const fires = await listFires(pool, s.id);
+  expect(fires.length).toBe(1);
+  expect(fires[0]!.process).toBe("weekly-report");
+  const run = await d.schedtest!.store.getRun(fires[0]!.runId);
+  expect(run!.process).toBe("weekly-report");
   await deleteSchedule(pool, s.id);
 });

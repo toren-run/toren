@@ -27,6 +27,7 @@ export interface ScheduleRecord {
   cron: string;
   tz: string;
   input: string;
+  process: string;
   enabled: boolean;
   nextFireAt: Date;
   lastFiredAt: Date | null;
@@ -40,6 +41,7 @@ const row = (r: Record<string, unknown>): ScheduleRecord => ({
   cron: String(r.cron),
   tz: String(r.tz),
   input: String(r.input),
+  process: String(r.process ?? "main"),
   enabled: Boolean(r.enabled),
   nextFireAt: r.next_fire_at as Date,
   lastFiredAt: (r.last_fired_at as Date | null) ?? null,
@@ -55,14 +57,14 @@ export function nextFire(cron: string, tz: string, after: Date = new Date()): Da
 
 export async function createSchedule(
   pool: pg.Pool,
-  req: { agent: string; name: string; cron: string; input: string; tz?: string },
+  req: { agent: string; name: string; cron: string; input: string; process?: string; tz?: string },
 ): Promise<ScheduleRecord> {
   const tz = req.tz ?? "UTC";
   const first = nextFire(req.cron, tz); // validates expression + tz
   const res = await pool.query(
-    `INSERT INTO toren_control.schedules (id, agent, name, cron, tz, input, next_fire_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [randomUUID(), req.agent, req.name, req.cron, tz, req.input, first],
+    `INSERT INTO toren_control.schedules (id, agent, name, cron, tz, input, process, next_fire_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [randomUUID(), req.agent, req.name, req.cron, tz, req.input, req.process ?? "main", first],
   );
   return row(res.rows[0]);
 }
@@ -103,6 +105,7 @@ export interface FireRecord {
   scheduledFor: Date;
   runId: string;
   agent: string;
+  process: string;
   firedAt: Date;
   settled: boolean;
 }
@@ -117,6 +120,7 @@ export async function listFires(pool: pg.Pool, scheduleId: string, limit = 20): 
     scheduledFor: r.scheduled_for as Date,
     runId: String(r.run_id),
     agent: String(r.agent),
+    process: String(r.process ?? "main"),
     firedAt: r.fired_at as Date,
     settled: Boolean(r.settled),
   }));
@@ -146,9 +150,9 @@ export async function sweepSchedules(pool: pg.Pool, byAgent: Record<string, Tick
       // catch-up fire; the fire record keeps the originally scheduled time
       // so lateness stays visible.
       await client.query(
-        `INSERT INTO toren_control.schedule_fires (schedule_id, scheduled_for, run_id, agent, input)
-         VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
-        [s.id, s.next_fire_at, randomUUID(), s.agent, s.input],
+        `INSERT INTO toren_control.schedule_fires (schedule_id, scheduled_for, run_id, agent, input, process)
+         VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT DO NOTHING`,
+        [s.id, s.next_fire_at, randomUUID(), s.agent, s.input, s.process ?? "main"],
       );
       await client.query(
         `UPDATE toren_control.schedules SET next_fire_at = $2, last_fired_at = now() WHERE id = $1`,
@@ -176,7 +180,7 @@ export async function sweepSchedules(pool: pg.Pool, byAgent: Record<string, Tick
     const existing = await deps.store.getRun(runId);
     if (!existing) {
       try {
-        await startRun(deps, { agent: String(f.agent), input: String(f.input), runId });
+        await startRun(deps, { agent: String(f.agent), input: String(f.input), runId, process: String(f.process ?? "main") });
       } catch {
         // A racing worker created it between our check and insert — fine,
         // the run exists; settle below. Anything else retries next sweep.
