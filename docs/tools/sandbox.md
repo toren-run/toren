@@ -33,8 +33,21 @@ Deny-by-default, like everything in Toren:
 
 Each run gets one workspace. Commands and file operations are recorded in the event log like every other tool call, so a killed and resumed run replays its recorded outputs without re-executing anything, and continues in the same workspace. Locally the workspace lives on your disk (under `~/.toren/sandboxes`, or `TOREN_SANDBOX_ROOT`) and survives restarts by construction. A session with a sandbox keeps its workspace across turns: chat with your agent today, come back in three days, the files are still there.
 
-## Where it runs
+## Where it runs: choosing a backend
 
-Locally, each run's sandbox is a docker container over a bind-mounted workspace; container start is sub-second on a pulled image. Docker is already part of the quickstart, and an agent declaring `sandbox` fails fast at startup when docker is missing.
+`agent.yaml` says *what* the sandbox can do; the operator picks *where* it runs with the `TOREN_SANDBOX` environment variable, the same way `TOREN_QUEUE` picks the queue:
 
-On AWS <Badge type="warning" text="coming soon" />: each run will get its own dedicated sandbox task (VM-grade isolation, zero secrets, spawned on demand and gone when the run ends), with the workspace snapshotted into blob storage through the event log, so a run resumes with the same disk on any worker, hash-verified. Until that ships, deploying a sandbox-declaring agent to AWS fails at startup with a clear error.
+| `TOREN_SANDBOX` | Backend | Needs |
+| --- | --- | --- |
+| `auto` (default) | E2B if `E2B_API_KEY` is set, else local docker | one of the two below |
+| `docker` | local docker container per run | a running docker daemon |
+| `e2b` | E2B cloud microVM per run | `E2B_API_KEY` |
+| `none` | disabled | sandbox agents fail fast |
+
+Whatever the choice, the agent's tools and behavior are identical; only the execution substrate changes. A wrong or unavailable choice fails fast at startup with a message naming the fix.
+
+**Local docker** starts a container over a bind-mounted workspace (sub-second on a pulled image). Good for development; docker is already part of the quickstart.
+
+**E2B** runs each run's workspace in a Firecracker microVM and is the backend for cloud deployments, where docker is unavailable. Each run's sandbox id is recorded durably, so a worker that dies mid-run is replaced by one that reconnects to the *same* sandbox (same disk) rather than starting over. Get a key at [e2b.dev](https://e2b.dev); the free tier covers development. On AWS, `deploy-aws` reads `E2B_API_KEY` and stores it in Secrets Manager like the model keys.
+
+The [Docker Compose tier](/deploy/compose) uses `e2b` (its default `auto` resolves to E2B when you set `E2B_API_KEY`); local docker sandboxes are intentionally not run from inside the compose worker container.

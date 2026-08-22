@@ -32,6 +32,12 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      # Sandbox agents (sandbox: true) on this tier use the E2B cloud backend
+      # (local docker is intentionally unavailable here, see the note below).
+      # Set E2B_API_KEY and they work; leave it unset and non-sandbox agents
+      # are unaffected.
+      TOREN_SANDBOX: ${TOREN_SANDBOX:-auto}
+      E2B_API_KEY: ${E2B_API_KEY:-}
     ports:
       - "7433:7433"
     depends_on:

@@ -36,9 +36,12 @@ export interface Runtime {
 }
 
 /**
- * Selects the sandbox backend for an agent that needs one: E2B when
- * E2B_API_KEY is set (the cloud tier), else local docker, else fail fast.
- * Returns undefined when the agent has no bash tool.
+ * Selects the sandbox backend for an agent that needs one. The operator
+ * chooses with TOREN_SANDBOX (like TOREN_QUEUE picks the queue): "docker"
+ * (local containers), "e2b" (cloud, needs E2B_API_KEY), "none" (disabled),
+ * or "auto" (default: e2b when a key is set, else docker). agent.yaml governs
+ * what the sandbox can do; this env var governs where it runs. Returns
+ * undefined when the agent has no bash tool.
  */
 async function makeSandboxProvider(
   pool: ReturnType<typeof createPool>,
@@ -47,15 +50,35 @@ async function makeSandboxProvider(
   const hasBash = Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"));
   if (!hasBash) return undefined;
   const sb = loaded.sandbox ?? {};
-  if (process.env.E2B_API_KEY) {
+
+  const e2b = async () => {
+    if (!process.env.E2B_API_KEY) throw new Error('sandbox backend "e2b" selected but E2B_API_KEY is not set');
     const { E2BSandboxProvider } = await import("./sandbox-e2b.js");
     return new E2BSandboxProvider(pool, { apiKey: process.env.E2B_API_KEY, network: sb.network, env: sb.env, template: sb.image });
+  };
+  const docker = async () => {
+    const { dockerAvailable, DockerSandboxProvider } = await import("./sandbox.js");
+    if (!(await dockerAvailable())) throw new Error('sandbox backend "docker" selected but docker is not available (is the daemon running?)');
+    return new DockerSandboxProvider(sb);
+  };
+
+  const choice = (process.env.TOREN_SANDBOX ?? "auto").toLowerCase();
+  switch (choice) {
+    case "none":
+      throw new Error('an agent declares "sandbox: true" but TOREN_SANDBOX=none disables the sandbox');
+    case "e2b":
+      return e2b();
+    case "docker":
+      return docker();
+    case "auto": {
+      if (process.env.E2B_API_KEY) return e2b();
+      const { dockerAvailable } = await import("./sandbox.js");
+      if (await dockerAvailable()) return docker();
+      throw new Error('an agent declares "sandbox: true" but no backend is available — set E2B_API_KEY for the cloud sandbox, install docker for the local one, or set TOREN_SANDBOX explicitly (docker|e2b)');
+    }
+    default:
+      throw new Error(`unknown TOREN_SANDBOX="${choice}" — use one of: auto, docker, e2b, none`);
   }
-  const { dockerAvailable, DockerSandboxProvider } = await import("./sandbox.js");
-  if (!(await dockerAvailable())) {
-    throw new Error('an agent declares "sandbox: true" but neither E2B_API_KEY nor docker is available — set E2B_API_KEY for the cloud sandbox, or install docker for the local one');
-  }
-  return new DockerSandboxProvider(sb);
 }
 
 export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): Promise<Runtime> {
