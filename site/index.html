@@ -291,15 +291,15 @@ footer { margin-top: 110px; }
 
 <!-- ======== 01 HERO ======== -->
 <section class="hero" id="s1">
-  <h1>Toren runs agents <br>that work for <em>days</em> <br><span class="tail">and survive anything.</span></h1>
-  <p class="sub">The open-source runtime for <strong>process-shaped agents</strong>: work measured in hours and days, not seconds, that shrugs off crashes, deploys, and a literal <span style="white-space:nowrap">kill&nbsp;-9</span>. In <em>your</em> cloud.</p>
+  <h1>Toren runs agents <br>that work for <em>days</em>, <br>do real work, <br><span class="tail">and survive anything.</span></h1>
+  <p class="sub">The open-source runtime for long-running agents. They call models, run commands, and edit files for hours or days, then shrug off crashes, deploys, and a literal <span style="white-space:nowrap">kill&nbsp;-9</span>. A resumed run <strong>never re-pays for a completed model call</strong>. In <em>your</em> cloud.</p>
   <div class="heroctas">
     <div class="install">npx toren-run init my-crew</div>
     <a class="ghost-link" href="#s3">Watch it survive a kill -9 ↓</a>
   </div>
 
   <figure class="figsheet">
-    <div class="fhead"><span>FIG. 1 · RUN r_9f2c1a · TWO WAVES, ONE MURDER</span><span>KILL TEST</span></div>
+    <div class="fhead"><span>FIG. 1 · RUN 7f3a2c10 · TWO WAVES, ONE MURDER</span><span>KILL TEST</span></div>
     <svg class="diagram" id="herodiag" viewBox="0 0 440 250" role="img" aria-label="A run diagram cut by a kill-9 line, resuming past the cut">
       <path class="draw" d="M20 60 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
       <path class="draw d2" d="M20 125 H420" stroke="#0a8884" stroke-width="2" fill="none"/>
@@ -358,10 +358,10 @@ footer { margin-top: 110px; }
 <!-- ======== 04 SYSTEM ======== -->
 <section id="s4">
   <span class="shnum" aria-hidden="true">04</span>
-  <h2>Agents as durable processes.</h2>
-  <p class="lede">Files define the agent. Waves fan out the work. The event log holds everything. One deployment serves a whole fleet of process agents. Parked runs cost nothing: not a worker, not a container, not a poll loop.</p>
+  <h2>One agent. Every surface.</h2>
+  <p class="lede">Agents as durable processes: files define the agent <em>once</em> — then run it, schedule it, talk to it, let a conversation launch its background jobs. All of it rides one event log; kill any of it and nothing re-pays. Parked work costs nothing: not a worker, not a container, not a poll loop.</p>
   <div class="bento rev">
-    <div class="bcard tall"><h3>workflow.ts <span class="tag">WAVES · YOUR CODE OWNS FANOUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
+    <div class="bcard tall"><h3>workflows/weekly-report.ts <span class="tag">A NAMED PROCESS · WAVES FAN OUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
   <span class="cm">// one planner task; the model decides</span>
   <span class="cm">// what deserves research</span>
   <span class="k">const</span> plan = <span class="k">await</span> ctx.wave(<span class="s">"plan"</span>,
@@ -411,6 +411,21 @@ one-click approvals · API keys
 <span class="cm">  support, billing)</span>
 each crew: own event log,
 own schema, shared nothing</pre></div>
+    <div class="bcard"><h3>toren chat <span class="tag">DURABLE CONVERSATIONS · 4 CHANNELS</span></h3><pre>you&gt; run the weekly report
+agent&gt; Started — I'll message
+       you when it lands.
+<span class="cm"># parked at $0 · survives anything</span>
+agent&gt; Report's ready: 42 pages.</pre></div>
+    <div class="bcard"><h3>toren schedule <span class="tag">CRON · EXACTLY ONCE, PROVEN</span></h3><pre>$ toren schedule create
+    --process daily-digest
+    --cron <span class="s">"0 8 * * *"</span>
+<span class="cm"># fire records survive any crash;</span>
+<span class="cm"># one occurrence, one run, ever</span></pre></div>
+    <div class="bcard"><h3>agent.yaml <span class="tag">A DURABLE COMPUTER</span></h3><pre>sandbox: <span class="s">true</span>
+<span class="cm"># bash + files, a real workspace</span>
+kill the worker mid-build:
+the successor reconnects the
+same workspace and keeps going</pre></div>
   </div>
 </section>
 
