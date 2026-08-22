@@ -199,10 +199,52 @@ const sqlQuery = defineTool({
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash };
+// ---- run_process / check_run: the spawn arc. A conversation triggers a named
+// process as a durable background run; a watcher wakes the session when it
+// settles, so the agent messages the user in-channel without polling. The
+// child runId derives from the tool-use id, so a crash-window re-run finds the
+// run already exists — spawning is effectively-once.
+
+const runProcess = defineTool({
+  name: "run_process",
+  description:
+    "Start one of this agent's named processes as a background run. It executes durably on the workers while this conversation continues; a message lands in this conversation when it settles, and check_run polls it on demand.",
+  input: z.object({
+    process: z.string().describe("the process name to run"),
+    input: z.string().describe("the input handed to the process run"),
+  }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ process, input }, ctx) => {
+    if (!ctx.processes) throw new Error("run_process: background processes are not wired in this deployment");
+    const r = await ctx.processes.start({ process, input, parentRunId: ctx.runId, parentTaskId: ctx.taskId, toolUseId: ctx.toolUseId });
+    return JSON.stringify({ run_id: r.runId, process, status: r.started ? "started" : "already_running" });
+  },
+});
+
+const checkRun = defineTool({
+  name: "check_run",
+  description:
+    "Check a background run started with run_process: status, per-wave progress from its event log, and the output once it finishes.",
+  input: z.object({
+    run_id: z.string().describe("from run_process"),
+  }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ run_id }, ctx) => {
+    if (!ctx.processes) throw new Error("check_run: background processes are not wired in this deployment");
+    const s = await ctx.processes.status(run_id);
+    if (!s) return JSON.stringify({ error: `no run ${run_id}` });
+    return JSON.stringify({ run_id: s.runId, process: s.process, status: s.status, waves: s.waves, ...(s.output !== undefined ? { output: s.output } : {}), ...(s.error !== undefined ? { error: s.error } : {}) });
+  },
+});
+
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash, run_process: runProcess, check_run: checkRun };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [], run_process: [], check_run: [] };
 
 /**
  * The toolkit `sandbox: true` grants: a computer for the agent. bash gates on
