@@ -48,7 +48,7 @@ test("gated tool parks the run; listPendingApprovals finds it; resolveApproval r
   ]);
   const deps: TickDeps = {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
-    provider, agents: { sender: gatedAgent }, workflows: { appr: wf },
+    provider, agents: { sender: gatedAgent }, workflows: { main: wf },
   };
   const worker = new LocalWorkerRuntime(deps, { concurrency: 1 });
   worker.start();

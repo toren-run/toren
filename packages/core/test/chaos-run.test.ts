@@ -48,7 +48,7 @@ const wf: WorkflowFn = async (ctx) => {
 };
 
 function makeDeps(store: PgStateStore, provider: ModelProvider): TickDeps {
-  return { store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA), provider, agents, workflows: { chaos: wf } };
+  return { store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA), provider, agents, workflows: { main: wf } };
 }
 
 const EXPECTED = "out(out(topicA)+out(topicB))";

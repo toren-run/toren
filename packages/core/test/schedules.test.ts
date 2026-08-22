@@ -22,7 +22,7 @@ function deps(p: pg.Pool): Record<string, TickDeps> {
   return {
     schedtest: {
       store: new PgStateStore(p, SCHEMA), queue: new PgQueue(p), leases: new PgLeases(p, SCHEMA),
-      provider: new MockProvider([]), agents: { main: spec }, workflows: { schedtest: wf },
+      provider: new MockProvider([]), agents: { main: spec }, workflows: { main: wf },
     },
   };
 }

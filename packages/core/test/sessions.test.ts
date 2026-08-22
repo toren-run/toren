@@ -39,7 +39,7 @@ const wf: WorkflowFn = async (ctx) => {
 };
 
 function makeDeps(store: PgStateStore, provider: ModelProvider): TickDeps {
-  return { store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA), provider, agents: { main: spec }, workflows: { sess: wf } };
+  return { store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA), provider, agents: { main: spec }, workflows: { main: wf } };
 }
 
 beforeAll(async () => {
@@ -217,7 +217,7 @@ test("sessions bypass a crew's custom workflow: chatting with a JSON-parsing bat
     return "batch";
   };
   const provider = new TurnProvider({ "hi": "hello from the root agent" });
-  const deps = { ...makeDeps(new PgStateStore(pool, SCHEMA), provider), workflows: { sess: explosive } };
+  const deps = { ...makeDeps(new PgStateStore(pool, SCHEMA), provider), workflows: { main: explosive } };
   const worker = new LocalWorkerRuntime({ sess: deps }, { concurrency: 1 });
   worker.start();
   try {

@@ -11,6 +11,7 @@ export interface LoadedAgent {
   name: string;
   dir: string;
   agents: Record<string, AgentSpec>;
+  /** Named processes, keyed by process name ("main" is the single/default workflow). */
   workflows: Record<string, WorkflowFn>;
   /** Root agent's sandbox settings with granted env resolved to values. */
   sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
@@ -153,7 +154,7 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     };
   }
 
-  return { name, dir, agents, workflows: { [name]: workflow }, ...(sandbox ? { sandbox } : {}) };
+  return { name, dir, agents, workflows: { main: workflow }, ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {

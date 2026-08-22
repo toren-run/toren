@@ -62,7 +62,7 @@ beforeAll(async () => {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider,
     agents: { plain, sender },
-    workflows: { clienttest: plainWf, gatedwf: gatedWf },
+    workflows: { main: plainWf, gated: gatedWf },
   };
   // API serves one agent name; use "clienttest" for POST /runs. The gated flow
   // is exercised through the approval endpoints on a run started directly.
@@ -105,7 +105,7 @@ test("startRun → waitForRun → completed with output; events readable", async
 test("gated run parks; approve via client resumes to completion", async () => {
   const deps = (globalThis as Record<string, unknown>).__deps as TickDeps;
   const { startRun } = await import("@toren-run/core");
-  const runId = await startRun(deps, { agent: "gatedwf", input: "go" });
+  const runId = await startRun(deps, { agent: "clienttest", input: "go", process: "gated" });
 
   const parked = await client.waitForRun(runId, { timeoutMs: 20_000 });
   expect(parked.status).toBe("waiting_approval");

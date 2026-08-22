@@ -34,7 +34,7 @@ function crewDeps(schema: string, agentName: string, tag: string): TickDeps {
     leases: new PgLeases(pool, schema),
     provider: new TaggedProvider(tag), // distinct providers prove routing: crossed routing = wrong tag
     agents: { solo: spec },
-    workflows: { [agentName]: wf },
+    workflows: { main: wf },
   };
 }
 

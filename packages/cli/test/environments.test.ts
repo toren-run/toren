@@ -51,7 +51,7 @@ beforeAll(async () => {
   const plain: AgentSpec = { model: "mock/m", system: "s", tools: [], maxTokens: 100, maxSteps: 5 };
   const deps: TickDeps = {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
-    provider: new EchoP(), agents: { plain }, workflows: { envprofile: wf },
+    provider: new EchoP(), agents: { plain }, workflows: { main: wf },
   };
   server = createApiServer(deps, { token: TOKEN, agent: "envprofile" });
   await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));

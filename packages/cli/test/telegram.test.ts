@@ -72,7 +72,7 @@ beforeAll(async () => {
   await pool.query("TRUNCATE toren_control.queue_messages, toren_control.telegram_users, toren_control.telegram_invites, toren_control.telegram_bindings, toren_control.telegram_state");
   deps = {
     store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
-    provider: new LastEcho(), agents: { main: spec }, workflows: { helper: wf },
+    provider: new LastEcho(), agents: { main: spec }, workflows: { main: wf },
   };
   worker = new LocalWorkerRuntime({ helper: deps }, { concurrency: 1 });
   worker.start();

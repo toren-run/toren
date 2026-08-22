@@ -26,7 +26,7 @@ test("loadAgentDir loads the example agent", async () => {
   expect(Object.keys(loaded.agents).sort()).toEqual(["main", "researcher", "writer"]);
   expect(loaded.agents.main!.tools.map((t) => t.name)).toEqual(["search_web"]);
   expect(loaded.agents.main!.system).toContain("research-crew");
-  expect(typeof loaded.workflows.research_crew).toBe("function");
+  expect(typeof loaded.workflows.main).toBe("function");
 });
 
 test("toren run drives the example agent offline to completion", async () => {

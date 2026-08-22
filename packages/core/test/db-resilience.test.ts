@@ -54,7 +54,7 @@ test("poll loops survive a burst of queue/DB errors and still complete the run",
   const queue = new FlakyQueue(new PgQueue(pool), 8); // more failures than poll loops
   const deps: TickDeps = {
     store: new PgStateStore(pool, SCHEMA), queue, leases: new PgLeases(pool, SCHEMA),
-    provider: new Echo(), agents: { main: spec }, workflows: { res: wf },
+    provider: new Echo(), agents: { main: spec }, workflows: { main: wf },
   };
   const worker = new LocalWorkerRuntime({ res: deps }, { concurrency: 2, pollMs: 20 });
   worker.start();

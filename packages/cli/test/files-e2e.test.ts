@@ -55,7 +55,7 @@ beforeAll(async () => {
   await pool.query(`TRUNCATE toren_control.queue_messages, toren_control.files`);
   const deps: TickDeps = {
     store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
-    provider: new ReadFileFlow(), agents: { main: reader }, workflows: { filestest: wf },
+    provider: new ReadFileFlow(), agents: { main: reader }, workflows: { main: wf },
     files: new PgFiles(pool),
   };
   worker = new LocalWorkerRuntime({ filestest: deps }, { concurrency: 1 });

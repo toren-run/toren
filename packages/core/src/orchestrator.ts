@@ -19,6 +19,7 @@ export interface TickDeps {
   leases: PgLeases;
   provider: ModelProvider;
   agents: Record<string, AgentSpec>;
+  /** Keyed by process name — an agent's named workflows ("main" is the single/default one). */
   workflows: Record<string, WorkflowFn>;
   /** Per-run sandbox provider; enables the bash builtin. */
   sandbox?: import("./tools.js").SandboxProvider;
@@ -33,10 +34,14 @@ const SESSION_WORKFLOW: WorkflowFn = async (ctx) => {
   return w.results[0]?.output ?? "";
 };
 
-export async function startRun(deps: TickDeps, req: { agent: string; input: string; runId?: string; mode?: "task" | "session" }): Promise<string> {
+export async function startRun(deps: TickDeps, req: { agent: string; input: string; process?: string; runId?: string; mode?: "task" | "session" }): Promise<string> {
   const runId = req.runId ?? randomUUID();
-  await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode });
-  const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input })]);
+  const process = req.process ?? "main";
+  if (req.mode !== "session" && !deps.workflows[process]) {
+    throw new Error(`no process "${process}" for ${req.agent} (has: ${Object.keys(deps.workflows).join(", ")})`);
+  }
+  await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode, process });
+  const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input, process })]);
   if (!r.ok) throw new Error("fresh run stream was not empty");
   await deps.queue.send("orchestrator", { kind: "tick", runId, agent: req.agent, dedupeKey: `start-${runId}` });
   return runId;
@@ -58,8 +63,8 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
     // Sessions always converse with the crew's root agent through the
     // implicit single-task workflow. A crew's custom batch workflow (which
     // may parse structured input, fan out waves, etc.) never sees a chat.
-    const workflow = run.mode === "session" ? SESSION_WORKFLOW : deps.workflows[run.agent];
-    if (!workflow) throw new Error(`no workflow registered for agent ${run.agent}`);
+    const workflow = run.mode === "session" ? SESSION_WORKFLOW : deps.workflows[run.process ?? "main"];
+    if (!workflow) throw new Error(`no process "${run.process ?? "main"}" for agent ${run.agent} (has: ${Object.keys(deps.workflows).join(", ")})`);
 
     let raw = await deps.store.read(runId, "run");
     let head = raw.at(-1)?.seq ?? 0;

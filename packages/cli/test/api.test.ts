@@ -78,7 +78,7 @@ beforeAll(async () => {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: providerFor(),
     agents: { main: plainAgent, echoer: plainAgent, publisher: gatedAgent },
-    workflows: { apitest: wf },
+    workflows: { main: wf },
   };
   worker = new LocalWorkerRuntime(deps, { concurrency: 2 });
   worker.start();

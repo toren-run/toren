@@ -73,7 +73,7 @@ function makeDeps(): TickDeps {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: new RouterProvider(),
     agents: { planner, researcher, writer },
-    workflows: { memo: wf },
+    workflows: { main: wf },
   };
 }
 

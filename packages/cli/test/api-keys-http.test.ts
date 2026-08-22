@@ -30,7 +30,7 @@ beforeAll(async () => {
   await pool.query(`TRUNCATE toren_control.api_keys`);
   const deps: TickDeps = {
     store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
-    provider: new MockProvider([]), agents: { a: agent }, workflows: { keys: wf },
+    provider: new MockProvider([]), agents: { a: agent }, workflows: { main: wf },
   };
   server = createApiServer(deps, { token: ADMIN, agent: "keys", pool });
   await new Promise<void>((r) => server.listen(0, r));

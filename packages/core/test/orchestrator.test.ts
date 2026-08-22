@@ -49,7 +49,7 @@ beforeAll(async () => {
 afterAll(async () => { await pool.end(); });
 
 test("first tick plans wave 1 and enqueues its tasks", async () => {
-  const deps = makeDeps(new KeyedProvider(), { orch: researchWf });
+  const deps = makeDeps(new KeyedProvider(), { main: researchWf });
   const runId = await startRun(deps, { agent: "orch", input: "go" });
   expect(await tick(deps, runId)).toBe("blocked");
   const events = await store.read(runId, "run");
@@ -62,7 +62,7 @@ test("first tick plans wave 1 and enqueues its tasks", async () => {
 
 test("worker-driven end to end: two waves, deterministic output", async () => {
   const provider = new KeyedProvider();
-  const deps = makeDeps(provider, { orch: researchWf });
+  const deps = makeDeps(provider, { main: researchWf });
   const worker = new LocalWorkerRuntime(deps);
   worker.start();
   try {
@@ -88,12 +88,12 @@ test("failing task under 'fail' policy fails the run; 'collect' lets the workflo
     const w = await ctx.wave("research", [ctx.task("researcher", "FAIL-topic")], { onTaskFailure: "collect" });
     return `saw:${w.results[0]!.status}`;
   };
-  const deps = makeDeps(new KeyedProvider(), { orchfail: failWf, orchcollect: collectWf });
+  const deps = makeDeps(new KeyedProvider(), { fail: failWf, collect: collectWf });
   const worker = new LocalWorkerRuntime(deps);
   worker.start();
   try {
-    const failId = await startRun(deps, { agent: "orchfail", input: "go" });
-    const collectId = await startRun(deps, { agent: "orchcollect", input: "go" });
+    const failId = await startRun(deps, { agent: "orchfail", input: "go", process: "fail" });
+    const collectId = await startRun(deps, { agent: "orchcollect", input: "go", process: "collect" });
     await worker.drain(15_000);
     expect((await store.getRun(failId))!.status).toBe("failed");
     const collected = await store.getRun(collectId);
@@ -106,7 +106,7 @@ test("failing task under 'fail' policy fails the run; 'collect' lets the workflo
 
 test("guardians recover a run whose queue messages were lost", async () => {
   const provider = new KeyedProvider();
-  const deps = makeDeps(provider, { orch: researchWf });
+  const deps = makeDeps(provider, { main: researchWf });
   const runId = await startRun(deps, { agent: "orch", input: "go" });
   await tick(deps, runId); // plans wave 1, enqueues tasks
   await pool.query(`TRUNCATE toren_control.queue_messages`); // lose everything
@@ -129,7 +129,7 @@ test("durable timer: run pauses across the delay and completes after it", async 
     const w2 = await ctx.wave("summarize", [ctx.task("writer", w1.results[0]!.output ?? "")]);
     return w2.results[0]!.output ?? "";
   };
-  const deps = makeDeps(new KeyedProvider(), { orchtimer: timerWf });
+  const deps = makeDeps(new KeyedProvider(), { main: timerWf });
   const worker = new LocalWorkerRuntime(deps);
   worker.start();
   try {
@@ -156,12 +156,12 @@ test("editing the workflow mid-flight invalidates the plan and re-runs only what
     const w = await ctx.wave("research", [ctx.task("researcher", "topicC"), ctx.task("researcher", "topicD")]);
     return w.results.map((r) => r.output).join("+");
   };
-  const deps1 = makeDeps(provider, { orchedit: v1 });
+  const deps1 = makeDeps(provider, { main: v1 });
   const runId = await startRun(deps1, { agent: "orchedit", input: "go" });
   await tick(deps1, runId); // plans v1's wave
   await pool.query(`TRUNCATE toren_control.queue_messages`); // drop v1 task hints deterministically
 
-  const deps2 = makeDeps(provider, { orchedit: v2 });
+  const deps2 = makeDeps(provider, { main: v2 });
   await sweep(deps2);
   const worker = new LocalWorkerRuntime(deps2);
   worker.start();

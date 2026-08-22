@@ -37,7 +37,7 @@ function makeDeps(): TickDeps {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: new RouterProvider(),
     agents: { researcher: agent("You research crisply."), writer: agent("You write crisply.") },
-    workflows: { live: wf },
+    workflows: { main: wf },
   };
 }
 
