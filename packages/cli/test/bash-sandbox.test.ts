@@ -229,6 +229,7 @@ describe.skipIf(!hasDocker())("bash crash-window semantics (honest at-least-once
     startedRuns.push(runId);
     const sbx = provider.forRun(runId);
     // Clean run: append once, appears exactly once.
+    await sbx.exec("rm -f log.txt"); // deterministic regardless of workspace reuse
     await sbx.exec("echo line >> log.txt");
     const once = await sbx.exec("wc -l < log.txt");
     expect(Number(once.stdout.trim())).toBe(1);
