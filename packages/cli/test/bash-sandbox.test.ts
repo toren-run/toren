@@ -173,7 +173,7 @@ describe.skipIf(!hasDocker())("workspace file tools", () => {
     const provider = new DockerSandboxProvider({}, ROOT);
     const runId = `00000000-0000-4000-b000-${String(900 + seq++).padStart(12, "0")}`;
     startedRuns.push(runId);
-    const ctx = { runId, taskId: "t", env: {}, sandbox: provider.forRun(runId) };
+    const ctx = { runId, taskId: "t", toolUseId: "tu", env: {}, sandbox: provider.forRun(runId) };
 
     await byName.write_file!.handler({ path: "src/app.ts", content: "const a = 1;\nconst b = 2;\n" }, ctx);
     const read = JSON.parse(await byName.read_file!.handler({ path: "src/app.ts", offset: 1, limit: 10 }, ctx));
@@ -201,7 +201,7 @@ describe.skipIf(!hasDocker())("workspace file tools", () => {
     const runId = `00000000-0000-4000-b000-${String(920 + seq++).padStart(12, "0")}`;
     startedRuns.push(runId);
     const sbx = provider.forRun(runId);
-    const ctx = { runId, taskId: "t", env: {}, sandbox: sbx };
+    const ctx = { runId, taskId: "t", toolUseId: "tu", env: {}, sandbox: sbx };
     try {
       // Plant symlinks pointing at the worker's secrets, the classic escape.
       await sbx.exec("ln -s /proc/1/environ envleak; ln -s /etc/passwd pwleak");

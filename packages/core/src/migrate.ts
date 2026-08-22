@@ -93,6 +93,15 @@ CREATE TABLE IF NOT EXISTS toren_control.files (
   data bytea,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS toren_control.run_watchers (
+  child_run_id uuid PRIMARY KEY,
+  parent_run_id uuid NOT NULL,
+  agent text NOT NULL,
+  process text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  settled boolean NOT NULL DEFAULT false
+);
+CREATE INDEX IF NOT EXISTS run_watchers_open_idx ON toren_control.run_watchers (agent) WHERE NOT settled;
 CREATE TABLE IF NOT EXISTS toren_control.sandboxes (
   run_id uuid PRIMARY KEY,
   provider text NOT NULL,

@@ -25,6 +25,8 @@ export interface TickDeps {
   sandbox?: import("./tools.js").SandboxProvider;
   /** Deployment file store; enables the read_file builtin. */
   files?: import("./files.js").PgFiles;
+  /** Background named-process runs; enables the run_process/check_run builtins. */
+  processes?: import("./tools.js").ProcessesCtx;
 }
 
 export type TickResult = "leased" | "terminal" | "blocked" | "completed" | "failed";

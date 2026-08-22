@@ -15,5 +15,5 @@ test("defineTool produces a provider-ready spec and executable handler", async (
   const [spec] = toolSpecs([echo]);
   expect(spec!.name).toBe("echo");
   expect(spec!.inputSchema).toMatchObject({ type: "object" });
-  expect(await echo.handler({ text: "hi" }, { runId: "r", taskId: "t", env: {} })).toBe("echo:hi");
+  expect(await echo.handler({ text: "hi" }, { runId: "r", taskId: "t", toolUseId: "tu", env: {} })).toBe("echo:hi");
 });

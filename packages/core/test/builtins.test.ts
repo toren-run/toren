@@ -1,7 +1,7 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { BUILTIN_TOOL_ENV, BUILTIN_TOOLS } from "../src/builtins.js";
 
-const ctx = { runId: "r", taskId: "t", env: { TAVILY_API_KEY: "tvly-test-key" } };
+const ctx = { runId: "r", taskId: "t", toolUseId: "tu", env: { TAVILY_API_KEY: "tvly-test-key" } };
 
 afterEach(() => vi.unstubAllGlobals());
 

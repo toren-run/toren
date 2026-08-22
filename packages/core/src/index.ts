@@ -24,3 +24,4 @@ export * from "./orchestrator.js";
 export * from "./worker.js";
 export * from "./guardians.js";
 export * from "./conversations.js";
+export * from "./spawn.js";

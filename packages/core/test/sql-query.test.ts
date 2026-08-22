@@ -5,7 +5,7 @@ import { BUILTIN_TOOLS, BUILTIN_TOOL_ENV } from "../src/builtins.js";
 const pool = createPool();
 // The tool reads SQL_DATABASE_URL from ctx.env; point it at the test Postgres.
 const URL = process.env.DATABASE_URL ?? "postgres://toren:toren@localhost:5433/toren";
-const ctx = { runId: "r", taskId: "t", env: { SQL_DATABASE_URL: URL } };
+const ctx = { runId: "r", taskId: "t", toolUseId: "tu", env: { SQL_DATABASE_URL: URL } };
 const sql = BUILTIN_TOOLS.sql_query!;
 
 beforeAll(async () => {
@@ -55,5 +55,5 @@ test("allows a WITH ... SELECT CTE", async () => {
 });
 
 test("missing SQL_DATABASE_URL is a clear error", async () => {
-  await expect(sql.handler({ query: "SELECT 1", limit: 1 }, { runId: "r", taskId: "t", env: {} })).rejects.toThrow(/SQL_DATABASE_URL/);
+  await expect(sql.handler({ query: "SELECT 1", limit: 1 }, { runId: "r", taskId: "t", toolUseId: "tu", env: {} })).rejects.toThrow(/SQL_DATABASE_URL/);
 });
