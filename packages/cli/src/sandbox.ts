@@ -1,9 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdirSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { join, posix } from "node:path";
 import type { SandboxExec, SandboxProvider } from "@toren-run/core";
 
 /**
@@ -73,7 +72,10 @@ class DockerSandbox implements SandboxExec {
       "-v", `${ws}:/workspace`, "-w", "/workspace",
       ...(this.cfg.network ? [] : ["--network", "none"]),
       ...Object.entries(this.cfg.env ?? {}).flatMap(([k, v]) => ["-e", `${k}=${v}`]),
-      "--memory", "1g", "--pids-limit", "512",
+      // Blast-radius controls: bounded memory/cpu/pids, no capabilities (bash
+      // and dev tooling need none), and no privilege escalation via setuid.
+      "--memory", "1g", "--cpus", "2", "--pids-limit", "512",
+      "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
       this.cfg.image ?? DEFAULT_SANDBOX_IMAGE,
       "sleep", "infinity",
     ]);
@@ -100,23 +102,44 @@ class DockerSandbox implements SandboxExec {
     });
   }
 
-  /** Resolves a workspace-relative path, refusing escapes. */
-  private hostPath(path: string): string {
-    const ws = this.workspaceDir();
-    const abs = resolve(ws, path);
-    if (abs !== ws && !abs.startsWith(ws + "/")) throw new Error(`path escapes the workspace: ${path}`);
-    return abs;
+  /**
+   * Maps a user path to an absolute path under /workspace INSIDE the container,
+   * rejecting escapes. File I/O runs in the container (below), not the worker,
+   * so the container is the real boundary: a symlink here resolves in the
+   * sandbox's own secret-free namespace, never the worker's. The lexical check
+   * only confines intent to the workspace.
+   */
+  private containerPath(path: string): string {
+    if (path.startsWith("/")) throw new Error(`path must be workspace-relative: ${path}`);
+    const full = posix.join("/workspace", path);
+    if (full !== "/workspace" && !full.startsWith("/workspace/")) throw new Error(`path escapes the workspace: ${path}`);
+    return full;
   }
 
   async readFile(path: string): Promise<string> {
-    mkdirSync(this.workspaceDir(), { recursive: true });
-    return readFile(this.hostPath(path), "utf8");
+    await this.ensure();
+    const cp = this.containerPath(path);
+    // `cat` runs as the container user against the container fs; a symlink is
+    // followed inside the sandbox, so it can only reach the sandbox's files.
+    const { stdout } = await run("docker", ["exec", this.name, "cat", "--", cp], { maxBuffer: 32 * 1024 * 1024 });
+    return stdout;
   }
 
   async writeFile(path: string, content: string): Promise<void> {
-    const abs = this.hostPath(path);
-    await mkdir(dirname(abs), { recursive: true });
-    await writeFile(abs, content);
+    await this.ensure();
+    const cp = this.containerPath(path);
+    await run("docker", ["exec", this.name, "mkdir", "-p", "--", posix.dirname(cp)]);
+    await new Promise<void>((resolveP, reject) => {
+      // The path is an argv positional ($1), never interpolated into the
+      // script, so it cannot break out of the redirect. The write lands in the
+      // container fs; following a symlink out of /workspace stays in the
+      // sandbox, which holds nothing worth stealing.
+      const child = execFile(
+        "docker", ["exec", "-i", this.name, "sh", "-c", 'cat > "$1"', "sh", cp],
+        (err) => (err ? reject(err) : resolveP()),
+      );
+      child.stdin?.end(content, "utf8");
+    });
   }
 
   /** Best-effort teardown; the workspace directory is deliberately left behind. */

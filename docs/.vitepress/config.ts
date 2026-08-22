@@ -42,8 +42,15 @@ export default defineConfig({
           { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },
-          { text: "Deploy to AWS", link: "/guides/deploy-aws" },
           { text: "Observability", link: "/guides/observability" },
+        ],
+      },
+      {
+        text: "Deploy",
+        items: [
+          { text: "Overview", link: "/deploy/" },
+          { text: "Docker Compose", link: "/deploy/compose" },
+          { text: "AWS reference architecture", link: "/guides/deploy-aws" },
         ],
       },
       {

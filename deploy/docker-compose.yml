@@ -1,0 +1,49 @@
+# Toren single-box self-host: the whole runtime on one machine.
+# From the repo root:
+#   docker compose -f deploy/docker-compose.yml up -d
+# Console prints at startup; pin TOREN_API_TOKEN below for a stable login link.
+#
+# The runtime needs nothing but this file: Postgres for durability, the worker
+# for everything else (queue included; SQS is an AWS-deployment concern).
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: toren
+      POSTGRES_PASSWORD: toren
+      POSTGRES_DB: toren
+    volumes:
+      - toren-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U toren"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  toren:
+    build:
+      context: ..
+    command: ["dev", "--dir", "/app/examples"]
+    environment:
+      DATABASE_URL: postgres://toren:toren@db:5432/toren
+      TOREN_API_TOKEN: ${TOREN_API_TOKEN:-change-me-please}
+      # Model keys: set the ones your agents use.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+    ports:
+      - "7433:7433"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    # NOTE: sandbox agents (sandbox: true) are NOT supported on this default
+    # single-container tier. Running them here would require mounting the host
+    # docker socket into this container, which is root-on-host and unsafe. Run
+    # sandbox agents locally with `toren dev` against your own docker, or on the
+    # AWS tier with an E2B backend. A hardened rootless-docker compose profile
+    # is planned.
+
+volumes:
+  toren-db:

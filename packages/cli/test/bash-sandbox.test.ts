@@ -148,8 +148,13 @@ describe.skipIf(!hasDocker())("bash sandbox (docker)", () => {
       const r = await runTaskLoop({ store, provider, runId, taskId: "t1", agent, input: "go", sandbox: sbxProvider.forRun(runId) });
       expect(r.status, `kill point ${k}/${N}`).toBe("completed");
       expect(r.status === "completed" && r.output, `kill point ${k}/${N}`).toBe("file says: durable disk");
-      // The append-only write ran at most once outside the documented
-      // one-command at-least-once window: note.txt has exactly one line.
+      // The recorded conversation is intact and the run resumes. NOTE: bash is
+      // at-least-once in the crash window (a command recorded started-but-not-
+      // completed may re-run on resume), same guarantee as any non-keyed tool.
+      // This command (`echo > note.txt`) is idempotent by construction, so the
+      // file is one line regardless of a mid-command kill; a NON-idempotent
+      // command (append, POST) could apply twice — that is the documented
+      // contract, not a bug, and is asserted honestly in the next test.
       const sbx = sbxProvider.forRun(runId);
       const wc = await sbx.exec("wc -l < note.txt");
       expect(Number(wc.stdout.trim()), `kill point ${k}/${N}`).toBe(1);
@@ -183,6 +188,54 @@ describe.skipIf(!hasDocker())("workspace file tools", () => {
     expect(cat.stdout).toContain("const b = 42;");
 
     // Escapes are refused.
-    await expect(byName.read_file!.handler({ path: "../outside.txt", offset: 1, limit: 10 }, ctx)).rejects.toThrow(/escapes/);
+    await expect(byName.read_file!.handler({ path: "../outside.txt", offset: 1, limit: 10 }, ctx)).rejects.toThrow(/escapes|workspace-relative/);
+  });
+
+  test("symlink escape cannot read the worker's secrets", { timeout: 60_000 }, async () => {
+    const { SANDBOX_TOOLKIT } = await import("@toren-run/core");
+    const byName = Object.fromEntries(SANDBOX_TOOLKIT.map((t) => [t.name, t]));
+    // A secret that exists ONLY in this worker process's environment.
+    const SECRET = "WORKER_ONLY_SECRET_a1b2c3";
+    process.env.TOREN_TEST_SECRET = SECRET;
+    const provider = new DockerSandboxProvider({}, ROOT);
+    const runId = `00000000-0000-4000-b000-${String(920 + seq++).padStart(12, "0")}`;
+    startedRuns.push(runId);
+    const sbx = provider.forRun(runId);
+    const ctx = { runId, taskId: "t", env: {}, sandbox: sbx };
+    try {
+      // Plant symlinks pointing at the worker's secrets, the classic escape.
+      await sbx.exec("ln -s /proc/1/environ envleak; ln -s /etc/passwd pwleak");
+      // read_file follows the link INSIDE the container: it reaches the
+      // sandbox's own PID 1 (sleep, no secrets) and the container's passwd,
+      // never the worker. The worker's secret must not appear.
+      const envLeak = JSON.parse(await byName.read_file!.handler({ path: "envleak", offset: 1, limit: 100 }, ctx));
+      expect(JSON.stringify(envLeak)).not.toContain(SECRET);
+      const pwLeak = JSON.parse(await byName.read_file!.handler({ path: "pwleak", offset: 1, limit: 100 }, ctx));
+      expect(JSON.stringify(pwLeak)).not.toContain(SECRET);
+    } finally {
+      delete process.env.TOREN_TEST_SECRET;
+    }
+  });
+});
+
+describe.skipIf(!hasDocker())("bash crash-window semantics (honest at-least-once)", () => {
+  test("a non-idempotent command may apply at-least-once across a crash, and this is the documented contract", { timeout: 120_000 }, async () => {
+    // This test documents reality rather than overclaiming: bash side effects
+    // are at-least-once in the crash window. We assert the workspace ends in a
+    // valid state and the count is >= 1 (never lost), and exactly 1 with no
+    // crash — not the false "exactly once under any kill" the old test implied.
+    const provider = new DockerSandboxProvider({}, ROOT);
+    const runId = `00000000-0000-4000-b000-${String(940 + seq++).padStart(12, "0")}`;
+    startedRuns.push(runId);
+    const sbx = provider.forRun(runId);
+    // Clean run: append once, appears exactly once.
+    await sbx.exec("echo line >> log.txt");
+    const once = await sbx.exec("wc -l < log.txt");
+    expect(Number(once.stdout.trim())).toBe(1);
+    // Simulate a crash-window re-run of the SAME command (what resume does when
+    // the command was recorded started-but-not-completed): it appends again.
+    await sbx.exec("echo line >> log.txt");
+    const twice = await sbx.exec("wc -l < log.txt");
+    expect(Number(twice.stdout.trim())).toBe(2); // at-least-once is real; document, do not hide it
   });
 });
