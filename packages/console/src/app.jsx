@@ -136,7 +136,7 @@ function RunsPage({ nav }) {
             {runs.map((r) => (
               <tr key={r.runId} class="rowlink" onClick={() => nav(`#/runs/${r.runId}`)}>
                 <td class="mono">{short(r.runId)}<span class="dim">…</span></td>
-                <td>{r.agent}</td>
+                <td>{r.agent}{r.process && r.process !== "main" && <span class="dim"> · {r.process}</span>}</td>
                 <td><StatusChip status={r.status} /></td>
                 <td class="dim">{ago(r.createdAt)}</td>
               </tr>
@@ -254,7 +254,7 @@ function RunPage({ runId, isAdmin }) {
       <div class="page-head">
         <div>
           <div class="overline">RUN <span class="mono">{short(runId)}</span> <button class="copy" onClick={() => copy(runId)} title="copy full id">⧉</button></div>
-          <h1 class="h-run">{run.agent} <StatusChip status={run.status} waiting={approvals.length > 0} /></h1>
+          <h1 class="h-run">{run.agent}{run.process && run.process !== "main" && <span class="dim"> · {run.process}</span>} <StatusChip status={run.status} waiting={approvals.length > 0} /></h1>
         </div>
         <span class="live-dot"><i />LIVE</span>
       </div>
@@ -345,6 +345,11 @@ function AgentPage() {
         return (
           <div class="crew" key={crewName}>
             {crewNames.length > 1 && <div class="crew-title">{crewName}{info.default === crewName && <span class="dwg" style="margin-left:10px">DEFAULT</span>}</div>}
+            {crew.processes?.length > 1 && (
+              <div class="agent-env">PROCESSES: {crew.processes.map((p) => (
+                <code key={p}>{p}{crew.defaultProcess === p ? " (default)" : ""}</code>
+              ))} <span class="dim">(named workflows — trigger with --process or POST /runs {"{process}"})</span></div>
+            )}
             <div class="stat-strip">
               <div class="stat"><b>{stats.total}</b><span>runs</span></div>
               <div class="stat"><b class="teal">{stats.completed}</b><span>completed</span></div>

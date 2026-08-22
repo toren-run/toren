@@ -88,9 +88,11 @@ export async function cmdRun(dir: string, opts: { input: string; process?: strin
 }
 
 /** Sanitized crew structure — env NAMES and prompt sizes, never values or bodies. */
-function crewInfo(loaded: { name: string; agents: Record<string, import("@toren-run/core").AgentSpec> }) {
+function crewInfo(loaded: { name: string; agents: Record<string, import("@toren-run/core").AgentSpec>; workflows: Record<string, unknown>; defaultProcess?: string }) {
   return {
     name: loaded.name,
+    processes: Object.keys(loaded.workflows),
+    ...(loaded.defaultProcess ? { defaultProcess: loaded.defaultProcess } : {}),
     agents: Object.fromEntries(Object.entries(loaded.agents).map(([ref, a]) => [ref, {
       model: a.model,
       maxTokens: a.maxTokens,
@@ -314,7 +316,8 @@ export async function cmdJobsList(dir: string, opts: { json?: boolean; databaseU
     for (const r of runs) {
       const waiting = approvals.filter((a) => a.runId === r.runId);
       const status = waiting.length > 0 ? "waiting_approval" : r.status;
-      io.out(`${r.runId}  ${r.agent}  ${status}${waiting.length ? `  (${waiting.map((w) => w.tool).join(", ")})` : ""}`);
+      const process = r.process && r.process !== "main" ? `  ${r.process}` : "";
+      io.out(`${r.runId}  ${r.agent}${process}  ${status}${waiting.length ? `  (${waiting.map((w) => w.tool).join(", ")})` : ""}`);
     }
   } finally {
     await rt.close();
