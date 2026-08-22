@@ -68,6 +68,8 @@ export interface TaskLoopArgs {
   input: string;
   /** Attached-file access, passed through to tool handlers (read_file builtin). */
   files?: import("./tools.js").ToolCtx["files"];
+  /** Per-run sandbox execution for the bash builtin; wired by the runtime. */
+  sandbox?: import("./tools.js").SandboxExec;
   /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
   sessionMode?: boolean;
 }
@@ -320,7 +322,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     let isError = false;
     try {
       const parsed = def.input.parse(tu.input);
-      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, env: agent.env ?? {}, files: args.files }));
+      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox }));
     } catch (e) {
       result = `tool error: ${e instanceof Error ? e.message : String(e)}`;
       isError = true;

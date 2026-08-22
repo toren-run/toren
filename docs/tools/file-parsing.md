@@ -22,19 +22,19 @@ curl -X POST "$TOREN_URL/sessions" \
   -d '{"agent": "analyst", "message": "Summarize the attached report.", "files": ["ab12cd34ef567890"]}'
 ```
 
-The attachment becomes a manifest line in the recorded message, visible in the transcript, and the agent reads the content with the `read_file` builtin:
+The attachment becomes a manifest line in the recorded message, visible in the transcript, and the agent reads the content with the `read_attachment` builtin:
 
 ```yaml
 name: analyst
 model: anthropic/claude-sonnet-5
-builtin_tools: [read_file]
+builtin_tools: [read_attachment]
 ```
 
-Attaching a file to an agent that lacks `read_file` is a clear 400 at the API, never a silent no-op. The typed client wraps the whole flow: `client.uploadFile({name, data})`, then `files: [...]` on `startRun`, `startSession`, and `sendSessionMessage`.
+Attaching a file to an agent that lacks `read_attachment` is a clear 400 at the API, never a silent no-op. The typed client wraps the whole flow: `client.uploadFile({name, data})`, then `files: [...]` on `startRun`, `startSession`, and `sendSessionMessage`.
 
 ## Durability
 
-Parsing happens once, at upload. Every `read_file` call is recorded in the event log with keyed idempotency, so a killed and resumed run replays its recorded reads: the agent reasons over the same pages before and after a crash, verified by digest, and never re-reads what it already read. Large tool results from reading, like everything else, are subject to [context compaction](/concepts/durability#context-compaction-an-event-in-the-log): old pages elide to restorable stubs the agent can re-fetch by calling `read_file` again.
+Parsing happens once, at upload. Every `read_attachment` call is recorded in the event log with keyed idempotency, so a killed and resumed run replays its recorded reads: the agent reasons over the same pages before and after a crash, verified by digest, and never re-reads what it already read. Large tool results from reading, like everything else, are subject to [context compaction](/concepts/durability#context-compaction-an-event-in-the-log): old pages elide to restorable stubs the agent can re-fetch by calling `read_attachment` again.
 
 ## Limits
 

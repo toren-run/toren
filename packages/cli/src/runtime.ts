@@ -51,6 +51,13 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
     workflows: loaded.workflows,
     files: new PgFiles(pool),
   };
+  if (Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"))) {
+    const { dockerAvailable, DockerSandboxProvider } = await import("./sandbox.js");
+    if (!(await dockerAvailable())) {
+      throw new Error('this agent declares builtin_tools: [bash] but docker is not available — the sandbox needs it');
+    }
+    deps.sandbox = new DockerSandboxProvider(loaded.sandbox ?? {});
+  }
   return { pool, deps, schema, close: () => pool.end() };
 }
 
@@ -70,9 +77,18 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
   });
   const queue = selectQueue(pool);
   const files = new PgFiles(pool);
+  const needsSandbox = Object.values(project.crews).some((c) => Object.values(c.agents).some((a) => a.tools.some((t) => t.name === "bash")));
+  if (needsSandbox) {
+    const { dockerAvailable } = await import("./sandbox.js");
+    if (!(await dockerAvailable())) {
+      throw new Error('an agent declares builtin_tools: [bash] but docker is not available — the sandbox needs it (install docker, or remove the bash builtin)');
+    }
+  }
   const byAgent: Record<string, TickDeps> = {};
   for (const [name, loaded] of Object.entries(project.crews)) {
     const schema = `agent_${name}`;
+    const hasBash = Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"));
+    const { DockerSandboxProvider } = hasBash ? await import("./sandbox.js") : { DockerSandboxProvider: null };
     byAgent[name] = {
       store: new PgStateStore(pool, schema),
       queue,
@@ -81,6 +97,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       agents: loaded.agents,
       workflows: loaded.workflows,
       files,
+      ...(DockerSandboxProvider ? { sandbox: new DockerSandboxProvider(loaded.sandbox ?? {}) } : {}),
     };
   }
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };

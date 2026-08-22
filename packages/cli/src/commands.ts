@@ -38,8 +38,8 @@ export async function attachLocalFiles(
   io: CmdIO,
 ): Promise<string> {
   if (paths.length === 0) return "";
-  const canRead = Object.values(agents).some((a) => a.tools.some((t) => t.name === "read_file"));
-  if (!canRead) throw new Error('this agent cannot read files — add "builtin_tools: [read_file]" to its agent.yaml');
+  const canRead = Object.values(agents).some((a) => a.tools.some((t) => t.name === "read_attachment"));
+  if (!canRead) throw new Error('this agent cannot read files — add "builtin_tools: [read_attachment]" to its agent.yaml');
   const { readFileSync } = await import("node:fs");
   const { basename } = await import("node:path");
   const { parseFile } = await import("./files.js");

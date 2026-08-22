@@ -42,8 +42,8 @@ const webSearch = defineTool({
   },
 });
 
-const readFile = defineTool({
-  name: "read_file",
+const readAttachment = defineTool({
+  name: "read_attachment",
   description:
     "Read one page of an attached file. Attachments are listed in the conversation with their file_id and page count; call again with the next page number to keep reading.",
   input: z.object({
@@ -65,7 +65,104 @@ const readFile = defineTool({
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_file: readFile };
+const BASH_OUTPUT_CAP = 8_000; // chars kept from each of head and tail per stream
+
+function capOutput(s: string): string {
+  if (s.length <= BASH_OUTPUT_CAP * 2) return s;
+  return `${s.slice(0, BASH_OUTPUT_CAP)}\n[... ${s.length - BASH_OUTPUT_CAP * 2} chars elided ...]\n${s.slice(-BASH_OUTPUT_CAP)}`;
+}
+
+function needSandbox(ctx: { sandbox?: import("./tools.js").SandboxExec }): import("./tools.js").SandboxExec {
+  if (!ctx.sandbox) throw new Error("this deployment has no sandbox backend configured (is docker available?)");
+  return ctx.sandbox;
+}
+
+/** Workspace file tools, pi-style: models edit reliably with exact strings, not sed. */
+const wsReadFile = defineTool({
+  name: "read_file",
+  description: "Read a file from the workspace. Returns the content with 1-indexed line numbers.",
+  input: z.object({
+    path: z.string().describe("workspace-relative path"),
+    offset: z.number().int().min(1).default(1).describe("first line to read"),
+    limit: z.number().int().min(1).max(2000).default(500),
+  }),
+  effects: "sandbox",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ path, offset, limit }, ctx) => {
+    const content = await needSandbox(ctx).readFile(path);
+    const lines = content.split("\n");
+    const slice = lines.slice(offset - 1, offset - 1 + limit);
+    const numbered = slice.map((l, i) => `${offset + i}\t${l}`).join("\n");
+    return JSON.stringify({ path, lines: lines.length, from: offset, text: capOutput(numbered) });
+  },
+});
+
+const wsWriteFile = defineTool({
+  name: "write_file",
+  description: "Create or overwrite a file in the workspace.",
+  input: z.object({ path: z.string(), content: z.string() }),
+  effects: "sandbox",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ path, content }, ctx) => {
+    await needSandbox(ctx).writeFile(path, content);
+    return JSON.stringify({ path, bytes: Buffer.byteLength(content) });
+  },
+});
+
+const wsEditFile = defineTool({
+  name: "edit_file",
+  description:
+    "Replace an exact string in a workspace file. old_string must appear exactly once unless replace_all is set; include enough surrounding context to make it unique.",
+  input: z.object({
+    path: z.string(),
+    old_string: z.string(),
+    new_string: z.string(),
+    replace_all: z.boolean().default(false),
+  }),
+  effects: "sandbox",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ path, old_string, new_string, replace_all }, ctx) => {
+    const sandbox = needSandbox(ctx);
+    const content = await sandbox.readFile(path);
+    const count = content.split(old_string).length - 1;
+    if (count === 0) return JSON.stringify({ error: "old_string not found", path });
+    if (count > 1 && !replace_all) return JSON.stringify({ error: `old_string appears ${count} times; add context or set replace_all`, path });
+    const next = replace_all ? content.split(old_string).join(new_string) : content.replace(old_string, new_string);
+    await sandbox.writeFile(path, next);
+    return JSON.stringify({ path, replacements: replace_all ? count : 1 });
+  },
+});
+
+const bash = defineTool({
+  name: "bash",
+  description:
+    "Run a shell command in this run's persistent workspace. The workspace survives crashes and restarts; " +
+    "files you create stay for later commands. Commands run in a sandbox container with no credentials.",
+  input: z.object({
+    command: z.string().describe("the shell command"),
+    timeout_seconds: z.number().int().min(1).max(600).default(120),
+  }),
+  effects: "sandbox",
+  idempotency: "keyed",
+  approval: "always",
+  handler: async ({ command, timeout_seconds }, ctx) => {
+    if (!ctx.sandbox) throw new Error("bash: this deployment has no sandbox backend configured (is docker available?)");
+    const r = await ctx.sandbox.exec(command, { timeoutMs: timeout_seconds * 1000 });
+    return JSON.stringify({ exit_code: r.exitCode, stdout: capOutput(r.stdout), stderr: capOutput(r.stderr) });
+  },
+});
+
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, bash };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_file: [] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], bash: [] };
+
+/**
+ * The toolkit `sandbox: true` grants: a computer for the agent. bash gates on
+ * approval by default; workspace file operations are free (their blast radius
+ * is the workspace itself).
+ */
+export const SANDBOX_TOOLKIT: ToolDefAny[] = [bash, wsReadFile, wsWriteFile, wsEditFile];

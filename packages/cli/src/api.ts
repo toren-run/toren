@@ -248,8 +248,8 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
           if (!f) return { error: `no uploaded file with id ${String(id)} — upload via POST /files first` };
           found.push(f);
         }
-        const canRead = Object.values(deps.agents).some((a) => a.tools.some((t) => t.name === "read_file"));
-        if (!canRead) return { error: 'this agent cannot read files — add "builtin_tools: [read_file]" to its agent.yaml' };
+        const canRead = Object.values(deps.agents).some((a) => a.tools.some((t) => t.name === "read_attachment"));
+        if (!canRead) return { error: 'this agent cannot read files — add "builtin_tools: [read_attachment]" to its agent.yaml' };
         return { manifest: fileManifest(found) };
       };
 

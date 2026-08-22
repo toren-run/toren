@@ -10,6 +10,20 @@ export interface ToolCtx {
   env: Record<string, string>;
   /** Attached-file access for the read_file builtin; wired by the runtime. */
   files?: { get(id: string): Promise<{ id: string; name: string; pages: string[] } | null> };
+  /** Durable per-run workspace execution for the bash builtin; wired by the runtime. */
+  sandbox?: SandboxExec;
+}
+
+/** One run's sandbox: commands and file operations against a persistent workspace. */
+export interface SandboxExec {
+  exec(command: string, opts?: { timeoutMs?: number }): Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  readFile(path: string): Promise<string>;
+  writeFile(path: string, content: string): Promise<void>;
+}
+
+/** Constructs per-run sandbox handles; implemented by the CLI runtime (docker locally). */
+export interface SandboxProvider {
+  forRun(runId: string): SandboxExec;
 }
 
 export interface ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> {

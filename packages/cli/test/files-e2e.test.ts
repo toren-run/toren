@@ -28,13 +28,13 @@ class ReadFileFlow implements ModelProvider {
     const text = req.messages[0]!.content.find((b) => b.type === "text");
     const m = text && text.type === "text" ? text.text.match(/file_id: ([0-9a-f]+)/) : null;
     return {
-      content: [{ type: "toolUse", id: "fu1", name: "read_file", input: { file_id: m?.[1] ?? "missing", page: 1 } }],
+      content: [{ type: "toolUse", id: "fu1", name: "read_attachment", input: { file_id: m?.[1] ?? "missing", page: 1 } }],
       stopReason: "toolUse", usage: { inputTokens: 1, outputTokens: 1 },
     };
   }
 }
 
-const reader: AgentSpec = { model: "mock/m", system: "s", tools: [BUILTIN_TOOLS.read_file!], maxTokens: 200, maxSteps: 5 };
+const reader: AgentSpec = { model: "mock/m", system: "s", tools: [BUILTIN_TOOLS.read_attachment!], maxTokens: 200, maxSteps: 5 };
 const wf: WorkflowFn = async (ctx) => {
   const w = await ctx.wave("main", [ctx.task("main", ctx.input)]);
   return w.results[0]?.output ?? "";

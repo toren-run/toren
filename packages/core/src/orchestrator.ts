@@ -20,6 +20,8 @@ export interface TickDeps {
   provider: ModelProvider;
   agents: Record<string, AgentSpec>;
   workflows: Record<string, WorkflowFn>;
+  /** Per-run sandbox provider; enables the bash builtin. */
+  sandbox?: import("./tools.js").SandboxProvider;
   /** Deployment file store; enables the read_file builtin. */
   files?: import("./files.js").PgFiles;
 }

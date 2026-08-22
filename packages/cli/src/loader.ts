@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createJiti } from "jiti";
 import { parse as parseYaml } from "yaml";
-import { BUILTIN_TOOL_ENV, BUILTIN_TOOLS, type AgentSpec, type ToolDefAny, type WorkflowFn } from "@toren-run/core";
+import { BUILTIN_TOOL_ENV, BUILTIN_TOOLS, SANDBOX_TOOLKIT, type AgentSpec, type ToolDefAny, type WorkflowFn } from "@toren-run/core";
 
 const jiti = createJiti(import.meta.url);
 
@@ -12,6 +12,8 @@ export interface LoadedAgent {
   dir: string;
   agents: Record<string, AgentSpec>;
   workflows: Record<string, WorkflowFn>;
+  /** Root agent's sandbox settings with granted env resolved to values. */
+  sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
 }
 
 interface AgentYaml {
@@ -23,6 +25,13 @@ interface AgentYaml {
   env?: { required?: string[]; optional?: Record<string, string> };
   /** Built-in tools by name, e.g. [web_search]. Their required env folds into env.required. */
   builtin_tools?: string[];
+  /** `true` (or a settings block) gives the agent a computer: bash + read_file/write_file/edit_file on a durable workspace. */
+  sandbox?: boolean | { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] };
+}
+
+function sandboxConfig(yaml: AgentYaml): { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] } | null {
+  if (yaml.sandbox === undefined || yaml.sandbox === false) return null;
+  return yaml.sandbox === true ? {} : yaml.sandbox;
 }
 
 /** Resolve a declared env block against process.env. Values never get logged. */
@@ -63,14 +72,24 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
   }
 
   for (const name of yaml.builtin_tools ?? []) {
+    if (name === "bash") throw new Error(`${where}: declare "sandbox: true" instead of listing bash — it grants bash plus the workspace file tools`);
     const builtin = BUILTIN_TOOLS[name];
-    if (!builtin) throw new Error(`${where}: unknown builtin tool "${name}" (available: ${Object.keys(BUILTIN_TOOLS).join(", ")})`);
+    if (!builtin) throw new Error(`${where}: unknown builtin tool "${name}" (available: ${Object.keys(BUILTIN_TOOLS).filter((n) => n !== "bash").join(", ")}; "sandbox: true" grants bash)`);
     if (tools.some((t) => t.name === builtin.name)) throw new Error(`${where}: builtin "${name}" collides with a tool of the same name in tools/`);
     tools.push(builtin);
   }
+  const sandbox = sandboxConfig(yaml);
+  if (sandbox) {
+    for (const kit of SANDBOX_TOOLKIT) {
+      if (tools.some((t) => t.name === kit.name)) throw new Error(`${where}: sandbox tool "${kit.name}" collides with a tool of the same name in tools/`);
+      // bash approves-by-default; sandbox.approval: never relaxes it deliberately.
+      if (kit.name === "bash" && sandbox.approval === "never") tools.push({ ...kit, approval: "never" });
+      else tools.push(kit);
+    }
+  }
   const builtinEnv = (yaml.builtin_tools ?? []).flatMap((name) => BUILTIN_TOOL_ENV[name] ?? []);
   const env = {
-    required: [...new Set([...(yaml.env?.required ?? []), ...builtinEnv])],
+    required: [...new Set([...(yaml.env?.required ?? []), ...builtinEnv, ...(sandbox?.env ?? [])])],
     optional: yaml.env?.optional,
   };
 
@@ -110,6 +129,17 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     );
   }
 
+  let sandbox: LoadedAgent["sandbox"];
+  const sandboxYaml = sandboxConfig(root.yaml);
+  if (sandboxYaml || Object.values(agents).some((a) => a.tools.some((t) => t.name === "bash"))) {
+    const grantedEnv: Record<string, string> = {};
+    for (const name of sandboxYaml?.env ?? []) {
+      const v = process.env[name];
+      if (v !== undefined && v !== "") grantedEnv[name] = v; // missing values already reported via env.required
+    }
+    sandbox = { image: sandboxYaml?.image, network: sandboxYaml?.network, env: grantedEnv };
+  }
+
   let workflow: WorkflowFn;
   const workflowPath = join(dir, "workflow.ts");
   if (existsSync(workflowPath)) {
@@ -123,7 +153,7 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     };
   }
 
-  return { name, dir, agents, workflows: { [name]: workflow } };
+  return { name, dir, agents, workflows: { [name]: workflow }, ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {

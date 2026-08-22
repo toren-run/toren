@@ -62,6 +62,7 @@ export default defineConfig({
         text: "Tools",
         items: [
           { text: "Defining tools", link: "/tools/defining-tools" },
+          { text: "Sandbox", link: "/tools/sandbox" },
           { text: "Web search", link: "/tools/web-search" },
           { text: "File parsing", link: "/tools/file-parsing" },
         ],
