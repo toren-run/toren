@@ -187,6 +187,12 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
   const processNames = Object.keys(workflows);
   const defaultProcess = declared ?? (workflows.main ? "main" : processNames.length === 1 ? processNames[0] : undefined);
 
+  // Tell the model what it can actually spawn — clone, never mutate the shared builtin.
+  const processLine = ` Available processes: ${processNames.join(", ")}${defaultProcess ? ` (default: ${defaultProcess})` : ""}.`;
+  for (const spec of Object.values(agents)) {
+    spec.tools = spec.tools.map((t) => (t.name === "run_process" ? { ...t, description: t.description + processLine } : t));
+  }
+
   return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 

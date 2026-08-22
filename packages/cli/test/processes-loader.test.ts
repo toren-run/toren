@@ -57,3 +57,14 @@ test("invalid process filenames are rejected", async () => {
   const dir = agentDir({ "workflows/Daily Digest.ts": wf("d") });
   await expect(loadAgentDir(dir)).rejects.toThrow(/not a valid process name/);
 });
+
+test("run_process's description gains the agent's actual processes; the shared builtin stays untouched", async () => {
+  const yaml = "name: proc\nmodel: mock/echo\nbuiltin_tools: [run_process, check_run]\ndefault_process: daily-digest\n";
+  const dir = agentDir({ "agent.yaml": yaml, "workflows/daily-digest.ts": wf("d"), "workflows/weekly-report.ts": wf("w") });
+  const loaded = await loadAgentDir(dir);
+  const tool = loaded.agents.main!.tools.find((t) => t.name === "run_process")!;
+  expect(tool.description).toContain("Available processes: daily-digest, weekly-report (default: daily-digest)");
+
+  const { BUILTIN_TOOLS } = await import("@toren-run/core");
+  expect(BUILTIN_TOOLS.run_process!.description).not.toContain("Available processes");
+});
