@@ -1,0 +1,5 @@
+name: synthesizer
+model: anthropic/claude-opus-5
+maxTokens: 4000
+limits:
+  maxStepsPerTask: 6

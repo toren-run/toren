@@ -1,0 +1,6 @@
+name: analyst
+model: anthropic/claude-opus-5
+maxTokens: 4000
+limits:
+  maxStepsPerTask: 30
+builtin_tools: [web_search]

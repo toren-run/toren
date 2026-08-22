@@ -1,0 +1,5 @@
+name: market_scan
+model: anthropic/claude-opus-5
+maxTokens: 8000
+limits:
+  maxStepsPerTask: 40
