@@ -20,11 +20,12 @@ export async function main(argv: string[]): Promise<void> {
   program.command("run <dir>")
     .description("Run an agent directory to completion (or until it parks on an approval)")
     .requiredOption("--input <input>", "run input (string)")
+    .option("--process <name>", "named process (workflow) to run — see the agent's workflows/ directory")
     .option("--file <path>", "attach a local file: pdf, docx, xlsx, or text (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])
     .option("--json", "JSON output")
     .option("--detach", "start the run and exit without driving it (workers pick it up)")
     .option("--env <name>", "environment profile from .toren/environments.json", "local")
-    .action(async (dir: string, opts: { input: string; json?: boolean; detach?: boolean; env?: string; file: string[] }) => {
+    .action(async (dir: string, opts: { input: string; process?: string; json?: boolean; detach?: boolean; env?: string; file: string[] }) => {
       const profile = resolveEnvProfile(opts.env, dir);
       if (profile.kind === "api") {
         await remoteRun(profile, { ...opts, files: opts.file }, { out: (l) => console.log(l) });
@@ -141,12 +142,13 @@ export async function main(argv: string[]): Promise<void> {
   schedule.command("create")
     .requiredOption("--cron <expr>", 'cron expression, e.g. "0 9 * * *"')
     .requiredOption("--input <input>", "run input (string)")
+    .option("--process <name>", "named process (workflow) to fire — see the agent's workflows/ directory")
     .option("--agent <name>", "agent to run (default: the --dir agent)")
     .option("--name <name>", "display name")
     .option("--tz <zone>", "IANA timezone for the cron expression", "UTC")
     .option("--dir <dir>", "agent directory", ".")
     .option("--env <name>", "environment profile", "local")
-    .action(async (opts: { cron: string; input: string; agent?: string; name?: string; tz?: string; dir: string; env?: string }) => {
+    .action(async (opts: { cron: string; input: string; process?: string; agent?: string; name?: string; tz?: string; dir: string; env?: string }) => {
       const profile = resolveEnvProfile(opts.env, opts.dir);
       if (profile.kind === "api") throw new Error("schedule management runs against the database — use a db-backed environment profile");
       return cmdScheduleCreate(opts.dir, { ...opts, databaseUrl: profile.databaseUrl });

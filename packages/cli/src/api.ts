@@ -29,6 +29,8 @@ export interface ApiConfig {
   consoleDir?: string;
   /** Sanitized structure of the served agent (models, tools, env names — never values). */
   agentInfo?: unknown;
+  /** Per-agent default process (agent.yaml default_process) used when POST /runs names none. */
+  defaultProcess?: Record<string, string>;
 }
 
 type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
@@ -304,16 +306,20 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       // POST /runs — routes by body.agent (defaults to the deployment's default agent)
       if (req.method === "POST" && parts.length === 1 && parts[0] === "runs") {
         const body = await readJson(req);
-        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string, agent?: string, files?: string[]}" });
+        if (typeof body.input !== "string") return send(res, 400, { error: "body must be {input: string, agent?: string, process?: string, files?: string[]}" });
         const target = typeof body.agent === "string" ? body.agent : defaultAgent;
         const targetDeps = byAgent[target];
         if (!targetDeps) {
           return send(res, 400, { error: `unknown agent "${target}" — this deployment serves: ${agentNames.join(", ")}` });
         }
+        const proc = typeof body.process === "string" ? body.process : cfg.defaultProcess?.[target];
+        if (proc !== undefined && !targetDeps.workflows[proc]) {
+          return send(res, 400, { error: `no process "${proc}" for agent "${target}" (has: ${Object.keys(targetDeps.workflows).join(", ")})` });
+        }
         const att = await resolveAttachments(targetDeps, body.files);
         if ("error" in att) return send(res, 400, { error: att.error });
-        const runId = await startRun(targetDeps, { agent: target, input: body.input + att.manifest });
-        return send(res, 202, { runId, agent: target });
+        const runId = await startRun(targetDeps, { agent: target, input: body.input + att.manifest, ...(proc ? { process: proc } : {}) });
+        return send(res, 202, { runId, agent: target, process: proc ?? "main" });
       }
 
       // GET /runs — every crew's runs, newest first

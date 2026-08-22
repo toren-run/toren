@@ -24,12 +24,12 @@ async function uploadLocalFiles(client: TorenClient, paths: string[], io: CmdIO)
 
 export async function remoteRun(
   env: Extract<ResolvedEnv, { kind: "api" }>,
-  opts: { input: string; json?: boolean; detach?: boolean; files?: string[] },
+  opts: { input: string; process?: string; json?: boolean; detach?: boolean; files?: string[] },
   io: CmdIO,
 ): Promise<void> {
   const client = clientFor(env, io);
   const files = await uploadLocalFiles(client, opts.files ?? [], io);
-  const { runId } = await client.startRun({ input: opts.input, ...(files.length ? { files } : {}) });
+  const { runId } = await client.startRun({ input: opts.input, ...(opts.process ? { process: opts.process } : {}), ...(files.length ? { files } : {}) });
   if (opts.detach) {
     io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `run ${runId}  detached; check: toren jobs show ${runId} --env ${env.name}`);
     return;

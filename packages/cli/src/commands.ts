@@ -55,13 +55,14 @@ export async function attachLocalFiles(
   return fileManifest(stored);
 }
 
-export async function cmdRun(dir: string, opts: { input: string; json?: boolean; detach?: boolean; databaseUrl?: string; files?: string[] }, io: CmdIO = stdoutIO): Promise<(SettledRun | { status: "detached" }) & { runId: string }> {
+export async function cmdRun(dir: string, opts: { input: string; process?: string; json?: boolean; detach?: boolean; databaseUrl?: string; files?: string[] }, io: CmdIO = stdoutIO): Promise<(SettledRun | { status: "detached" }) & { runId: string }> {
   const loaded = await loadAgentDir(dir);
   const rt = await buildRuntime(loaded, opts.databaseUrl);
   try {
     const manifest = await attachLocalFiles(rt.pool, loaded.agents, opts.files ?? [], io);
-    const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input + manifest });
-    io.out(`run ${runId}  agent ${loaded.name}  started`);
+    const process = opts.process ?? loaded.defaultProcess;
+    const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input + manifest, ...(process ? { process } : {}) });
+    io.out(`run ${runId}  agent ${loaded.name}${process && process !== "main" ? `  process ${process}` : ""}  started`);
     if (opts.detach) {
       io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `detached; workers will pick it up. Check: toren jobs show ${runId}`);
       return { runId, status: "detached" };
@@ -130,7 +131,10 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
       default: names[0]!,
       crews: Object.fromEntries(Object.entries(rt.crews).map(([name, loaded]) => [name, crewInfo(loaded)])),
     };
-    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo });
+    const defaultProcess = Object.fromEntries(
+      Object.entries(rt.crews).flatMap(([name, loaded]) => (loaded.defaultProcess ? [[name, loaded.defaultProcess]] : [])),
+    );
+    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
@@ -244,20 +248,25 @@ export async function cmdKeysRevoke(dir: string, id: string, opts: { databaseUrl
 
 export async function cmdScheduleCreate(
   dir: string,
-  opts: { cron: string; input: string; agent?: string; name?: string; tz?: string; databaseUrl?: string },
+  opts: { cron: string; input: string; process?: string; agent?: string; name?: string; tz?: string; databaseUrl?: string },
   io: CmdIO = stdoutIO,
 ): Promise<void> {
   const loaded = await loadAgentDir(dir);
   const rt = await buildRuntime(loaded, opts.databaseUrl);
   try {
+    const process = opts.process ?? loaded.defaultProcess ?? "main";
+    if (!loaded.workflows[process]) {
+      throw new Error(`agent ${loaded.name} has no process "${process}" (has: ${Object.keys(loaded.workflows).join(", ")})`);
+    }
     const s = await createSchedule(rt.pool, {
       agent: opts.agent ?? loaded.name,
       name: opts.name ?? `${opts.cron}`,
       cron: opts.cron,
       input: opts.input,
+      process,
       tz: opts.tz,
     });
-    io.out(`created schedule ${s.id}  ${s.agent}  "${s.cron}" (${s.tz})  next fire ${s.nextFireAt.toISOString()}`);
+    io.out(`created schedule ${s.id}  ${s.agent}  "${s.cron}" (${s.tz})${process !== "main" ? `  process ${process}` : ""}  next fire ${s.nextFireAt.toISOString()}`);
   } finally {
     await rt.close();
   }

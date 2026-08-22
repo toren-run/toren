@@ -78,7 +78,7 @@ beforeAll(async () => {
     store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: providerFor(),
     agents: { main: plainAgent, echoer: plainAgent, publisher: gatedAgent },
-    workflows: { main: wf },
+    workflows: { main: wf, "weekly-report": async () => "ran weekly" },
   };
   worker = new LocalWorkerRuntime(deps, { concurrency: 2 });
   worker.start();
@@ -171,4 +171,18 @@ test("client SDK sessions: start, reply, close — the toren chat wire path", as
   await client.sendSessionMessage(runId, { message: "", close: true });
   const sessions = await client.listSessions();
   expect(sessions.some((x) => x.runId === runId)).toBe(true);
+});
+
+test("POST /runs with a process routes to that workflow; unknown process is a 400", async () => {
+  const ok = await api("POST", "/runs", { input: "go", process: "weekly-report" });
+  expect(ok.status).toBe(202);
+  expect(ok.json.process).toBe("weekly-report");
+  await worker.drain(15_000);
+  const got = await api("GET", `/runs/${ok.json.runId}`);
+  expect(got.json.status).toBe("completed");
+  expect(got.json.run.output).toBe("ran weekly");
+
+  const bad = await api("POST", "/runs", { input: "go", process: "nope" });
+  expect(bad.status).toBe(400);
+  expect(bad.json.error).toMatch(/no process "nope"/);
 });

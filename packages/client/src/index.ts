@@ -76,7 +76,7 @@ export class TorenClient {
     }
   }
 
-  async startRun(req: { input: string; agent?: string; files?: string[] }): Promise<{ runId: string }> {
+  async startRun(req: { input: string; agent?: string; process?: string; files?: string[] }): Promise<{ runId: string }> {
     return this.request("POST", "/runs", req);
   }
 
