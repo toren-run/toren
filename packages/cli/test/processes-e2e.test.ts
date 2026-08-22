@@ -34,3 +34,17 @@ test("schedule create validates the process against the loaded agent", async () 
   await expect(cmdScheduleCreate(dir, { cron: "0 9 * * 1", input: '"go"', process: "nope" }, silent))
     .rejects.toThrow(/has no process "nope"/);
 });
+
+test("plain schedule list shows the process name", async () => {
+  const { cmdScheduleList, cmdScheduleSet } = await import("../src/commands.js");
+  const dir = multiAgent();
+  const lines: string[] = [];
+  const io = { out: (l: string) => lines.push(l) };
+  await cmdScheduleCreate(dir, { cron: "0 9 * * 1", input: '"go"', process: "weekly-report" }, io);
+  const id = lines.at(-1)!.match(/created schedule (\S+)/)![1]!;
+  lines.length = 0;
+  await cmdScheduleList(dir, {}, io);
+  const row = lines.find((l) => l.startsWith(id))!;
+  expect(row).toContain("weekly-report");
+  await cmdScheduleSet(dir, id, "rm", {}, io);
+});

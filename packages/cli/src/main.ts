@@ -52,9 +52,9 @@ export async function main(argv: string[]): Promise<void> {
     });
 
   program.command("dev")
-    .description("Serve a fleet of process agents: workers + guardians for every agent in every --dir (HTTP API + console when TOREN_API_TOKEN is set)")
+    .description("Serve a fleet of process agents: workers + guardians for every agent in every --dir, plus the HTTP API and web console (ephemeral token minted unless TOREN_API_TOKEN pins one)")
     .option("--dir <dir>", "agent directory, or a folder of agent directories (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])
-    .option("--api-port <port>", "HTTP API port (default 7433; requires TOREN_API_TOKEN)", (v) => parseInt(v, 10))
+    .option("--api-port <port>", "HTTP API port (default 7433)", (v) => parseInt(v, 10))
     .action(async (opts: { dir: string[]; apiPort?: number }) => cmdDev(opts.dir.length > 0 ? opts.dir : ["."], { apiPort: opts.apiPort }));
 
   program.command("deploy-aws")

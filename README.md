@@ -16,11 +16,14 @@ Toren is an open-source runtime for **process-shaped agents**: work measured in 
 ## Quickstart
 
 ```bash
-npx toren-run init my-crew
+npx toren-run@latest init my-crew
 cd my-crew
+npm install
 docker compose up -d db
 npx toren dev
 ```
+
+(The npm package is `toren-run`; the binary it installs is `toren`.)
 
 Then trigger a run, kill the worker mid-flight, and watch it resume without re-paying a token. The full walkthrough is in the [quickstart](https://toren.run/docs/quickstart).
 

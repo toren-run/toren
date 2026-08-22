@@ -290,7 +290,7 @@ export async function cmdScheduleList(dir: string, opts: { json?: boolean; datab
       return;
     }
     for (const s of schedules) {
-      io.out(`${s.id}  ${s.agent}  "${s.cron}" (${s.tz})  ${s.enabled ? `next ${s.nextFireAt.toISOString()}` : "paused"}  ${s.name}`);
+      io.out(`${s.id}  ${s.agent}${s.process !== "main" ? `  ${s.process}` : ""}  "${s.cron}" (${s.tz})  ${s.enabled ? `next ${s.nextFireAt.toISOString()}` : "paused"}  ${s.name}`);
     }
   } finally {
     await rt.close();
