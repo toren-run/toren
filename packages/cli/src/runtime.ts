@@ -35,6 +35,29 @@ export interface Runtime {
   close(): Promise<void>;
 }
 
+/**
+ * Selects the sandbox backend for an agent that needs one: E2B when
+ * E2B_API_KEY is set (the cloud tier), else local docker, else fail fast.
+ * Returns undefined when the agent has no bash tool.
+ */
+async function makeSandboxProvider(
+  pool: ReturnType<typeof createPool>,
+  loaded: LoadedAgent,
+): Promise<import("@toren-run/core").SandboxProvider | undefined> {
+  const hasBash = Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"));
+  if (!hasBash) return undefined;
+  const sb = loaded.sandbox ?? {};
+  if (process.env.E2B_API_KEY) {
+    const { E2BSandboxProvider } = await import("./sandbox-e2b.js");
+    return new E2BSandboxProvider(pool, { apiKey: process.env.E2B_API_KEY, network: sb.network, env: sb.env, template: sb.image });
+  }
+  const { dockerAvailable, DockerSandboxProvider } = await import("./sandbox.js");
+  if (!(await dockerAvailable())) {
+    throw new Error('an agent declares "sandbox: true" but neither E2B_API_KEY nor docker is available — set E2B_API_KEY for the cloud sandbox, or install docker for the local one');
+  }
+  return new DockerSandboxProvider(sb);
+}
+
 export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): Promise<Runtime> {
   const pool = createPool(databaseUrl);
   await tx(pool, async (c) => {
@@ -51,13 +74,8 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
     workflows: loaded.workflows,
     files: new PgFiles(pool),
   };
-  if (Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"))) {
-    const { dockerAvailable, DockerSandboxProvider } = await import("./sandbox.js");
-    if (!(await dockerAvailable())) {
-      throw new Error('this agent declares builtin_tools: [bash] but docker is not available — the sandbox needs it');
-    }
-    deps.sandbox = new DockerSandboxProvider(loaded.sandbox ?? {});
-  }
+  const sandbox = await makeSandboxProvider(pool, loaded);
+  if (sandbox) deps.sandbox = sandbox;
   return { pool, deps, schema, close: () => pool.end() };
 }
 
@@ -77,18 +95,10 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
   });
   const queue = selectQueue(pool);
   const files = new PgFiles(pool);
-  const needsSandbox = Object.values(project.crews).some((c) => Object.values(c.agents).some((a) => a.tools.some((t) => t.name === "bash")));
-  if (needsSandbox) {
-    const { dockerAvailable } = await import("./sandbox.js");
-    if (!(await dockerAvailable())) {
-      throw new Error('an agent declares builtin_tools: [bash] but docker is not available — the sandbox needs it (install docker, or remove the bash builtin)');
-    }
-  }
   const byAgent: Record<string, TickDeps> = {};
   for (const [name, loaded] of Object.entries(project.crews)) {
     const schema = `agent_${name}`;
-    const hasBash = Object.values(loaded.agents).some((a) => a.tools.some((t) => t.name === "bash"));
-    const { DockerSandboxProvider } = hasBash ? await import("./sandbox.js") : { DockerSandboxProvider: null };
+    const sandbox = await makeSandboxProvider(pool, loaded);
     byAgent[name] = {
       store: new PgStateStore(pool, schema),
       queue,
@@ -97,7 +107,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       agents: loaded.agents,
       workflows: loaded.workflows,
       files,
-      ...(DockerSandboxProvider ? { sandbox: new DockerSandboxProvider(loaded.sandbox ?? {}) } : {}),
+      ...(sandbox ? { sandbox } : {}),
     };
   }
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };

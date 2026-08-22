@@ -89,6 +89,13 @@ CREATE TABLE IF NOT EXISTS toren_control.files (
   data bytea,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS toren_control.sandboxes (
+  run_id uuid PRIMARY KEY,
+  provider text NOT NULL,
+  sandbox_id text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_used_at timestamptz NOT NULL DEFAULT now()
+);
 `;
 
 const AGENT_TABLES_SQL = (s: string) => `

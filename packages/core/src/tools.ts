@@ -19,6 +19,10 @@ export interface SandboxExec {
   exec(command: string, opts?: { timeoutMs?: number }): Promise<{ stdout: string; stderr: string; exitCode: number }>;
   readFile(path: string): Promise<string>;
   writeFile(path: string, content: string): Promise<void>;
+  /** Cheap park: preserve the workspace, stop paying for compute. Reconnected on next use. */
+  pause?(): Promise<void>;
+  /** Terminal cleanup: destroy the workspace and forget it. */
+  dispose?(): Promise<void>;
 }
 
 /** Constructs per-run sandbox handles; implemented by the CLI runtime (docker locally). */
