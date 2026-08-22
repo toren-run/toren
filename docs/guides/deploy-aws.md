@@ -111,7 +111,7 @@ toren deploy-aws --region eu-central-1 --profile yourco \
 
 If the bucket doesn't exist, Toren creates it (versioned, all public access blocked), wires the S3 backend with native state locking (no DynamoDB table needed), and migrates any existing local state in automatically. Without `--state-bucket` the CLI warns that state is local, fine for a rehearsal, wrong for anything that outlives your laptop.
 
-Driving Terraform by hand instead? The same setup manually: versioned S3 bucket, a multi-line `backend.tf` with `terraform { backend "s3" {} }`, and [`envs/backend.hcl.example`](https://github.com/toren-run/toren/blob/main/infra/terraform-aws/envs/backend.hcl.example) as your `-backend-config`.
+Driving Terraform by hand instead? The same setup manually: versioned S3 bucket, a multi-line `backend.tf` with `terraform { backend "s3" {} }`, and `envs/backend.hcl.example` as your `-backend-config` (the module ships inside the `toren-run` npm package under `terraform-aws/`).
 
 **2. HTTPS.** Already on by default via the CloudFront front (`api_url` is `https://`). For a branded domain, follow [HTTPS & custom domains](#https--custom-domains).
 

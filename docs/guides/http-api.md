@@ -73,5 +73,5 @@ Standing configuration, admin-token only (like `/keys`): `GET /schedules`, `POST
 ## Notes
 
 - Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap).
-- On AWS the API is HTTPS out of the box (CloudFront fronts the stack, `terraform output api_url`); custom domains are a two-CNAME exercise, see [HTTPS & custom domains](deploy-aws.md#https--custom-domains).
+- On AWS the API is HTTPS out of the box (CloudFront fronts the stack, `terraform output api_url`); custom domains are a two-CNAME exercise, see [HTTPS & custom domains](deploy-aws.md#https-custom-domains).
 - The API only calls the same core functions the CLI uses; durability semantics are identical however a run is triggered.

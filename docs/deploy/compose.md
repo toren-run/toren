@@ -2,6 +2,10 @@
 
 The whole runtime on one box: Postgres plus the worker, one file, no cloud account. This is the recommended self-host path.
 
+::: info The repository opens with the public launch
+Until then the clone below 404s. The same runtime already runs locally via npm: `npx toren-run init my-crew` scaffolds an agent with its own `docker-compose.yml` for the database, and `npx toren dev` serves workers, API, and console.
+:::
+
 ```bash
 git clone https://github.com/toren-run/toren
 cd toren

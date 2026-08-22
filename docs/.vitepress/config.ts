@@ -6,6 +6,7 @@ export default defineConfig({
     "Toren is the open-source runtime for long-running, durable AI agents in your own cloud. A resumed run never re-pays for a completed model call.",
   base: "/docs/",
   cleanUrls: true,
+  sitemap: { hostname: "https://toren.run/docs/" },
   // Code blocks stay structural-navy in both modes (like the site terminal),
   // so the highlight theme must be a dark one in both modes too.
   markdown: { theme: { light: "one-dark-pro", dark: "one-dark-pro" } },

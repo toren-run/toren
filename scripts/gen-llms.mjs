@@ -33,8 +33,8 @@ function titleAndBlurb(src) {
   let title = "", blurb = "";
   for (const l of lines) {
     const t = l.trim();
-    if (!title && t.startsWith("# ")) { title = t.slice(2).trim(); continue; }
-    if (title && !blurb && t && !t.startsWith("#")) {
+    if (!title && t.startsWith("# ")) { title = t.slice(2).replace(/<[^>]+>/g, "").trim(); continue; }
+    if (title && !blurb && t && !t.startsWith("#") && !t.startsWith("```") && !t.startsWith(":::") && !t.startsWith("<")) {
       blurb = t.replace(/^[*_]+|[*_]+$/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
       break;
     }
@@ -69,7 +69,9 @@ for (const g of ORDER) {
   index += `## ${g}\n\n`;
   for (const p of list.sort((a, b) => a.url.localeCompare(b.url))) {
     if (!p.title) continue;
-    index += `- [${p.title}](${SITE}${p.url}.md)${p.blurb ? `: ${p.blurb}` : ""}\n`;
+    // The docs root has no /docs.md; its raw markdown is served at /docs/README.md.
+    const mdUrl = p.url === "/docs" ? `${SITE}/docs/README.md` : `${SITE}${p.url}.md`;
+    index += `- [${p.title}](${mdUrl})${p.blurb ? `: ${p.blurb}` : ""}\n`;
   }
   index += `\n`;
 }
