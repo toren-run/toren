@@ -145,3 +145,10 @@ variable "tavily_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "e2b_api_key" {
+  description = "E2B API key for the cloud sandbox backend (stored in Secrets Manager). Empty disables it; sandbox agents then require docker, unavailable on Fargate."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

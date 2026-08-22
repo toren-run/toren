@@ -1,0 +1,5 @@
+name: coder
+model: anthropic/claude-sonnet-5
+maxTokens: 8000
+sandbox:
+  approval: never   # example only: autonomous so the e2e test needs no human

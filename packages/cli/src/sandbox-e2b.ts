@@ -1,5 +1,12 @@
+import { createRequire } from "node:module";
 import type pg from "pg";
 import type { SandboxExec, SandboxProvider } from "@toren-run/core";
+
+// Load the e2b SDK through node's native CJS loader. In-repo runs go through
+// jiti, which transforms ESM and corrupts the SDK's internals; createRequire
+// sidesteps jiti and resolves e2b relative to this file in both source and
+// published-dist layouts.
+const requireCjs = createRequire(import.meta.url);
 
 /**
  * E2B sandbox backend: the cloud tier. Each run gets an E2B Firecracker
@@ -54,17 +61,20 @@ class E2BSandbox implements SandboxExec {
   private handle: E2BSandboxHandle | null = null;
   constructor(private pool: pg.Pool, private runId: string, private cfg: E2BConfig) {}
 
-  private async sdk(): Promise<{ Sandbox: {
+  private sdk(): { Sandbox: {
     create(opts: Record<string, unknown>): Promise<E2BSandboxHandle>;
     connect(id: string, opts: Record<string, unknown>): Promise<E2BSandboxHandle>;
-  } }> {
-    return (await import("e2b")) as unknown as Awaited<ReturnType<E2BSandbox["sdk"]>>;
+  } } {
+    const mod = requireCjs("e2b") as { Sandbox?: unknown; default?: { Sandbox?: unknown } };
+    const Sandbox = mod.Sandbox ?? mod.default?.Sandbox;
+    if (!Sandbox) throw new Error("e2b SDK loaded but Sandbox export was not found");
+    return { Sandbox } as ReturnType<E2BSandbox["sdk"]>;
   }
 
   /** Reconnect to this run's recorded sandbox, or create and record a fresh one. */
   private async ensure(): Promise<E2BSandboxHandle> {
     if (this.handle && (await this.handle.isRunning().catch(() => false))) return this.handle;
-    const { Sandbox } = await this.sdk();
+    const { Sandbox } = this.sdk();
     const opts = { apiKey: this.cfg.apiKey };
 
     const { rows } = await this.pool.query<{ sandbox_id: string }>(

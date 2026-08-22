@@ -94,3 +94,14 @@ resource "aws_secretsmanager_secret_version" "tavily_api_key" {
   secret_id     = aws_secretsmanager_secret.tavily_api_key[0].id
   secret_string = var.tavily_api_key
 }
+
+resource "aws_secretsmanager_secret" "e2b_api_key" {
+  count       = var.e2b_api_key == "" ? 0 : 1
+  name_prefix = "${var.project}-e2b-key-"
+}
+
+resource "aws_secretsmanager_secret_version" "e2b_api_key" {
+  count         = var.e2b_api_key == "" ? 0 : 1
+  secret_id     = aws_secretsmanager_secret.e2b_api_key[0].id
+  secret_string = var.e2b_api_key
+}
