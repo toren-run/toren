@@ -13,3 +13,13 @@ test("plays scripted responses in order and counts calls", async () => {
   expect(p.calls).toBe(2);
   await expect(p.complete(req)).rejects.toThrow(/script exhausted/);
 });
+
+test("mock/slow echoes like mock/echo but takes long enough to kill mid-run", async () => {
+  const { EchoProvider } = await import("../src/providers/echo.js");
+  const p = new EchoProvider();
+  const req = { model: "mock/slow", system: "s", messages: [{ role: "user" as const, content: [{ type: "text" as const, text: "hi" }] }], tools: [], maxTokens: 10 };
+  const t0 = Date.now();
+  const res = await p.complete(req);
+  expect(Date.now() - t0).toBeGreaterThanOrEqual(2500);
+  expect(res.content[0]).toEqual({ type: "text", text: "echo(hi)" });
+}, 10_000);

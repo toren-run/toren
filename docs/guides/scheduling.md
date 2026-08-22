@@ -21,7 +21,7 @@ toren schedule create --dir reporter --process daily-digest  --cron "0 8 * * *" 
 toren schedule create --dir reporter --process weekly-report --cron "0 9 * * 1" --input '"report"'
 ```
 
-Two schedules, one agent, two named processes, each its own durable workflow — the weekly one can fan out waves, the daily one can be a single pass. The scheduler fires the correct one, exactly once, crash-safe; no string-branching on the input. The name is validated at create time against the agent's `workflows/`, so a typo fails fast instead of at 8am. A [sandbox](../tools/sandbox.md)-equipped agent mounts it lazily per run, so a process that never touches the computer costs no container.
+Two schedules, one agent, two named processes, each its own durable workflow: the weekly one can fan out waves, the daily one can be a single pass. The scheduler fires the correct one, exactly once, crash-safe; no string-branching on the input. The name is validated at create time against the agent's `workflows/`, so a typo fails fast instead of at 8am. A [sandbox](../tools/sandbox.md)-equipped agent mounts it lazily per run, so a process that never touches the computer costs no container.
 
 ## Why it can't miss or double-fire
 

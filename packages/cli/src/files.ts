@@ -37,7 +37,11 @@ export async function parseFile(name: string, data: Buffer): Promise<{ mediaType
   }
 
   if (ext === "xlsx" || ext === "xls") {
-    const XLSX = await import("xlsx");
+    // Optional peer: SheetJS carries upstream npm-audit advisories, so a fresh
+    // install stays clean and spreadsheet users opt in explicitly.
+    const XLSX = await import("xlsx").catch(() => {
+      throw new Error('spreadsheet parsing needs the optional "xlsx" package: npm install xlsx');
+    });
     const wb = XLSX.read(data, { type: "buffer" });
     const sheets = wb.SheetNames.map((n) => `## Sheet: ${n}\n${XLSX.utils.sheet_to_csv(wb.Sheets[n]!)}`);
     return { mediaType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", pages: paginate(sheets.join("\n\n")) };

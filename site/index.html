@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Toren — durable AI agent runtime</title>
+<title>Toren: durable AI agent runtime</title>
 <meta name="description" content="Toren is the open-source runtime for long-running, durable AI agents, in your own cloud. A resumed run never re-pays for a completed model call.">
 <link rel="icon" type="image/svg+xml" href="/toren-mark.svg">
 <link rel="canonical" href="https://toren.run/">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Toren — durable AI agent runtime">
+<meta property="og:title" content="Toren: durable AI agent runtime">
 <meta property="og:description" content="Agents that work for days, do real work, and survive anything. A resumed run never re-pays for a completed model call. In your cloud.">
 <meta property="og:url" content="https://toren.run/">
 <meta property="og:image" content="https://toren.run/og.png">
@@ -367,7 +367,7 @@ footer { margin-top: 110px; }
 <section id="s4">
   <span class="shnum" aria-hidden="true">04</span>
   <h2>One agent. Every surface.</h2>
-  <p class="lede">Agents as durable processes: files define the agent <em>once</em> — then run it, schedule it, talk to it, let a conversation launch its background jobs. All of it rides one event log; kill any of it and nothing re-pays. Parked work costs nothing: not a worker, not a container, not a poll loop.</p>
+  <p class="lede">Agents as durable processes: files define the agent <em>once</em>, then run it, schedule it, talk to it, let a conversation launch its background jobs. All of it rides one event log; kill any of it and nothing re-pays. Parked work costs nothing: not a worker, not a container, not a poll loop.</p>
   <div class="bento rev">
     <div class="bcard tall"><h3>workflows/weekly-report.ts <span class="tag">A NAMED PROCESS · WAVES FAN OUT</span></h3><pre><span class="k">export default async function</span> (ctx) {
   <span class="cm">// one planner task; the model decides</span>
@@ -420,7 +420,7 @@ one-click approvals · API keys
 each crew: own event log,
 own schema, shared nothing</pre></div>
     <div class="bcard"><h3>toren chat <span class="tag">DURABLE CONVERSATIONS · 4 CHANNELS</span></h3><pre>you&gt; run the weekly report
-agent&gt; Started — I'll message
+agent&gt; Started. I'll message
        you when it lands.
 <span class="cm"># parked at $0 · survives anything</span>
 agent&gt; Report's ready: 42 pages.</pre></div>

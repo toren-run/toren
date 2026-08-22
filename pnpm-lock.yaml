@@ -80,9 +80,6 @@ importers:
       pg:
         specifier: ^8.13.0
         version: 8.23.0
-      xlsx:
-        specifier: ^0.18.5
-        version: 0.18.5
       yaml:
         specifier: ^2.5.0
         version: 2.9.0
@@ -93,6 +90,9 @@ importers:
       '@types/pg':
         specifier: ^8.11.0
         version: 8.23.0
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
       zod:
         specifier: ^3.23.0
         version: 3.25.76

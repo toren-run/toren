@@ -12,7 +12,7 @@ All endpoints except `/healthz` require `Authorization: Bearer <token>`, either 
 curl -s "$API/agent" -H "Authorization: Bearer $TOKEN"
 ```
 
-Returns the deployment's sanitized structure — the discovery call to make before choosing `agent`/`process` for a run: `{ "agent": { "default": "...", "crews": { "<name>": { "name", "processes": [...], "defaultProcess"?, "agents": { "<ref>": { "model", "maxTokens", "maxSteps", "systemChars", "env": [names only], "tools": [{ "name", "description", "effects", "approval" }] } } } } } }`. Env variable *names* only, never values; prompt sizes, never bodies.
+Returns the deployment's sanitized structure, the discovery call to make before choosing `agent`/`process` for a run: `{ "agent": { "default": "...", "crews": { "<name>": { "name", "processes": [...], "defaultProcess"?, "agents": { "<ref>": { "model", "maxTokens", "maxSteps", "systemChars", "env": [names only], "tools": [{ "name", "description", "effects", "approval" }] } } } } } }`. Env variable *names* only, never values; prompt sizes, never bodies.
 
 ## Trigger a run
 

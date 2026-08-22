@@ -25,7 +25,7 @@ toren jobs list --env prod                      # prints "→ env: prod (…)" f
 toren jobs approve 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd w1t0 s4 --env staging
 ```
 
-Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll, the deployment's own workers execute it. Three command groups are db-backed only — `keys`, `schedule`, and `channels telegram invite` refuse API profiles; against a remote deployment use their [HTTP API](http-api.md) equivalents instead.
+Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll, the deployment's own workers execute it. Three command groups are db-backed only (`keys`, `schedule`, and `channels telegram invite` refuse API profiles); against a remote deployment use their [HTTP API](http-api.md) equivalents instead.
 
 ## Per-environment secrets
 

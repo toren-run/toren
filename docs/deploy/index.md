@@ -1,6 +1,6 @@
 # Deploying Toren
 
-The runtime's requirements are deliberately tiny: **a container and Postgres.** Everything else — the queue, the console, the channels, the sandbox — lives inside that. So deployment is a ladder, and every rung runs the identical runtime:
+The runtime's requirements are deliberately tiny: **a container and Postgres.** Everything else (the queue, the console, the channels, the sandbox) lives inside that. So deployment is a ladder, and every rung runs the identical runtime:
 
 | Tier | What it is | For |
 | --- | --- | --- |
@@ -10,4 +10,4 @@ The runtime's requirements are deliberately tiny: **a container and Postgres.** 
 
 The same agent directory moves up the ladder unchanged: develop locally, self-host on a box, graduate to the AWS module when you want managed Postgres, queue-backed workers, and a load balancer. Durability is identical at every tier because it lives in the event log, not the infrastructure.
 
-Start with compose if you just want Toren running somewhere today. Reach for the AWS module when you want a production posture in your own account; it is a reference architecture — read it, fork it, or use it as-is.
+Start with compose if you just want Toren running somewhere today. Reach for the AWS module when you want a production posture in your own account; it is a reference architecture: read it, fork it, or use it as-is.

@@ -103,10 +103,11 @@ npx toren run . --input '["solar shipping","battery freight"]'
 ```
 run 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd  agent research_crew  started
 run 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd  completed
-Solar-assisted shipping is...
+echo(echo(solar shipping)
+echo(battery freight))
 ```
 
-(Run ids are UUIDs. Per-wave progress lives in `toren jobs show <runId>` and the console, not in the run command's output.)
+(Run ids are UUIDs; per-wave progress lives in `toren jobs show <runId>` and the console. The offline `mock/echo` model wraps every task's input in `echo(...)`; swap `model:` in agent.yaml to `anthropic/claude-opus-5` or `openai/gpt-4o` for real output.)
 
 Programmatic equivalent (works today):
 
@@ -119,10 +120,10 @@ new LocalWorkerRuntime(deps).start();   // pollers for orchestration + tasks
 
 ## 5. The part that feels like magic
 
-Kill the process mid-run. Hard.
+Kill the process mid-run. Hard. One prep step: `mock/echo` answers too fast to murder, so switch `model:` in agent.yaml to `mock/slow` first (the same offline echo at three seconds per call; no API key needed).
 
 ```bash
-npx toren run . --input '[...]' &
+npx toren run . --input '["solar shipping","battery freight"]' &
 sleep 10 && kill -9 %1        # murder it mid-wave
 npx toren dev                  # bring the stack back
 ```
@@ -189,7 +190,7 @@ toren deploy-aws --region eu-central-1 --yes         # terraform apply into YOUR
 
 Locally: Postgres does queue + state + log. In AWS: SQS + Lambda/Fargate + RDS, bound behind the same four interfaces, in your VPC, inside your data boundary. The orchestrator binary is byte-identical in both.
 
-**Resetting local state:** everything durable lives in that one Postgres — `docker compose down -v` wipes runs, sessions, schedules, and queues; the next `toren` command re-migrates a fresh database.
+**Resetting local state:** everything durable lives in that one Postgres. `docker compose down -v` wipes runs, sessions, schedules, and queues; the next `toren` command re-migrates a fresh database.
 
 ---
 
