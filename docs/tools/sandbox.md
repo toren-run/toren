@@ -10,15 +10,34 @@ sandbox: true
 
 That grants the toolkit: **`bash`**, plus **`read_file`**, **`write_file`**, and **`edit_file`** operating on a durable per-run workspace. The agent can clone repos, install packages, run scripts, and edit code, in conversation or in an autonomous run. Structured file tools exist because models edit reliably with exact strings and fumble sed quoting; bash covers everything else (`ls`, `grep`, `npm install`).
 
+## Using it
+
+Talk to a sandbox agent and it works in the workspace as it goes:
+
+```bash
+toren chat coder --agent coder
+# you> clone github.com/me/repo, run the tests, and tell me what fails
+```
+
+Or hand it an autonomous job:
+
+```bash
+toren run coder --input "Add input validation to src/api.ts, run the tests, and report."
+```
+
+Same over the API (`POST /runs` or `POST /sessions` with the sandbox agent) and from Telegram. The workspace is the agent's; you never touch it directly.
+
 Tuned:
 
 ```yaml
 sandbox:
-  image: node:22-slim        # what's installed on the agent's computer
+  image: node:22-slim        # docker image (local) or E2B template (cloud); default has node, python, git
   network: false             # egress from the sandbox (default: none)
   approval: always           # a human approves each bash command (default) or "never"
   env: [MY_APP_DB_URL]       # exactly which of YOUR variables the sandbox may see
 ```
+
+`image` is interpreted by the backend: a docker image tag for the local backend, an [E2B template](https://e2b.dev/docs) name for the cloud one. Omit it for a sensible default (node, python, git preinstalled).
 
 ## The trust model
 
@@ -31,7 +50,9 @@ Deny-by-default, like everything in Toren:
 
 ## The durable workspace
 
-Each run gets one workspace. Commands and file operations are recorded in the event log like every other tool call, so a killed and resumed run replays its recorded outputs without re-executing anything, and continues in the same workspace. Locally the workspace lives on your disk (under `~/.toren/sandboxes`, or `TOREN_SANDBOX_ROOT`) and survives restarts by construction. A session with a sandbox keeps its workspace across turns: chat with your agent today, come back in three days, the files are still there.
+Each run gets one workspace. Commands and file operations are recorded in the event log like every other tool call, so a killed and resumed run replays its recorded outputs and continues in the same workspace rather than starting the whole run over. Locally the workspace lives on your disk (under `~/.toren/sandboxes`, or `TOREN_SANDBOX_ROOT`) and survives restarts by construction; on the E2B backend the sandbox is reconnected by its recorded id. A session with a sandbox keeps its workspace across turns: chat with your agent today, come back in three days, the files are still there.
+
+**Honest guarantee.** The event log is the source of truth; the workspace is restored best-effort. A completed command replays its recorded output for free. But a command interrupted mid-execution (recorded as started, not yet completed) is re-run on resume, so `bash` side effects are **at-least-once**, not exactly-once. Idempotent work (writing a file, `git checkout`) is safe; a non-idempotent command (`git push`, `curl -X POST`, an append) could apply twice across a crash. Gate those behind `approval` or make them idempotent.
 
 ## Where it runs: choosing a backend
 

@@ -1,6 +1,6 @@
 # CLI reference
 
-All commands take `--json` for machine-readable output where applicable. `DATABASE_URL` selects the Postgres instance (default `postgres://toren:toren@localhost:5433/toren`); `TOREN_QUEUE=sqs` + `TOREN_SQS_URL_*` select the SQS queue adapter.
+All commands take `--json` for machine-readable output where applicable. `DATABASE_URL` selects the Postgres instance (default `postgres://toren:toren@localhost:5433/toren`); `TOREN_QUEUE=sqs` + `TOREN_SQS_URL_*` select the SQS queue adapter; `TOREN_SANDBOX` (`auto`|`docker`|`e2b`|`none`) picks the [sandbox](../tools/sandbox.md) backend, with `E2B_API_KEY` for the cloud one.
 
 | Command | What it does |
 |---|---|
