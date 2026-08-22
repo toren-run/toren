@@ -9,7 +9,7 @@ curl -X POST "$TOREN_URL/sessions" \
   -d '{"agent": "research_crew", "message": "Hi! What can you do?"}'
 ```
 
-The response is `{"runId": "...", "agent": "research_crew"}`. Read the transcript and state with `GET /sessions/:id`; the state is `working`, `awaiting_input`, `completed`, or `failed`. Send the next turn:
+The response is `{"runId": "...", "agent": "research_crew"}`. The body also accepts `channel` (a free-form label like `"cli"` or `"telegram"` that tags each turn in the transcript) — on session start and on every message. Read the transcript and state with `GET /sessions/:id`; the state is `working`, `awaiting_input`, `completed`, `failed`, or `cancelled`. Send the next turn:
 
 ```bash
 curl -X POST "$TOREN_URL/sessions/$RUN_ID/messages" \

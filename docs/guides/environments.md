@@ -10,19 +10,22 @@
 
 ```jsonc
 {
-  "local":   {},
+  "local":   {},                                              // db-backed: the default local Postgres
+  "shared":  { "databaseUrl": "postgres://…:5433/toren" },    // db-backed: a different Postgres
   "staging": { "api": "http://toren-staging-…elb.amazonaws.com", "tokenEnv": "TOREN_STAGING_TOKEN" },
-  "prod":    { "api": "https://agents.example.com", "tokenEnv": "TOREN_PROD_TOKEN" }
+  "prod":    { "api": "https://agents.example.com" }          // tokenEnv defaults to TOREN_API_TOKEN
 }
 ```
+
+A profile is **db-backed** (empty, or `databaseUrl`) or **api-backed** (`api` + the env-var *name* holding its bearer token; `tokenEnv` defaults to `TOREN_API_TOKEN`).
 
 ```bash
 toren run . --input '"hello"' --env staging     # goes through the deployment's HTTP API
 toren jobs list --env prod                      # prints "→ env: prod (…)" first, always
-toren jobs approve r_9f2c… w1t0 s4 --env staging
+toren jobs approve 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd w1t0 s4 --env staging
 ```
 
-Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll, the deployment's own workers execute it.
+Local profiles talk to Postgres directly and drive runs in-process; API profiles start the run remotely and poll, the deployment's own workers execute it. Three command groups are db-backed only — `keys`, `schedule`, and `channels telegram invite` refuse API profiles; against a remote deployment use their [HTTP API](http-api.md) equivalents instead.
 
 ## Per-environment secrets
 

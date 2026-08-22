@@ -6,6 +6,14 @@
 
 All endpoints except `/healthz` require `Authorization: Bearer <token>`, either the deployment's admin token (`TOREN_API_TOKEN`, created by the Terraform module) or an issued API key (below). Key management itself accepts only the admin token.
 
+## Discover what the deployment serves
+
+```bash
+curl -s "$API/agent" -H "Authorization: Bearer $TOKEN"
+```
+
+Returns the deployment's sanitized structure — the discovery call to make before choosing `agent`/`process` for a run: `{ "agent": { "default": "...", "crews": { "<name>": { "name", "processes": [...], "defaultProcess"?, "agents": { "<ref>": { "model", "maxTokens", "maxSteps", "systemChars", "env": [names only], "tools": [{ "name", "description", "effects", "approval" }] } } } } } }`. Env variable *names* only, never values; prompt sizes, never bodies.
+
 ## Trigger a run
 
 ```bash
@@ -32,7 +40,7 @@ curl -s "$API/runs/$RUN_ID" -H "Authorization: Bearer $TOKEN"
 }
 ```
 
-`GET /runs` lists everything; `GET /runs/:id/events` returns the full transcript, every recorded model call, tool call, and token count, straight from the event log.
+`GET /runs` lists the newest 50 runs per crew; `GET /runs/:id/events` returns the full transcript, every recorded model call, tool call, and token count, straight from the event log.
 
 ## Approve or deny a parked run
 

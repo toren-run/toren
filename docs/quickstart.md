@@ -101,11 +101,12 @@ npx toren run . --input '["solar shipping","battery freight"]'
 ```
 
 ```
-run r_9f2c1a  wave research   dispatched 2 tasks
-run r_9f2c1a  wave research   settled  2/2 completed
-run r_9f2c1a  wave summarize  dispatched 1 task
-run r_9f2c1a  completed       "Solar-assisted shipping is..."
+run 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd  agent research_crew  started
+run 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd  completed
+Solar-assisted shipping is...
 ```
+
+(Run ids are UUIDs. Per-wave progress lives in `toren jobs show <runId>` and the console, not in the run command's output.)
 
 Programmatic equivalent (works today):
 
@@ -136,12 +137,13 @@ When the writer tries `send_report`, the run parks durably at **zero compute**. 
 
 ```bash
 toren jobs list
-#  r_9f2c1a  research-crew  waiting_approval  (send_report)
+#  7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd  research_crew  waiting_approval  (send_report)
 
-toren jobs show r_9f2c1a
-#  pending approval: send_report {"to":"board@fund.com"}  → toren jobs approve r_9f2c1a w1t0 s14
+toren jobs show 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd
+#  pending approval: send_report {"to":"board@fund.com"}
+#  → toren jobs approve 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd w1t0 s14
 
-toren jobs approve r_9f2c1a w1t0 s14     # or: --deny --comment "wrong list"
+toren jobs approve 7f3a2c10-9b1e-4f6a-8c2d-5e9012ab34cd w1t0 s14     # or: --deny --comment "wrong list"
 ```
 
 The run wakes, executes the tool once, and continues.
@@ -186,6 +188,8 @@ toren deploy-aws --region eu-central-1 --yes         # terraform apply into YOUR
 ```
 
 Locally: Postgres does queue + state + log. In AWS: SQS + Lambda/Fargate + RDS, bound behind the same four interfaces, in your VPC, inside your data boundary. The orchestrator binary is byte-identical in both.
+
+**Resetting local state:** everything durable lives in that one Postgres — `docker compose down -v` wipes runs, sessions, schedules, and queues; the next `toren` command re-migrates a fresh database.
 
 ---
 

@@ -2,7 +2,7 @@
 
 A workflow is a default-exported `(ctx: WorkflowCtx) => Promise<string>`.
 
-**Where it lives:** a lone `workflow.ts` at the agent root is the agent's single process, named `main`. An agent with several jobs uses a `workflows/` directory instead — one file per **named process** (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`; filename → process name, lowercase letters, digits, `_`, `-`). Triggers select one by name: `toren run --process`, `toren schedule create --process`, `POST /runs {process}`, and — from a conversation — the `run_process` builtin ([background runs](../guides/background-runs.md)). `default_process` in [agent.yaml](agent-yaml.md) picks the one used when a trigger names none. Sessions never select a process — a chat always converses with the root agent directly.
+**Where it lives:** a lone `workflow.ts` at the agent root is the agent's single process, named `main`. An agent with several jobs uses a `workflows/` directory instead — one file per **named process** (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`; filename → process name, lowercase letters, digits, `_`, `-`). Having both `workflow.ts` and `workflows/` is a startup error — move the lone file into the directory. Triggers select one by name: `toren run --process`, `toren schedule create --process`, `POST /runs {process}`, and — from a conversation — the `run_process` builtin ([background runs](../guides/background-runs.md)). `default_process` in [agent.yaml](agent-yaml.md) picks the one used when a trigger names none. Sessions never select a process — a chat always converses with the root agent directly.
 
 ## `WorkflowCtx`
 
@@ -17,6 +17,10 @@ A workflow is a default-exported `(ctx: WorkflowCtx) => Promise<string>`.
 
 `WaveResult`: `{ name, results: TaskOutcome[] }` in planned order.
 `TaskOutcome`: `{ taskId, status: "completed" | "failed", output?, error? }`.
+
+**Imports and installs:** the CLI transpiles your agent's TypeScript itself — `import type { WorkflowCtx } from "@toren-run/core"` needs nothing installed. Only *value* imports (e.g. `defineTool` in `tools/`) need `@toren-run/core` resolvable from the agent directory, which the `toren init` template's `npm install` provides. A workflow-only agent runs with zero installs beyond the CLI.
+
+**Input convention:** `ctx.input` is the trigger's input string, verbatim. The convention throughout is to JSON-encode it (`--input '"hello"'`, `--input '["a","b"]'`) and `JSON.parse(ctx.input)` in the workflow — a bare unquoted string works but leaves you guessing about quoting at the shell.
 
 ## Semantics to rely on
 

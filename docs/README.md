@@ -32,4 +32,4 @@ The design rationale behind these guarantees is summarized in [Durability & repl
 | Troubleshooting / FAQ | ❌ gap, collect from first external users |
 | Versioning & compatibility policy | ❌ gap, needed before first public release |
 | Examples gallery beyond research-crew | ❌ gap |
-| Client SDK (`@toren-run/client`), env declarations, environment profiles | ✅ shipped |
+| [Client SDK](reference/client.md) (`@toren-run/client`), env declarations, environment profiles | ✅ shipped |

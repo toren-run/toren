@@ -41,7 +41,14 @@ Some tools are common enough to ship in the box. Declare them by name in `agent.
 builtin_tools: [web_search]
 ```
 
-- **[Web search](/tools/web-search)**: Tavily-backed live search. Needs `TAVILY_API_KEY`, which the loader folds into the agent's required env automatically.
+The full set, each documented on its own page:
+
+- **[Web search](/tools/web-search)** (`web_search`): Tavily-backed live search. Needs `TAVILY_API_KEY`, which the loader folds into the agent's required env automatically.
+- **[Database](/tools/database)** (`sql_query`): read-only SQL against `SQL_DATABASE_URL`.
+- **[File parsing](/tools/file-parsing)** (`read_attachment`): paged reads of attached pdf/docx/xlsx/text files.
+- **[Background runs](/guides/background-runs)** (`run_process`, `check_run`): spawn one of the agent's named processes as a durable run and poll it.
+
+`bash` is deliberately **not** declarable here — listing it in `builtin_tools` is a startup error pointing you to `sandbox: true`, which grants bash *plus* the workspace file tools together (see [Sandbox](/tools/sandbox)).
 - **[Database](/tools/database)** (`sql_query`): read-only SQL access to a database; needs `SQL_DATABASE_URL`.
 - **[File parsing](/tools/file-parsing)** (`read_attachment`): paged access to attached files: PDF, docx, xlsx, and text formats, parsed once at upload.
 
