@@ -10,7 +10,7 @@
     "@anthropic-ai/sdk": "^0.110.0",
     "openai": "^4.68.0"
   },
-  "description": "Model provider adapters for Toren (Anthropic).",
+  "description": "Model provider adapters for Toren (Anthropic, OpenAI) — each SDK loads lazily on first use.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

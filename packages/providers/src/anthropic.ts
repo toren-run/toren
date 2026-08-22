@@ -1,7 +1,23 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { createRequire } from "node:module";
+import type Anthropic from "@anthropic-ai/sdk";
 import type {
   ChatMessage, ContentBlock, ModelProvider, ModelRequest, ModelResponse, StopReason,
 } from "@toren-run/core";
+
+// The SDK loads lazily on first construction (via node's native CJS loader,
+// sidestepping jiti — same pattern as the e2b backend), so a deployment that
+// never routes an anthropic/ model never even parses this SDK.
+const requireCjs = createRequire(import.meta.url);
+type AnthropicCtor = new () => Anthropic;
+let sdk: AnthropicCtor | undefined;
+function loadSdk(): AnthropicCtor {
+  if (!sdk) {
+    const mod = requireCjs("@anthropic-ai/sdk") as { default?: AnthropicCtor; Anthropic?: AnthropicCtor };
+    sdk = mod.default ?? mod.Anthropic;
+    if (!sdk) throw new Error("@anthropic-ai/sdk resolved without its client class — reinstall dependencies");
+  }
+  return sdk;
+}
 
 type SdkMessageParam = Anthropic.Messages.MessageParam;
 type SdkContentBlockParam = Exclude<SdkMessageParam["content"], string>[number];
@@ -71,7 +87,7 @@ export function fromAnthropicResponse(msg: Anthropic.Messages.Message): ModelRes
 export class AnthropicProvider implements ModelProvider {
   private client: Anthropic;
   constructor(client?: Anthropic) {
-    this.client = client ?? new Anthropic();
+    this.client = client ?? new (loadSdk())();
   }
 
   async complete(req: ModelRequest): Promise<ModelResponse> {

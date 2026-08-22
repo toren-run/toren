@@ -1,7 +1,22 @@
-import OpenAI from "openai";
+import { createRequire } from "node:module";
+import type OpenAI from "openai";
 import type {
   ChatMessage, ContentBlock, ModelProvider, ModelRequest, ModelResponse, StopReason,
 } from "@toren-run/core";
+
+// Lazy SDK load, mirroring anthropic.ts: a deployment that never routes an
+// openai/ model never parses this SDK.
+const requireCjs = createRequire(import.meta.url);
+type OpenAICtor = new () => OpenAI;
+let sdk: OpenAICtor | undefined;
+function loadSdk(): OpenAICtor {
+  if (!sdk) {
+    const mod = requireCjs("openai") as { default?: OpenAICtor; OpenAI?: OpenAICtor };
+    sdk = mod.default ?? mod.OpenAI;
+    if (!sdk) throw new Error("openai resolved without its client class — reinstall dependencies");
+  }
+  return sdk;
+}
 
 type SdkMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
@@ -112,7 +127,7 @@ export function fromOpenAIResponse(completion: OpenAI.Chat.Completions.ChatCompl
 export class OpenAIProvider implements ModelProvider {
   private client: OpenAI;
   constructor(client?: OpenAI) {
-    this.client = client ?? new OpenAI();
+    this.client = client ?? new (loadSdk())();
   }
 
   async complete(req: ModelRequest): Promise<ModelResponse> {
