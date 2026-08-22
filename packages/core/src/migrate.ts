@@ -33,11 +33,13 @@ CREATE TABLE IF NOT EXISTS toren_control.schedules (
   cron text NOT NULL,
   tz text NOT NULL DEFAULT 'UTC',
   input text NOT NULL,
+  process text NOT NULL DEFAULT 'main',
   enabled boolean NOT NULL DEFAULT true,
   next_fire_at timestamptz NOT NULL,
   last_fired_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+ALTER TABLE toren_control.schedules ADD COLUMN IF NOT EXISTS process text NOT NULL DEFAULT 'main';
 CREATE INDEX IF NOT EXISTS schedules_due_idx ON toren_control.schedules (next_fire_at) WHERE enabled;
 CREATE TABLE IF NOT EXISTS toren_control.schedule_fires (
   schedule_id uuid NOT NULL,
@@ -45,10 +47,12 @@ CREATE TABLE IF NOT EXISTS toren_control.schedule_fires (
   run_id uuid NOT NULL,
   agent text NOT NULL,
   input text NOT NULL,
+  process text NOT NULL DEFAULT 'main',
   fired_at timestamptz NOT NULL DEFAULT now(),
   settled boolean NOT NULL DEFAULT false,
   PRIMARY KEY (schedule_id, scheduled_for)
 );
+ALTER TABLE toren_control.schedule_fires ADD COLUMN IF NOT EXISTS process text NOT NULL DEFAULT 'main';
 CREATE INDEX IF NOT EXISTS schedule_fires_open_idx ON toren_control.schedule_fires (agent) WHERE NOT settled;
 CREATE TABLE IF NOT EXISTS toren_control.api_keys (
   id uuid PRIMARY KEY,
@@ -107,10 +111,12 @@ CREATE TABLE IF NOT EXISTS ${s}.runs (
   input jsonb, output jsonb, error jsonb,
   code_hash text, trace_context jsonb,
   mode text NOT NULL DEFAULT 'task',
+  process text NOT NULL DEFAULT 'main',
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'task';
+ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS process text NOT NULL DEFAULT 'main';
 CREATE TABLE IF NOT EXISTS ${s}.streams (
   run_id uuid NOT NULL, stream_id text NOT NULL,
   head_seq bigint NOT NULL DEFAULT 0,
