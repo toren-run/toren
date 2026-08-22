@@ -12,6 +12,17 @@ toren schedule rm <id>
 
 Expressions are standard cron (five fields, or six with leading seconds), evaluated in the schedule's timezone (`--tz Europe/Berlin`; default UTC, DST transitions handled correctly). `--agent` targets any agent the deployment serves; the default is the `--dir` agent.
 
+## One agent, several named processes
+
+An agent with a `workflows/` directory defines several [named processes](../reference/workflow-api.md); `--process` picks which one a schedule fires:
+
+```bash
+toren schedule create --dir reporter --process daily-digest  --cron "0 8 * * *"   --input '"digest"'
+toren schedule create --dir reporter --process weekly-report --cron "0 9 * * 1" --input '"report"'
+```
+
+Two schedules, one agent, two named processes, each its own durable workflow — the weekly one can fan out waves, the daily one can be a single pass. The scheduler fires the correct one, exactly once, crash-safe; no string-branching on the input. The name is validated at create time against the agent's `workflows/`, so a typo fails fast instead of at 8am. A [sandbox](../tools/sandbox.md)-equipped agent mounts it lazily per run, so a process that never touches the computer costs no container.
+
 ## Why it can't miss or double-fire
 
 Schedules live in Postgres, not in any process. **No process ever holds a timer**, so nothing is lost when processes die. The workers' guardian sweep (every ~5s) fires whatever is due, in two crash-safe phases:

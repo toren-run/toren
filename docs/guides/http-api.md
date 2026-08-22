@@ -15,7 +15,7 @@ curl -s -X POST "$API/runs" \
 # → 202 {"runId":"...","agent":"research_crew"}
 ```
 
-A deployment serves a fleet of process agents; `"agent"` in the body picks which one (omitted = the default). Unknown names get a 400 listing what the deployment serves. `GET /runs` returns every agent's runs, each row labeled with its agent.
+A deployment serves a fleet of process agents; `"agent"` in the body picks which one (omitted = the default). `"process"` picks a [named process](../reference/workflow-api.md) of that agent (omitted = its `default_process`, or `main`); the 202 echoes which one ran. Unknown agent or process names get a 400 listing what exists. `GET /runs` returns every agent's runs, each row labeled with its agent and process.
 
 ## Check status, get the result
 
@@ -60,7 +60,7 @@ The `secret` appears in that response exactly once, only its SHA-256 hash is sto
 
 ## Schedules
 
-Standing configuration, admin-token only (like `/keys`): `GET /schedules`, `POST /schedules` (`{cron, input, agent?, name?, tz?}`), `DELETE /schedules/:id`, `POST /schedules/:id/pause|resume`. Firing semantics, exactly-once, crash-safe, catch-up on downtime, are in the [scheduling guide](scheduling.md).
+Standing configuration, admin-token only (like `/keys`): `GET /schedules`, `POST /schedules` (`{cron, input, agent?, process?, name?, tz?}`), `DELETE /schedules/:id`, `POST /schedules/:id/pause|resume`. Firing semantics, exactly-once, crash-safe, catch-up on downtime, are in the [scheduling guide](scheduling.md).
 
 ## Notes
 

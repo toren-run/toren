@@ -17,6 +17,7 @@ env:
   required: [TICKETS_API_KEY]    # missing values fail fast at startup
   optional:
     REGION: "us-east-1"          # fallback used when unset
+default_process: daily-digest    # process run when a trigger names none (only useful with workflows/)
 ```
 
 - Every field is optional except that the file must exist at the agent root (`subagents/*/agent.yaml` may omit anything, defaults apply).
@@ -24,5 +25,6 @@ env:
 - Model routing is by prefix: `mock/` (offline echo), `anthropic/` (needs `ANTHROPIC_API_KEY`), `openai/` (needs `OPENAI_API_KEY`). Subagents may each use different models.
 - `env` values reach tool handlers as `ctx.env`, never via raw `process.env`. A [builtin tool](../tools/defining-tools.md)'s required env (like `TAVILY_API_KEY` for `web_search`) folds into `env.required` automatically.
 - `sandbox: true` (or the block above) grants bash plus the workspace file tools; the operator picks the backend with `TOREN_SANDBOX` (docker or e2b). Full details in [Sandbox](../tools/sandbox.md).
+- An agent may define several **named processes**: a `workflows/` directory with one file per process (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`), filename → process name. Triggers select one by name (`--process`, `POST /runs {process}`, `schedule create --process`); `default_process` picks the one used when a trigger names none — otherwise `main`, or the sole process. A lone `workflow.ts` (or none) is a single process named `main`, so existing agents are unchanged. See the [Workflow API](workflow-api.md).
 
 Planned keys (planned, not yet implemented, will fail silently today, don't set them): `fallbacks`, `runtime: short|long`, `sandbox.snapshotEvery`, `limits.maxWaves`, `limits.maxWallClockMin`, `limits.maxBudgetUsd`.

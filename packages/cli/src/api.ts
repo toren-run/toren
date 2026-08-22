@@ -203,13 +203,18 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
         if (req.method === "POST" && parts.length === 1) {
           const body = await readJson(req);
           if (typeof body.cron !== "string" || typeof body.input !== "string") {
-            return send(res, 400, { error: "body must be {cron, input, agent?, name?, tz?}" });
+            return send(res, 400, { error: "body must be {cron, input, agent?, process?, name?, tz?}" });
           }
           const agent = typeof body.agent === "string" ? body.agent : defaultAgent;
           if (!byAgent[agent]) return send(res, 400, { error: `unknown agent "${agent}" — this deployment serves: ${agentNames.join(", ")}` });
+          const proc = typeof body.process === "string" ? body.process : cfg.defaultProcess?.[agent];
+          if (proc !== undefined && !byAgent[agent]!.workflows[proc]) {
+            return send(res, 400, { error: `no process "${proc}" for agent "${agent}" (has: ${Object.keys(byAgent[agent]!.workflows).join(", ")})` });
+          }
           try {
             const schedule = await createSchedule(cfg.pool, {
               agent, cron: body.cron, input: body.input,
+              ...(proc ? { process: proc } : {}),
               name: typeof body.name === "string" ? body.name : body.cron,
               tz: typeof body.tz === "string" ? body.tz : undefined,
             });

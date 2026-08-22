@@ -1,6 +1,8 @@
 # Workflow API reference
 
-The default export of `workflow.ts`: `(ctx: WorkflowCtx) => Promise<string>`.
+A workflow is a default-exported `(ctx: WorkflowCtx) => Promise<string>`.
+
+**Where it lives:** a lone `workflow.ts` at the agent root is the agent's single process, named `main`. An agent with several jobs uses a `workflows/` directory instead — one file per **named process** (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`; filename → process name, lowercase letters, digits, `_`, `-`). Triggers select one by name: `toren run --process`, `toren schedule create --process`, `POST /runs {process}`. `default_process` in [agent.yaml](agent-yaml.md) picks the one used when a trigger names none. Sessions never select a process — a chat always converses with the root agent directly.
 
 ## `WorkflowCtx`
 
@@ -23,4 +25,4 @@ The default export of `workflow.ts`: `(ctx: WorkflowCtx) => Promise<string>`.
 - One wave `await` at a time, parallelism lives *inside* a wave, not across `Promise.all` of ctx calls (v0 rule).
 - Throwing any error fails the run with `workflow error: <message>`; a wave failing under `"fail"` policy does the same with per-task detail.
 
-Programmatic host API (no CLI): `startRun(deps, {agent, input})`, `tick(deps, runId)`, `LocalWorkerRuntime`, `sweep(deps)`, `listPendingApprovals`, `resolveApproval`, see `@toren-run/core` exports until the typedoc reference exists.
+Programmatic host API (no CLI): `startRun(deps, {agent, input, process?})`, `tick(deps, runId)`, `LocalWorkerRuntime`, `sweep(deps)`, `listPendingApprovals`, `resolveApproval`, see `@toren-run/core` exports until the typedoc reference exists.
