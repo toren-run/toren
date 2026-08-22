@@ -2,7 +2,7 @@
 
 A workflow is a default-exported `(ctx: WorkflowCtx) => Promise<string>`.
 
-**Where it lives:** a lone `workflow.ts` at the agent root is the agent's single process, named `main`. An agent with several jobs uses a `workflows/` directory instead — one file per **named process** (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`; filename → process name, lowercase letters, digits, `_`, `-`). Triggers select one by name: `toren run --process`, `toren schedule create --process`, `POST /runs {process}`. `default_process` in [agent.yaml](agent-yaml.md) picks the one used when a trigger names none. Sessions never select a process — a chat always converses with the root agent directly.
+**Where it lives:** a lone `workflow.ts` at the agent root is the agent's single process, named `main`. An agent with several jobs uses a `workflows/` directory instead — one file per **named process** (`workflows/daily-digest.ts`, `workflows/weekly-report.ts`; filename → process name, lowercase letters, digits, `_`, `-`). Triggers select one by name: `toren run --process`, `toren schedule create --process`, `POST /runs {process}`, and — from a conversation — the `run_process` builtin ([background runs](../guides/background-runs.md)). `default_process` in [agent.yaml](agent-yaml.md) picks the one used when a trigger names none. Sessions never select a process — a chat always converses with the root agent directly.
 
 ## `WorkflowCtx`
 

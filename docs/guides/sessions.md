@@ -8,7 +8,7 @@ Three properties fall out of the event-sourced core, for free:
 - **A resumed session never re-pays a turn.** Kill the worker mid-reply and the successor replays the transcript from the log; completed model calls are never re-billed.
 - **Turn-taking is strict.** A message is accepted only while the agent is waiting for input. Mid-turn, the stream has exactly one writer (the worker), so there is no race between your text and the agent's.
 
-Sessions always talk to the crew's root agent. If the crew has a custom batch workflow (one that parses structured input, fans out waves, and so on), a conversation never touches it: chat goes to the agent, jobs go to the workflow.
+Sessions always talk to the crew's root agent. If the crew has a custom batch workflow (one that parses structured input, fans out waves, and so on), a conversation never touches it: chat goes to the agent, jobs go to the workflow. The bridge between the two is [background runs](background-runs.md): with the `run_process` builtin the conversation can trigger a named workflow as a durable run and get messaged when it settles.
 
 ## Where you talk
 

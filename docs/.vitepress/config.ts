@@ -39,6 +39,7 @@ export default defineConfig({
           { text: "Workflows & waves", link: "/guides/workflows-and-waves" },
           { text: "Approvals", link: "/guides/approvals" },
           { text: "Sessions", link: "/guides/sessions" },
+          { text: "Background runs", link: "/guides/background-runs" },
           { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },
