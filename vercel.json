@@ -1,0 +1,7 @@
+{
+  "installCommand": "corepack enable && pnpm install --frozen-lockfile",
+  "buildCommand": "node scripts/build-site.mjs dist-site",
+  "outputDirectory": "dist-site",
+  "cleanUrls": true,
+  "trailingSlash": false
+}
