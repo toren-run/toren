@@ -1,0 +1,27 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+
+# Publishes all six packages to npm via trusted publishing (OIDC): no npm
+# token, no OTP, and every package gets a provenance attestation. One-time
+# setup on npmjs.com: each package's Settings -> Trusted Publisher ->
+# GitHub Actions, repository toren-run/toren, workflow release.yml.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: "https://registry.npmjs.org"
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: pnpm publish -r --access public --no-git-checks
