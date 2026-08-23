@@ -4,155 +4,1030 @@
     "title": "Toren intake API",
     "version": "0.1.1",
     "description": "The HTTP API every Toren deployment serves (toren dev locally, the load balancer on AWS). Toren is self-hosted: this API lives at YOUR deployment's URL, not at toren.run. Trigger durable agent runs, read status and full event transcripts, resolve approvals, upload files, and hold sessions. All endpoints except /healthz require a bearer token: the deployment's admin token or an issued API key (issued keys cannot manage keys, schedules, or invites).",
-    "license": { "name": "Apache-2.0", "url": "https://www.apache.org/licenses/LICENSE-2.0" }
+    "license": {
+      "name": "Apache-2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
   },
-  "externalDocs": { "url": "https://toren.run/docs/guides/http-api", "description": "HTTP API guide" },
-  "servers": [{ "url": "http://localhost:7433", "description": "toren dev default; replace with your deployment's URL" }],
-  "security": [{ "bearer": [] }],
+  "externalDocs": {
+    "url": "https://toren.run/docs/guides/http-api",
+    "description": "HTTP API guide"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:7433",
+      "description": "toren dev default; replace with your deployment's URL"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    }
+  ],
   "components": {
-    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer", "description": "TOREN_API_TOKEN (admin) or an issued API key" } },
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "TOREN_API_TOKEN (admin) or an issued API key"
+      }
+    },
     "schemas": {
-      "Error": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
       "RunSummary": {
         "type": "object",
         "properties": {
-          "runId": { "type": "string", "format": "uuid" },
-          "agent": { "type": "string" },
-          "status": { "type": "string", "enum": ["created", "running", "completed", "failed", "cancelled"] },
-          "mode": { "type": "string", "enum": ["task", "session"] },
-          "process": { "type": "string", "description": "the named process this run executes; 'main' for single-workflow agents" },
-          "createdAt": { "type": "string", "format": "date-time" }
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "running",
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "task",
+              "session"
+            ]
+          },
+          "process": {
+            "type": "string",
+            "description": "the named process this run executes; 'main' for single-workflow agents"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
         }
       },
       "WaveSummary": {
         "type": "object",
-        "properties": { "name": { "type": "string" }, "tasks": { "type": "integer" }, "settled": { "type": "integer" }, "done": { "type": "boolean" } }
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "tasks": {
+            "type": "integer"
+          },
+          "settled": {
+            "type": "integer"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        }
       },
       "PendingApproval": {
         "type": "object",
-        "properties": { "runId": { "type": "string" }, "taskId": { "type": "string" }, "stepId": { "type": "string" }, "tool": { "type": "string" }, "args": {} }
+        "properties": {
+          "runId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "stepId": {
+            "type": "string"
+          },
+          "tool": {
+            "type": "string"
+          },
+          "args": {}
+        }
       },
       "RunDetail": {
         "type": "object",
         "properties": {
-          "run": { "type": "object", "description": "the run row: runId, agent, status, process, input, output, error" },
-          "status": { "type": "string", "description": "run status with parking surfaced: waiting_approval when a human is needed" },
-          "waves": { "type": "array", "items": { "$ref": "#/components/schemas/WaveSummary" } },
-          "approvals": { "type": "array", "items": { "$ref": "#/components/schemas/PendingApproval" } },
-          "usage": { "type": "object", "description": "cost roll-up: models, calls, tokens, estCostUsd?, replayedCalls, replaySavingsUsd?" }
+          "run": {
+            "type": "object",
+            "description": "the run row: runId, agent, status, process, input, output, error"
+          },
+          "status": {
+            "type": "string",
+            "description": "run status with parking surfaced: waiting_approval when a human is needed"
+          },
+          "waves": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WaveSummary"
+            }
+          },
+          "approvals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PendingApproval"
+            }
+          },
+          "usage": {
+            "type": "object",
+            "description": "cost roll-up: models, calls, tokens, estCostUsd?, replayedCalls, replaySavingsUsd?"
+          }
         }
       },
-      "Event": { "type": "object", "properties": { "seq": { "type": "integer" }, "type": { "type": "string" }, "payload": { "type": "object" } } },
+      "Event": {
+        "type": "object",
+        "properties": {
+          "seq": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object"
+          }
+        }
+      },
       "SessionTurn": {
         "type": "object",
-        "properties": { "role": { "type": "string", "enum": ["user", "assistant"] }, "text": { "type": "string" }, "channel": { "type": "string" }, "seq": { "type": "integer" } }
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "channel": {
+            "type": "string"
+          },
+          "seq": {
+            "type": "integer"
+          }
+        }
       },
       "Schedule": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "format": "uuid" }, "agent": { "type": "string" }, "name": { "type": "string" },
-          "cron": { "type": "string" }, "tz": { "type": "string" }, "input": { "type": "string" },
-          "process": { "type": "string" }, "enabled": { "type": "boolean" },
-          "nextFireAt": { "type": "string", "format": "date-time" }, "lastFiredAt": { "type": ["string", "null"], "format": "date-time" }
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "cron": {
+            "type": "string"
+          },
+          "tz": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string"
+          },
+          "process": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "nextFireAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastFiredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
         }
       }
     }
   },
   "paths": {
     "/healthz": {
-      "get": { "operationId": "health", "security": [], "summary": "Liveness check (no auth)", "responses": { "200": { "description": "ok", "content": { "application/json": { "schema": { "type": "object", "properties": { "ok": { "type": "boolean" } } } } } } } }
+      "get": {
+        "operationId": "health",
+        "security": [],
+        "summary": "Liveness check (no auth)",
+        "responses": {
+          "200": {
+            "description": "ok",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/agent": {
-      "get": { "operationId": "getDeploymentInfo", "summary": "Discover what this deployment serves: agents, their named processes, models, tools, env names (never values)", "responses": { "200": { "description": "sanitized deployment structure", "content": { "application/json": { "schema": { "type": "object", "properties": { "agent": { "type": "object" } } } } } } } }
+      "get": {
+        "operationId": "getDeploymentInfo",
+        "summary": "Discover what this deployment serves: agents, their named processes, models, tools, env names (never values)",
+        "responses": {
+          "200": {
+            "description": "sanitized deployment structure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/runs": {
       "post": {
         "operationId": "startRun",
         "summary": "Start a durable run; 202 immediately, poll GET /runs/{runId}",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["input"], "properties": { "input": { "type": "string" }, "agent": { "type": "string", "description": "defaults to the deployment's default agent" }, "process": { "type": "string", "description": "a named process of the agent; defaults to its default_process, else main" }, "files": { "type": "array", "items": { "type": "string" }, "description": "file ids from POST /files" } } } } } },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "input"
+                ],
+                "properties": {
+                  "input": {
+                    "type": "string"
+                  },
+                  "agent": {
+                    "type": "string",
+                    "description": "defaults to the deployment's default agent"
+                  },
+                  "process": {
+                    "type": "string",
+                    "description": "a named process of the agent; defaults to its default_process, else main"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "file ids from POST /files"
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
-          "202": { "description": "run created", "content": { "application/json": { "schema": { "type": "object", "properties": { "runId": { "type": "string" }, "agent": { "type": "string" }, "process": { "type": "string" } } } } } },
-          "400": { "description": "unknown agent or process (the error lists what exists), or bad body", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+          "202": {
+            "description": "run created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string"
+                    },
+                    "agent": {
+                      "type": "string"
+                    },
+                    "process": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "unknown agent or process (the error lists what exists), or bad body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
         }
       },
-      "get": { "operationId": "listRuns", "summary": "Newest 50 runs per agent crew", "responses": { "200": { "description": "runs", "content": { "application/json": { "schema": { "type": "object", "properties": { "runs": { "type": "array", "items": { "$ref": "#/components/schemas/RunSummary" } } } } } } } } }
+      "get": {
+        "operationId": "listRuns",
+        "summary": "Newest 50 runs per agent crew",
+        "responses": {
+          "200": {
+            "description": "runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runs": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RunSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/runs/{runId}": {
       "get": {
-        "operationId": "getRun", "summary": "Status, per-wave progress, pending approvals, and output",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "responses": { "200": { "description": "run detail", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RunDetail" } } } }, "404": { "description": "unknown run", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "getRun",
+        "summary": "Status, per-wave progress, pending approvals, and output",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "run detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "unknown run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/runs/{runId}/events": {
       "get": {
-        "operationId": "getRunEvents", "summary": "The full event transcript: every recorded model call, tool call, and token count",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "responses": { "200": { "description": "event streams", "content": { "application/json": { "schema": { "type": "object", "properties": { "run": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } }, "tasks": { "type": "object", "additionalProperties": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } } } } }
+        "operationId": "getRunEvents",
+        "summary": "The full event transcript: every recorded model call, tool call, and token count",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "event streams",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "run": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Event"
+                      }
+                    },
+                    "tasks": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/components/schemas/Event"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/runs/{runId}/cancel": {
       "post": {
-        "operationId": "cancelRun", "summary": "Retire a run: retries stop and queued work for it becomes a no-op",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "responses": { "200": { "description": "cancelled", "content": { "application/json": { "schema": { "type": "object", "properties": { "cancelled": { "type": "boolean" } } } } } }, "404": { "description": "unknown or already terminal", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "cancelRun",
+        "summary": "Retire a run: retries stop and queued work for it becomes a no-op",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cancelled": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "unknown or already terminal",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/runs/{runId}/approvals": {
       "post": {
-        "operationId": "resolveApproval", "summary": "Approve or deny a parked tool call; the run wakes and continues",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["taskId", "stepId", "granted"], "properties": { "taskId": { "type": "string" }, "stepId": { "type": "string" }, "granted": { "type": "boolean" }, "comment": { "type": "string" }, "by": { "type": "string" } } } } } },
-        "responses": { "200": { "description": "resolved" }, "404": { "description": "unknown run or approval", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "resolveApproval",
+        "summary": "Approve or deny a parked tool call; the run wakes and continues",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "taskId",
+                  "stepId",
+                  "granted"
+                ],
+                "properties": {
+                  "taskId": {
+                    "type": "string"
+                  },
+                  "stepId": {
+                    "type": "string"
+                  },
+                  "granted": {
+                    "type": "boolean"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "by": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "resolved"
+          },
+          "404": {
+            "description": "unknown run or approval",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/files": {
       "post": {
-        "operationId": "uploadFile", "summary": "Upload a pdf/docx/xlsx/text file; returns a file id to attach to runs or session messages",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name", "content_base64"], "properties": { "name": { "type": "string" }, "content_base64": { "type": "string" } } } } } },
-        "responses": { "200": { "description": "stored file", "content": { "application/json": { "schema": { "type": "object", "properties": { "fileId": { "type": "string" }, "name": { "type": "string" }, "mediaType": { "type": "string" }, "bytes": { "type": "integer" }, "pages": { "type": "integer" } } } } } }, "501": { "description": "no file store configured", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "uploadFile",
+        "summary": "Upload a pdf/docx/xlsx/text file; returns a file id to attach to runs or session messages",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "content_base64"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "content_base64": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "stored file",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "fileId": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "mediaType": {
+                      "type": "string"
+                    },
+                    "bytes": {
+                      "type": "integer"
+                    },
+                    "pages": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "no file store configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/sessions": {
       "post": {
-        "operationId": "startSession", "summary": "Open a durable conversation with an agent",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["message"], "properties": { "message": { "type": "string" }, "agent": { "type": "string" }, "channel": { "type": "string" }, "files": { "type": "array", "items": { "type": "string" } } } } } } },
-        "responses": { "200": { "description": "session started", "content": { "application/json": { "schema": { "type": "object", "properties": { "runId": { "type": "string" }, "agent": { "type": "string" } } } } } } }
+        "operationId": "startSession",
+        "summary": "Open a durable conversation with an agent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "agent": {
+                    "type": "string"
+                  },
+                  "channel": {
+                    "type": "string"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "session started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string"
+                    },
+                    "agent": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       },
-      "get": { "operationId": "listSessions", "summary": "Recent conversations across every channel", "responses": { "200": { "description": "sessions", "content": { "application/json": { "schema": { "type": "object", "properties": { "sessions": { "type": "array", "items": { "$ref": "#/components/schemas/RunSummary" } } } } } } } } }
+      "get": {
+        "operationId": "listSessions",
+        "summary": "Recent conversations across every channel",
+        "responses": {
+          "200": {
+            "description": "sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "sessions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RunSummary"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "/sessions/{runId}": {
       "get": {
-        "operationId": "getSession", "summary": "Transcript and state (working | awaiting_input | completed | failed | cancelled)",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "responses": { "200": { "description": "session detail", "content": { "application/json": { "schema": { "type": "object", "properties": { "runId": { "type": "string" }, "agent": { "type": "string" }, "state": { "type": "string" }, "transcript": { "type": "array", "items": { "$ref": "#/components/schemas/SessionTurn" } } } } } } } }
+        "operationId": "getSession",
+        "summary": "Transcript and state (working | awaiting_input | completed | failed | cancelled)",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "session detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "runId": {
+                      "type": "string"
+                    },
+                    "agent": {
+                      "type": "string"
+                    },
+                    "state": {
+                      "type": "string"
+                    },
+                    "transcript": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/SessionTurn"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/sessions/{runId}/messages": {
       "post": {
-        "operationId": "sendSessionMessage", "summary": "Send the next turn; 409 while the agent is mid-turn (strict turn-taking); close: true ends the session",
-        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["message"], "properties": { "message": { "type": "string" }, "channel": { "type": "string" }, "close": { "type": "boolean" }, "files": { "type": "array", "items": { "type": "string" } } } } } } },
-        "responses": { "202": { "description": "accepted" }, "409": { "description": "agent is mid-turn; wait for awaiting_input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "sendSessionMessage",
+        "summary": "Send the next turn; 409 while the agent is mid-turn (strict turn-taking); close: true ends the session",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string"
+                  },
+                  "channel": {
+                    "type": "string"
+                  },
+                  "close": {
+                    "type": "boolean"
+                  },
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "accepted"
+          },
+          "409": {
+            "description": "agent is mid-turn; wait for awaiting_input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/schedules": {
-      "get": { "operationId": "listSchedules", "summary": "List schedules (admin token only)", "responses": { "200": { "description": "schedules", "content": { "application/json": { "schema": { "type": "object", "properties": { "schedules": { "type": "array", "items": { "$ref": "#/components/schemas/Schedule" } } } } } } } } },
+      "get": {
+        "operationId": "listSchedules",
+        "summary": "List schedules (admin token only)",
+        "responses": {
+          "200": {
+            "description": "schedules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedules": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Schedule"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       "post": {
-        "operationId": "createSchedule", "summary": "Create a cron schedule, fired exactly once per occurrence, crash-safe (admin token only)",
-        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["cron", "input"], "properties": { "cron": { "type": "string" }, "input": { "type": "string" }, "agent": { "type": "string" }, "process": { "type": "string" }, "name": { "type": "string" }, "tz": { "type": "string" } } } } } },
-        "responses": { "201": { "description": "created", "content": { "application/json": { "schema": { "type": "object", "properties": { "schedule": { "$ref": "#/components/schemas/Schedule" } } } } } }, "400": { "description": "bad cron, unknown agent or process", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+        "operationId": "createSchedule",
+        "summary": "Create a cron schedule, fired exactly once per occurrence, crash-safe (admin token only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "cron",
+                  "input"
+                ],
+                "properties": {
+                  "cron": {
+                    "type": "string"
+                  },
+                  "input": {
+                    "type": "string"
+                  },
+                  "agent": {
+                    "type": "string"
+                  },
+                  "process": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "tz": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "schedule": {
+                      "$ref": "#/components/schemas/Schedule"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "bad cron, unknown agent or process",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/schedules/{id}": {
-      "delete": { "operationId": "deleteSchedule", "summary": "Delete a schedule (admin token only)", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }], "responses": { "200": { "description": "deleted" }, "404": { "description": "no such schedule" } } }
+      "delete": {
+        "operationId": "deleteSchedule",
+        "summary": "Delete a schedule (admin token only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "deleted"
+          },
+          "404": {
+            "description": "no such schedule"
+          }
+        }
+      }
     },
     "/keys": {
-      "get": { "operationId": "listApiKeys", "summary": "List issued API keys, never secrets (admin token only)", "responses": { "200": { "description": "keys" } } },
-      "post": { "operationId": "createApiKey", "summary": "Issue a named, revocable API key; the secret appears once (admin token only)", "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["name"], "properties": { "name": { "type": "string" } } } } } }, "responses": { "200": { "description": "created key with one-time secret" } } }
+      "get": {
+        "operationId": "listApiKeys",
+        "summary": "List issued API keys, never secrets (admin token only)",
+        "responses": {
+          "200": {
+            "description": "keys"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createApiKey",
+        "summary": "Issue a named, revocable API key; the secret appears once (admin token only)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "created key with one-time secret"
+          }
+        }
+      }
     },
     "/keys/{id}": {
-      "delete": { "operationId": "revokeApiKey", "summary": "Revoke a key immediately (admin token only)", "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }], "responses": { "200": { "description": "revoked" } } }
+      "delete": {
+        "operationId": "revokeApiKey",
+        "summary": "Revoke a key immediately (admin token only)",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "revoked"
+          }
+        }
+      }
+    },
+    "/runs/{runId}/events/stream": {
+      "get": {
+        "operationId": "tailRunEvents",
+        "summary": "SSE: every event as it lands (one data: frame per event), then a done event when the run settles",
+        "parameters": [
+          {
+            "name": "runId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "text/event-stream of run events",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "unknown run",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

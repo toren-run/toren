@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
   createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, fileManifest, foldRunStream,
-  cancelRun, runUsage, getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
+  cancelRun, followRun, runUsage, getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
   revokeApiKey, SessionBusyError, sendSessionMessage, setScheduleEnabled, startRun, startSession,
   verifyApiKey,
   type TickDeps,
@@ -368,6 +368,28 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
             }
           }
           return send(res, 200, { run: runEvents, tasks });
+        }
+
+        // GET /runs/:id/events/stream — SSE: every event as it lands, then done.
+        if (req.method === "GET" && parts.length === 4 && parts[2] === "events" && parts[3] === "stream") {
+          res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+          res.write(":ok\n\n");
+          const cursor: import("@toren-run/core").TailCursor = {};
+          let open = true;
+          req.on("close", () => { open = false; });
+          while (open) {
+            const { events, done } = await followRun(deps.store, runId, cursor);
+            for (const e of events) {
+              res.write(`id: ${e.streamId}:${e.seq}\ndata: ${JSON.stringify({ streamId: e.streamId, seq: e.seq, type: e.type, payload: e.payload, recordedAt: e.recordedAt })}\n\n`);
+            }
+            if (done) {
+              res.write("event: done\ndata: {}\n\n");
+              break;
+            }
+            res.write(":hb\n\n");
+            await new Promise((r) => setTimeout(r, 700));
+          }
+          return res.end();
         }
 
         // POST /runs/:id/cancel — retire a run; retries stop, queued hints no-op

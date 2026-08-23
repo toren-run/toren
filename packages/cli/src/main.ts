@@ -90,6 +90,19 @@ export async function main(argv: string[]): Promise<void> {
       if (profile.kind === "api") return remoteJobsShow(profile, runId, opts, io);
       return cmdJobsShow(opts.dir, runId, { ...opts, databaseUrl: profile.databaseUrl });
     });
+  jobs.command("tail <runId>")
+    .description("Follow a run's events live until it settles")
+    .option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (runId: string, opts: { dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") {
+        const { remoteJobsTail } = await import("./remote.js");
+        return remoteJobsTail(profile, runId, io);
+      }
+      const { cmdJobsTail } = await import("./commands.js");
+      return cmdJobsTail(opts.dir, runId, { databaseUrl: profile.databaseUrl });
+    });
   jobs.command("cancel <runId>")
     .description("Retire a run: retries stop and queued work for it becomes a no-op")
     .option("--dir <dir>", "agent directory", ".")

@@ -4,7 +4,7 @@ import {
   fileManifest, PgFiles,
   createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
-  cancelRun, runUsage, startRun, sweep, sweepSchedules, sweepWatchers,
+  cancelRun, followRun, runUsage, startRun, sweep, sweepSchedules, sweepWatchers,
 } from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -364,6 +364,45 @@ export async function cmdJobsShow(dir: string, runId: string, opts: { json?: boo
     }
     if (run.error != null) io.out(`  error: ${String(run.error)}${run.status === "running" ? "  (still retrying; toren jobs cancel to give up)" : ""}`);
     if (run.status === "completed") io.out(`  output: ${String(run.output)}`);
+  } finally {
+    await rt.close();
+  }
+}
+
+/** One line per event, brief enough to watch live. */
+export function tailLine(e: { streamId: string; seq: number; type: string; payload: Record<string, unknown>; recordedAt: Date | string }): string {
+  const t = new Date(e.recordedAt).toISOString().slice(11, 19);
+  const detail =
+    e.type === "LlmCallStarted" ? String(e.payload.model ?? "")
+    : e.type === "LlmCallCompleted" ? `${(e.payload.usage as { inputTokens?: number })?.inputTokens ?? 0} in / ${(e.payload.usage as { outputTokens?: number })?.outputTokens ?? 0} out`
+    : e.type === "ToolCallStarted" ? String(e.payload.tool ?? "")
+    : e.type === "TaskStarted" ? `attempt ${e.payload.attempt ?? 1}`
+    : e.type === "TaskFailed" ? String(e.payload.error ?? "").slice(0, 120)
+    : e.type === "RunCompleted" ? String(e.payload.output ?? "").slice(0, 120)
+    : e.type === "RunFailed" ? String(e.payload.error ?? "").slice(0, 120)
+    : e.type === "InputRequested" ? String(e.payload.text ?? "").slice(0, 120)
+    : e.type === "UserMessage" ? String(e.payload.text ?? "").slice(0, 120)
+    : e.type === "StreamInvalidated" ? String(e.payload.reason ?? "").slice(0, 120)
+    : "";
+  return `${t}  ${e.streamId}  ${e.type}${detail ? `  ${detail}` : ""}`;
+}
+
+export async function cmdJobsTail(dir: string, runId: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    if (!(await rt.deps.store.getRun(runId))) throw new Error(`run ${runId} not found`);
+    const cursor: import("@toren-run/core").TailCursor = {};
+    for (;;) {
+      const { events, done } = await followRun(rt.deps.store, runId, cursor);
+      for (const e of events) io.out(tailLine(e));
+      if (done) {
+        const run = await rt.deps.store.getRun(runId);
+        io.out(`run ${runId}  ${run?.status ?? "gone"}`);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 700));
+    }
   } finally {
     await rt.close();
   }

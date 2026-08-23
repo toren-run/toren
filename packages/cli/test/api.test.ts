@@ -197,3 +197,14 @@ test("POST /runs/:id/cancel retires a run; unknown id is 404", async () => {
   expect(got.json.run.status).toBe("cancelled");
   expect((await api("POST", "/runs/00000000-0000-4000-8000-00000000dead/cancel")).status).toBe(404);
 });
+
+test("SSE tail streams the run's events and closes on settle", async () => {
+  const post = await api("POST", "/runs", { input: "tail me", process: "weekly-report" });
+  await worker.drain(15_000);
+  const { TorenClient } = await import("@toren-run/client");
+  const client = new TorenClient({ url: base, token: TOKEN });
+  const types: string[] = [];
+  await client.tailRun(post.json.runId as string, (e) => types.push(e.type));
+  expect(types).toContain("RunCreated");
+  expect(types).toContain("RunCompleted");
+});

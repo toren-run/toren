@@ -26,3 +26,4 @@ export * from "./guardians.js";
 export * from "./conversations.js";
 export * from "./spawn.js";
 export * from "./usage.js";
+export * from "./tail.js";

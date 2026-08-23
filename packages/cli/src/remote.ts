@@ -71,6 +71,12 @@ export async function remoteJobsShow(env: Extract<ResolvedEnv, { kind: "api" }>,
   if (d.status === "completed") io.out(`  output: ${String(d.run.output ?? "")}`);
 }
 
+export async function remoteJobsTail(env: Extract<ResolvedEnv, { kind: "api" }>, runId: string, io: CmdIO): Promise<void> {
+  const { tailLine } = await import("./commands.js");
+  await clientFor(env, io).tailRun(runId, (e) => io.out(tailLine(e)));
+  io.out(`run ${runId}  settled`);
+}
+
 export async function remoteJobsCancel(env: Extract<ResolvedEnv, { kind: "api" }>, runId: string, io: CmdIO): Promise<void> {
   await clientFor(env, io).cancelRun(runId);
   io.out(`run ${runId}  cancelled; queued retries become no-ops`);

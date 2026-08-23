@@ -42,6 +42,8 @@ curl -s "$API/runs/$RUN_ID" -H "Authorization: Bearer $TOKEN"
 }
 ```
 
+Follow a run live with `GET /runs/:id/events/stream` (SSE): one `data:` frame per event as it lands, a `done` event when the run settles. The typed client wraps it as `tailRun(runId, onEvent)`; the CLI as `toren jobs tail`.
+
 `GET /runs` lists the newest 50 runs per crew; `GET /runs/:id/events` returns the full transcript, every recorded model call, tool call, and token count, straight from the event log.
 
 ## Approve or deny a parked run
@@ -74,6 +76,6 @@ Standing configuration, admin-token only (like `/keys`): `GET /schedules`, `POST
 
 ## Notes
 
-- Responses are plain JSON; poll `GET /runs/:id` for progress (SSE streaming is roadmap).
+- Responses are plain JSON; poll `GET /runs/:id`, or stream live via `GET /runs/:id/events/stream` (SSE).
 - On AWS the API is HTTPS out of the box (CloudFront fronts the stack, `terraform output api_url`); custom domains are a two-CNAME exercise, see [HTTPS & custom domains](deploy-aws.md#https-custom-domains).
 - The API only calls the same core functions the CLI uses; durability semantics are identical however a run is triggered.

@@ -93,6 +93,33 @@ export class TorenClient {
     return this.request("GET", `/runs/${encodeURIComponent(runId)}/events`);
   }
 
+  /**
+   * Follow a run's events live over SSE until it settles. Calls onEvent per
+   * event; resolves when the run is terminal or the server closes the stream.
+   */
+  async tailRun(runId: string, onEvent: (e: { streamId: string; seq: number; type: string; payload: Record<string, unknown>; recordedAt: string }) => void): Promise<void> {
+    const res = await this.fetchImpl(`${this.base}/runs/${encodeURIComponent(runId)}/events/stream`, {
+      headers: { authorization: `Bearer ${this.cfg.token}` },
+    });
+    if (!res.ok || !res.body) throw new TorenApiError(res.status, `tail failed: HTTP ${res.status}`);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return;
+      buf += decoder.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const frame = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (frame.includes("event: done")) return;
+        const data = frame.split("\n").find((l) => l.startsWith("data: "));
+        if (data) onEvent(JSON.parse(data.slice(6)));
+      }
+    }
+  }
+
   /** Retire a run: retries stop and queued work for it becomes a no-op. */
   async cancelRun(runId: string): Promise<void> {
     await this.request("POST", `/runs/${encodeURIComponent(runId)}/cancel`);
