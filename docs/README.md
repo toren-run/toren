@@ -30,6 +30,6 @@ The design rationale behind these guarantees is summarized in [Durability & repl
 | TypeScript API reference (`@toren-run/core` symbols) | ❌ gap, needs typedoc generation |
 | HTTP intake API (runs, status, events, approvals) | ✅ shipped, see the [guide](/guides/http-api.md); sessions shipped too, SSE still on the roadmap |
 | Troubleshooting / FAQ | ❌ gap, collect from first external users |
-| Versioning & compatibility policy | ❌ gap, needed before first public release |
+| [Versioning & compatibility policy](/reference/versioning.md) | ✅ shipped |
 | Examples gallery beyond research-crew | ❌ gap |
 | [Client SDK](/reference/client.md) (`@toren-run/client`), env declarations, environment profiles | ✅ shipped |
