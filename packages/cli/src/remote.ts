@@ -67,6 +67,7 @@ export async function remoteJobsShow(env: Extract<ResolvedEnv, { kind: "api" }>,
   io.out(`${d.run.runId}  ${d.run.agent}  ${d.status}`);
   for (const w of d.waves) io.out(`  wave ${w.name}: ${w.settled}/${w.tasks} settled${w.done ? " ✓" : ""}`);
   for (const a of d.approvals) io.out(`  pending approval: ${a.tool} ${JSON.stringify(a.args)}  → toren jobs approve ${a.runId} ${a.taskId} ${a.stepId} --env ${env.name}`);
+  if (d.run.error != null) io.out(`  error: ${String(d.run.error)}`);
   if (d.status === "completed") io.out(`  output: ${String(d.run.output ?? "")}`);
 }
 

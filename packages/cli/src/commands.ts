@@ -351,6 +351,7 @@ export async function cmdJobsShow(dir: string, runId: string, opts: { json?: boo
     io.out(`${run.runId}  ${run.agent}  ${run.status}`);
     for (const w of waves) io.out(`  wave ${w.name}: ${w.settled}/${w.tasks} settled${w.done ? " ✓" : ""}`);
     for (const a of approvals) io.out(`  pending approval: ${a.tool} ${JSON.stringify(a.args)}  → toren jobs approve ${a.runId} ${a.taskId} ${a.stepId}`);
+    if (run.error != null) io.out(`  error: ${String(run.error)}${run.status === "running" ? "  (still retrying; toren jobs cancel to give up)" : ""}`);
     if (run.status === "completed") io.out(`  output: ${String(run.output)}`);
   } finally {
     await rt.close();
