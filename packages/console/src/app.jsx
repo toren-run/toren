@@ -232,10 +232,46 @@ function RunPage({ runId, isAdmin }) {
   const [note, setNote] = useState("");
   const [err, setErr] = useState("");
 
+  // Live over SSE: each event triggers a refresh the moment it lands. The
+  // slow poll below stays as the fallback when the stream drops.
   usePoll(async () => {
     setData(await api("GET", `/runs/${runId}`));
     setEvents(await api("GET", `/runs/${runId}/events`));
-  }, 2500, [runId]);
+  }, 10000, [runId]);
+  useEffect(() => {
+    let alive = true;
+    const refresh = async () => {
+      if (!alive) return;
+      try {
+        setData(await api("GET", `/runs/${runId}`));
+        setEvents(await api("GET", `/runs/${runId}/events`));
+      } catch { /* fallback poll surfaces errors */ }
+    };
+    (async () => {
+      try {
+        const res = await fetch(`/runs/${runId}/events/stream`, { headers: { authorization: `Bearer ${getToken()}` } });
+        if (!res.ok || !res.body) return;
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done || !alive) return;
+          buf += decoder.decode(value, { stream: true });
+          let i;
+          let sawEvent = false;
+          while ((i = buf.indexOf("\n\n")) >= 0) {
+            const frame = buf.slice(0, i);
+            buf = buf.slice(i + 2);
+            if (frame.includes("data: ")) sawEvent = true;
+            if (frame.includes("event: done")) { await refresh(); return; }
+          }
+          if (sawEvent) await refresh();
+        }
+      } catch { /* stream unavailable — the poll covers it */ }
+    })();
+    return () => { alive = false; };
+  }, [runId]);
 
   if (!data) return <div class="page"><div class="empty">Loading…</div></div>;
   const run = data.run;

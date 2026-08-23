@@ -85,6 +85,7 @@ export default defineConfig({
           { text: "agent.yaml", link: "/reference/agent-yaml" },
           { text: "Workflow API", link: "/reference/workflow-api" },
           { text: "Client SDK", link: "/reference/client" },
+          { text: "Host API", link: "/reference/host-api" },
           { text: "Versioning", link: "/reference/versioning" },
           { text: "Event catalog", link: "/reference/events" },
         ],
