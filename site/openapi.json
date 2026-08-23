@@ -38,7 +38,8 @@
           "run": { "type": "object", "description": "the run row: runId, agent, status, process, input, output, error" },
           "status": { "type": "string", "description": "run status with parking surfaced: waiting_approval when a human is needed" },
           "waves": { "type": "array", "items": { "$ref": "#/components/schemas/WaveSummary" } },
-          "approvals": { "type": "array", "items": { "$ref": "#/components/schemas/PendingApproval" } }
+          "approvals": { "type": "array", "items": { "$ref": "#/components/schemas/PendingApproval" } },
+          "usage": { "type": "object", "description": "cost roll-up: models, calls, tokens, estCostUsd?, replayedCalls, replaySavingsUsd?" }
         }
       },
       "Event": { "type": "object", "properties": { "seq": { "type": "integer" }, "type": { "type": "string" }, "payload": { "type": "object" } } },

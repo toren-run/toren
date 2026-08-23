@@ -86,3 +86,52 @@ test("reasoning_effort passes through when set and stays absent when not", () =>
   const withEffort = toOpenAIParams({ ...base, reasoningEffort: "none" });
   expect((withEffort as unknown as Record<string, unknown>).reasoning_effort).toBe("none");
 });
+
+// ---- /v1/responses routing: reasoning models keep both reasoning AND tools.
+
+test("toResponsesParams maps the transcript, tools, and reasoning effort", async () => {
+  const { toResponsesParams } = await import("../src/openai.js");
+  const p = toResponsesParams({
+    model: "openai/gpt-5.6-sol", system: "be helpful", maxTokens: 500, reasoningEffort: "medium",
+    tools: [{ name: "lookup", description: "d", inputSchema: { type: "object" } }],
+    messages: [
+      { role: "user", content: [{ type: "text", text: "hi" }] },
+      { role: "assistant", content: [{ type: "text", text: "checking" }, { type: "toolUse", id: "c1", name: "lookup", input: { q: 1 } }] },
+      { role: "user", content: [{ type: "toolResult", toolUseId: "c1", content: "42" }] },
+    ],
+  });
+  expect(p.model).toBe("gpt-5.6-sol");
+  expect(p.instructions).toBe("be helpful");
+  expect(p.max_output_tokens).toBe(500);
+  expect(p.reasoning).toEqual({ effort: "medium" });
+  expect(p.tools).toEqual([{ type: "function", name: "lookup", description: "d", parameters: { type: "object" }, strict: false }]);
+  const kinds = (p.input as { type?: string; role?: string }[]).map((i) => i.type ?? i.role);
+  expect(kinds).toEqual(["user", "assistant", "function_call", "function_call_output"]);
+});
+
+test("fromResponsesResponse maps text, tool calls, usage, and stop reasons", async () => {
+  const { fromResponsesResponse } = await import("../src/openai.js");
+  const r = fromResponsesResponse({
+    status: "completed",
+    output: [
+      { type: "reasoning", summary: [] },
+      { type: "message", role: "assistant", content: [{ type: "output_text", text: "on it" }] },
+      { type: "function_call", call_id: "c9", name: "lookup", arguments: '{"q":2}' },
+    ],
+    usage: { input_tokens: 11, output_tokens: 7 },
+  } as never);
+  expect(r.content).toEqual([{ type: "text", text: "on it" }, { type: "toolUse", id: "c9", name: "lookup", input: { q: 2 } }]);
+  expect(r.stopReason).toBe("toolUse");
+  expect(r.usage).toEqual({ inputTokens: 11, outputTokens: 7 });
+
+  const cut = fromResponsesResponse({ status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [], usage: { input_tokens: 1, output_tokens: 1 } } as never);
+  expect(cut.stopReason).toBe("maxTokens");
+});
+
+test("the provider routes by reasoning effort: real effort uses /v1/responses, none or absent stays on chat/completions", async () => {
+  const { OpenAIProvider, usesResponsesApi } = await import("../src/openai.js");
+  void OpenAIProvider;
+  expect(usesResponsesApi({ reasoningEffort: "medium" } as never)).toBe(true);
+  expect(usesResponsesApi({ reasoningEffort: "none" } as never)).toBe(false);
+  expect(usesResponsesApi({} as never)).toBe(false);
+});

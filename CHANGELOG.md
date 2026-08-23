@@ -10,6 +10,8 @@ First release shaped by a production field report (Fargate + RDS + Telegram).
 - Opt-in poison-pill: `limits.maxAttemptsPerTask` fails a task terminally after N attempts instead of retrying forever.
 - `reasoning_effort:` in agent.yaml passes through to OpenAI; gpt-5.6-family models can use tools again.
 - `toren jobs show` prints the run's recorded error, with a hint to cancel while it retries.
+- Cost roll-ups: `jobs show` and `GET /runs/:id` report calls, tokens, estimated dollars, and what a resume replayed instead of re-buying (`TOREN_MODEL_PRICES` extends the price table).
+- OpenAI `/v1/responses` support: real `reasoning_effort` routes there, so gpt-5.6-family models get reasoning AND tools together.
 - Docs: two-database-roles security pattern; agent.yaml reference for the new keys.
 
 ## 0.1.2 — 2026-08-23

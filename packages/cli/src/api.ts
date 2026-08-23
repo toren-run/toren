@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
   createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, fileManifest, foldRunStream,
-  cancelRun, getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
+  cancelRun, runUsage, getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
   revokeApiKey, SessionBusyError, sendSessionMessage, setScheduleEnabled, startRun, startSession,
   verifyApiKey,
   type TickDeps,
@@ -354,6 +354,7 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
               name: w.name, tasks: w.tasks.length, settled: w.settledTasks.size, done: w.settled,
             })),
             approvals,
+            usage: await runUsage(deps.store, runId),
           });
         }
 

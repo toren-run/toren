@@ -10,7 +10,7 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 | `toren chat [dir] [--agent <name>] [--session <runId>] [--file <path>]… [--env <name>]` | Talk to an agent from the terminal: a durable [session](../guides/sessions.md). `/end` closes; Ctrl+C leaves it open; `--session` resumes; `--file` attaches to the first message |
 | `toren channels telegram invite [--dir]` | Mint a one-time pairing code for the deny-by-default [Telegram channel](../channels/telegram.md) |
 | `toren jobs list [--dir] [--json]` | All runs with status, including `waiting_approval` |
-| `toren jobs show <runId> [--dir] [--json]` | Status, per-wave progress, pending approvals, output |
+| `toren jobs show <runId> [--dir] [--json]` | Status, per-wave progress, pending approvals, cost roll-up, recorded errors, output |
 | `toren jobs cancel <runId> [--dir] [--env]` | Retire a run: retries stop and queued work for it becomes a no-op |
 | `toren jobs approve <runId> <taskId> <stepId> [--deny] [--comment <t>]` | Resolve a parked approval and drive the run onward |
 | `toren schedule create --cron <expr> --input <str> [--process <name>] [--dir <dir>] [--agent <name>] [--name] [--tz]` | Cron-triggered runs, fired by the workers exactly once, crash-safe; `--process` fires a named process. `--dir` is the agent directory the schedule is validated against (default `.`); `--agent` overrides the *target* agent name when scheduling for another crew in the fleet (see the [scheduling guide](../guides/scheduling.md)) |

@@ -4,7 +4,7 @@ import {
   fileManifest, PgFiles,
   createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
-  cancelRun, startRun, sweep, sweepSchedules, sweepWatchers,
+  cancelRun, runUsage, startRun, sweep, sweepSchedules, sweepWatchers,
 } from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -344,13 +344,24 @@ export async function cmdJobsShow(dir: string, runId: string, opts: { json?: boo
       done: w.settled,
     }));
     const approvals = await listPendingApprovals(rt.deps.store, runId);
+    const usage = await runUsage(rt.deps.store, runId);
     if (opts.json) {
-      io.out(JSON.stringify({ run, waves, approvals }));
+      io.out(JSON.stringify({ run, waves, approvals, usage }));
       return;
     }
     io.out(`${run.runId}  ${run.agent}  ${run.status}`);
     for (const w of waves) io.out(`  wave ${w.name}: ${w.settled}/${w.tasks} settled${w.done ? " ✓" : ""}`);
     for (const a of approvals) io.out(`  pending approval: ${a.tool} ${JSON.stringify(a.args)}  → toren jobs approve ${a.runId} ${a.taskId} ${a.stepId}`);
+    if (usage.totalCalls > 0) {
+      const inTok = Object.values(usage.models).reduce((n, m) => n + m.inputTokens, 0);
+      const outTok = Object.values(usage.models).reduce((n, m) => n + m.outputTokens, 0);
+      const dollars = usage.estCostUsd !== undefined ? `  ~$${usage.estCostUsd.toFixed(4)}` : "";
+      io.out(`  cost: ${usage.totalCalls} model calls  ${inTok} in / ${outTok} out tokens${dollars}`);
+      if (usage.replayedCalls > 0) {
+        const saved = usage.replaySavingsUsd !== undefined ? ` (~$${usage.replaySavingsUsd.toFixed(4)} not re-paid)` : "";
+        io.out(`  resumes replayed ${usage.replayedCalls} completed call${usage.replayedCalls === 1 ? "" : "s"} from the log${saved}`);
+      }
+    }
     if (run.error != null) io.out(`  error: ${String(run.error)}${run.status === "running" ? "  (still retrying; toren jobs cancel to give up)" : ""}`);
     if (run.status === "completed") io.out(`  output: ${String(run.output)}`);
   } finally {
