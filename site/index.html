@@ -81,12 +81,6 @@ code, pre, .mono { font-family: "JetBrains Mono", ui-monospace, monospace; }
   content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .35; z-index: 5;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-/* rulers */
-.ruler-x, .ruler-y { position: absolute; z-index: 4; pointer-events: none; }
-.ruler-x { top: 0; left: 0; right: 0; height: 14px; border-bottom: 1px solid var(--line);
-  background: repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 30px); opacity: .3; }
-.ruler-y { top: 0; bottom: 0; left: 0; width: 14px; border-right: 1px solid var(--line);
-  background: repeating-linear-gradient(0deg, var(--ink) 0 1px, transparent 1px 30px); opacity: .3; }
 /* margin note */
 .marginalia {
   position: fixed; right: 26px; top: 50%; transform: translateY(-50%); z-index: 6;
@@ -275,7 +269,7 @@ footer { margin-top: 110px; }
 @media (max-width: 880px) {
   .wrap { padding: 0 22px; }
   nav { padding: 14px 22px; }
-  .marginalia, .ruler-x, .ruler-y { display: none; }
+  .marginalia { display: none; }
   .figsheet { margin-top: 26px; transform: none; }
   .bento { grid-template-columns: 1fr; }
   .bcard.tall, .bcard.wide { grid-row: auto; grid-column: auto; }
@@ -317,8 +311,6 @@ footer { margin-top: 110px; }
 </head>
 <body>
 <div class="sheet-frame">
-<div class="ruler-x" aria-hidden="true"></div>
-<div class="ruler-y" aria-hidden="true"></div>
 <div class="marginalia" aria-hidden="true">DURABLE EXECUTION FOR AGENTS · SHT 1/1 · REV A · AUG 2026</div>
 
 <nav>
