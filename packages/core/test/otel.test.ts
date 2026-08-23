@@ -51,4 +51,6 @@ test("task, llm, and tool spans are emitted for live work", async () => {
   expect(names).toContain("toren.tool");
   const llm = exporter.getFinishedSpans().find((s) => s.name === "toren.llm")!;
   expect(llm.attributes["gen_ai.request.model"]).toBe("mock/m");
+  expect(llm.attributes["gen_ai.usage.input_tokens"]).toBeGreaterThan(0);
+  expect(llm.attributes["gen_ai.usage.output_tokens"]).toBeGreaterThan(0);
 });

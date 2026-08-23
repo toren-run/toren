@@ -190,13 +190,21 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
       } else {
         // Crash window: call was issued but the response never landed. Re-issue (at-least-once).
         ptr += 1;
-        response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, () => provider.complete(request));
+        response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, async (span) => {
+          const r = await provider.complete(request);
+          if (r.usage) span.setAttributes({ "gen_ai.usage.input_tokens": r.usage.inputTokens, "gen_ai.usage.output_tokens": r.usage.outputTokens });
+          return r;
+        });
         await append([ev("LlmCallCompleted", { stepId: next.payload.stepId, response, usage: response.usage })]);
       }
     } else {
       const stepId = `s${head + 1}`;
       await append([ev("LlmCallStarted", { stepId, requestDigest: digest, model: request.model })]);
-      response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, () => provider.complete(request));
+      response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, async (span) => {
+          const r = await provider.complete(request);
+          if (r.usage) span.setAttributes({ "gen_ai.usage.input_tokens": r.usage.inputTokens, "gen_ai.usage.output_tokens": r.usage.outputTokens });
+          return r;
+        });
       await append([ev("LlmCallCompleted", { stepId, response, usage: response.usage })]);
     }
     if (response.usage) {
