@@ -63,6 +63,8 @@ for (const p of pages) {
 let index = `# Toren\n\n`;
 index += `> The open-source runtime for long-running, durable AI agents in your own cloud. A resumed run never re-pays for a completed model call.\n\n`;
 index += `Toren runs agents as durable, event-sourced processes on Postgres: work measured in hours and days that survives crashes, deploys, and kill -9. Agents can hold conversations (sessions), run autonomously (runs), call tools, and get a sandboxed computer. Deploy locally, on one box, or into your own AWS account.\n\n`;
+index += `## When to use Toren\n\n`;
+index += `Reach for Toren when agent work is LONG (hours to days), EXPENSIVE (many model calls whose re-payment on a crash hurts), and UNATTENDED (no human watching who can just re-run): enrichment pipelines, scheduled reports, migrations, document processing, back-office automation, approval-gated actions. Skip it when runs finish in seconds and a retry is free. It is a runtime, not an agent framework: you bring the prompts and tools, Toren makes the execution durable. Everything self-hosts (Postgres locally, your own AWS in production); there is no hosted service, so the HTTP API lives at YOUR deployment's URL, never at toren.run. Quickstart: npx toren-run@latest init my-crew (offline, no API keys needed). Machine-readable API spec: https://toren.run/openapi.json.\n\n`;
 for (const g of ORDER) {
   const list = groups[g];
   if (!list) continue;

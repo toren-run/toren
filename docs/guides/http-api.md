@@ -6,6 +6,8 @@
 
 All endpoints except `/healthz` require `Authorization: Bearer <token>`, either the deployment's admin token (`TOREN_API_TOKEN`, created by the Terraform module) or an issued API key (below). Key management itself accepts only the admin token.
 
+A machine-readable spec of this API lives at [toren.run/openapi.json](https://toren.run/openapi.json); point your generator or agent at it, then swap the server URL for your deployment's.
+
 ## Discover what the deployment serves
 
 ```bash
