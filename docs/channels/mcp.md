@@ -6,4 +6,4 @@ The shape, following the same channel contract: an MCP server endpoint on the wo
 
 This is distinct from MCP as a tool source (your agents calling out to MCP servers for search, databases, and so on), which is on the roadmap as part of [tools](/tools/defining-tools).
 
-Watch the repo for progress (it opens with the public launch).
+Watch the [repo](https://github.com/toren-run/toren) for progress.

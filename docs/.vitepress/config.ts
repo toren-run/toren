@@ -25,6 +25,7 @@ export default defineConfig({
       { text: "Quickstart", link: "/quickstart" },
       { text: "Website", link: "https://toren.run" },
     ],
+    socialLinks: [{ icon: "github", link: "https://github.com/toren-run/toren" }],
     sidebar: [
       {
         text: "Start",

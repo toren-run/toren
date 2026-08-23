@@ -1,5 +1,7 @@
 # Toren
 
+[![ci](https://github.com/toren-run/toren/actions/workflows/ci.yml/badge.svg)](https://github.com/toren-run/toren/actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/toren-run)](https://www.npmjs.com/package/toren-run) [![license](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 **Toren runs agents that work for days and survive anything.**
 
 Toren is an open-source runtime for **process-shaped agents**: work measured in hours and days, not seconds. Agents run as durable processes on an append-only Postgres event log. They survive crashes, deploys, restarts, and a literal `kill -9`, and they run in **your** cloud.
