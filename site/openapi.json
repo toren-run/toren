@@ -90,6 +90,13 @@
         "responses": { "200": { "description": "event streams", "content": { "application/json": { "schema": { "type": "object", "properties": { "run": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } }, "tasks": { "type": "object", "additionalProperties": { "type": "array", "items": { "$ref": "#/components/schemas/Event" } } } } } } } } }
       }
     },
+    "/runs/{runId}/cancel": {
+      "post": {
+        "operationId": "cancelRun", "summary": "Retire a run: retries stop and queued work for it becomes a no-op",
+        "parameters": [{ "name": "runId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }],
+        "responses": { "200": { "description": "cancelled", "content": { "application/json": { "schema": { "type": "object", "properties": { "cancelled": { "type": "boolean" } } } } } }, "404": { "description": "unknown or already terminal", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } } }
+      }
+    },
     "/runs/{runId}/approvals": {
       "post": {
         "operationId": "resolveApproval", "summary": "Approve or deny a parked tool call; the run wakes and continues",

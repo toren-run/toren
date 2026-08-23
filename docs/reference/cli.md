@@ -11,6 +11,7 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 | `toren channels telegram invite [--dir]` | Mint a one-time pairing code for the deny-by-default [Telegram channel](../channels/telegram.md) |
 | `toren jobs list [--dir] [--json]` | All runs with status, including `waiting_approval` |
 | `toren jobs show <runId> [--dir] [--json]` | Status, per-wave progress, pending approvals, output |
+| `toren jobs cancel <runId> [--dir] [--env]` | Retire a run: retries stop and queued work for it becomes a no-op |
 | `toren jobs approve <runId> <taskId> <stepId> [--deny] [--comment <t>]` | Resolve a parked approval and drive the run onward |
 | `toren schedule create --cron <expr> --input <str> [--process <name>] [--dir <dir>] [--agent <name>] [--name] [--tz]` | Cron-triggered runs, fired by the workers exactly once, crash-safe; `--process` fires a named process. `--dir` is the agent directory the schedule is validated against (default `.`); `--agent` overrides the *target* agent name when scheduling for another crew in the fleet (see the [scheduling guide](../guides/scheduling.md)) |
 | `toren schedule list [--json]` · `pause <id>` · `resume <id>` · `rm <id>` | Manage schedules; resume recomputes the next fire from now |
@@ -19,4 +20,4 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 | `toren keys revoke <id> [--dir]` | Revoke a key immediately |
 | `toren deploy-aws --region <r> [--plan-only \| --yes] [--profile] [--state-bucket <b>] [--state-key <k>] [--image-context <dir> \| --image <uri>] [--agent-dir] [--module-dir]` | Terraform the AWS stack; refuses to apply without `--yes`. `--state-bucket` sets up remote S3 state (auto-created, versioned, locked; `--state-key` names the state object, default `toren/terraform.tfstate`). `--image-context` builds the agent image (arm64, git-SHA tag), pushes to ECR, and deploys with the tag pinned |
 
-All run/jobs commands take `--env <name>` (profiles from `.toren/environments.json`, see the [environments guide](../guides/environments.md)). Known gaps (roadmap): `toren jobs tail` (live event stream), `toren jobs cancel`.
+All run/jobs commands take `--env <name>` (profiles from `.toren/environments.json`, see the [environments guide](../guides/environments.md)). Known gaps (roadmap): `toren jobs tail` (live event stream).

@@ -186,3 +186,14 @@ test("POST /runs with a process routes to that workflow; unknown process is a 40
   expect(bad.status).toBe(400);
   expect(bad.json.error).toMatch(/no process "nope"/);
 });
+
+test("POST /runs/:id/cancel retires a run; unknown id is 404", async () => {
+  const post = await api("POST", "/runs", { input: "doomed" });
+  const runId = post.json.runId as string;
+  const cancel = await api("POST", `/runs/${runId}/cancel`);
+  expect(cancel.status).toBe(200);
+  expect(cancel.json.cancelled).toBe(true);
+  const got = await api("GET", `/runs/${runId}`);
+  expect(got.json.run.status).toBe("cancelled");
+  expect((await api("POST", "/runs/00000000-0000-4000-8000-00000000dead/cancel")).status).toBe(404);
+});

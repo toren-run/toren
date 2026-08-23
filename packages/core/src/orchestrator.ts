@@ -49,6 +49,29 @@ export async function startRun(deps: TickDeps, req: { agent: string; input: stri
   return runId;
 }
 
+/**
+ * Retire a run from outside: appends RunCancelled and marks the row, so every
+ * queued hint for it becomes a no-op and retries stop. The escape hatch for a
+ * run stuck retrying a permanently broken dependency. Returns false for an
+ * unknown run; true if the run is (now) cancelled.
+ */
+export async function cancelRun(deps: TickDeps, runId: string, reason = "cancelled by operator"): Promise<boolean> {
+  for (let i = 0; i < 5; i++) {
+    const run = await deps.store.getRun(runId);
+    if (!run) return false;
+    if (run.status === "cancelled") return true;
+    if (run.status === "completed" || run.status === "failed") return false;
+    const head = (await deps.store.read(runId, "run")).at(-1)?.seq ?? 0;
+    const r = await deps.store.append(runId, "run", head, [ev("RunCancelled", { reason })]);
+    if (r.ok) {
+      await deps.store.updateRun(runId, { status: "cancelled", error: reason });
+      return true;
+    }
+    // A worker advanced the stream between read and append; look again.
+  }
+  throw new Error(`could not cancel ${runId}: the run stream kept advancing`);
+}
+
 export async function tick(deps: TickDeps, runId: string): Promise<TickResult> {
   return withSpan("toren.run.tick", { "toren.run_id": runId }, () => tickImpl(deps, runId));
 }

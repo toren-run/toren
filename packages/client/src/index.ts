@@ -93,6 +93,11 @@ export class TorenClient {
     return this.request("GET", `/runs/${encodeURIComponent(runId)}/events`);
   }
 
+  /** Retire a run: retries stop and queued work for it becomes a no-op. */
+  async cancelRun(runId: string): Promise<void> {
+    await this.request("POST", `/runs/${encodeURIComponent(runId)}/cancel`);
+  }
+
   async approve(runId: string, req: { taskId: string; stepId: string; granted: boolean; comment?: string }): Promise<void> {
     await this.request("POST", `/runs/${encodeURIComponent(runId)}/approvals`, req);
   }

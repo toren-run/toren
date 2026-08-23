@@ -1,9 +1,9 @@
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { resolveEnvProfile } from "./environments.js";
-import { remoteJobsApprove, remoteJobsList, remoteJobsShow, remoteRun } from "./remote.js";
+import { remoteJobsApprove, remoteJobsCancel, remoteJobsList, remoteJobsShow, remoteRun } from "./remote.js";
 import {
-  cmdDev, cmdInit, cmdJobsApprove, cmdJobsList, cmdJobsShow, cmdKeysCreate, cmdKeysList, cmdKeysRevoke,
+  cmdDev, cmdInit, cmdJobsApprove, cmdJobsCancel, cmdJobsList, cmdJobsShow, cmdKeysCreate, cmdKeysList, cmdKeysRevoke,
   cmdRun, cmdScheduleCreate, cmdScheduleList, cmdScheduleSet,
 } from "./commands.js";
 
@@ -89,6 +89,15 @@ export async function main(argv: string[]): Promise<void> {
       const profile = resolveEnvProfile(opts.env, opts.dir);
       if (profile.kind === "api") return remoteJobsShow(profile, runId, opts, io);
       return cmdJobsShow(opts.dir, runId, { ...opts, databaseUrl: profile.databaseUrl });
+    });
+  jobs.command("cancel <runId>")
+    .description("Retire a run: retries stop and queued work for it becomes a no-op")
+    .option("--dir <dir>", "agent directory", ".")
+    .option("--env <name>", "environment profile", "local")
+    .action(async (runId: string, opts: { dir: string; env?: string }) => {
+      const profile = resolveEnvProfile(opts.env, opts.dir);
+      if (profile.kind === "api") return remoteJobsCancel(profile, runId, io);
+      return cmdJobsCancel(opts.dir, runId, { databaseUrl: profile.databaseUrl });
     });
   jobs.command("approve <runId> <taskId> <stepId>")
     .option("--dir <dir>", "agent directory", ".")

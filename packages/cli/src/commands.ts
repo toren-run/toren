@@ -4,7 +4,7 @@ import {
   fileManifest, PgFiles,
   createApiKey, createSchedule, deleteSchedule, effectiveEvents, foldRunStream, listApiKeys,
   listPendingApprovals, listSchedules, resolveApproval, revokeApiKey, setScheduleEnabled,
-  startRun, sweep, sweepSchedules, sweepWatchers,
+  cancelRun, startRun, sweep, sweepSchedules, sweepWatchers,
 } from "@toren-run/core";
 import { loadAgentDir, loadProject } from "./loader.js";
 import { buildFleetRuntime, buildRuntime, driveRun, type SettledRun } from "./runtime.js";
@@ -352,6 +352,18 @@ export async function cmdJobsShow(dir: string, runId: string, opts: { json?: boo
     for (const w of waves) io.out(`  wave ${w.name}: ${w.settled}/${w.tasks} settled${w.done ? " ✓" : ""}`);
     for (const a of approvals) io.out(`  pending approval: ${a.tool} ${JSON.stringify(a.args)}  → toren jobs approve ${a.runId} ${a.taskId} ${a.stepId}`);
     if (run.status === "completed") io.out(`  output: ${String(run.output)}`);
+  } finally {
+    await rt.close();
+  }
+}
+
+export async function cmdJobsCancel(dir: string, runId: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+  const loaded = await loadAgentDir(dir);
+  const rt = await buildRuntime(loaded, opts.databaseUrl);
+  try {
+    const ok = await cancelRun(rt.deps, runId, `cancelled by ${process.env.USER ?? "operator"}`);
+    if (!ok) throw new Error(`run ${runId} is unknown or already terminal`);
+    io.out(`run ${runId}  cancelled; queued retries become no-ops`);
   } finally {
     await rt.close();
   }

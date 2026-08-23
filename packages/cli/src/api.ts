@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve } from "node:path";
 import {
   createApiKey, createPool, createSchedule, deleteSchedule, effectiveEvents, fileManifest, foldRunStream,
-  getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
+  cancelRun, getSession, listApiKeys, listPendingApprovals, listSchedules, listSessions, PgFiles, resolveApproval,
   revokeApiKey, SessionBusyError, sendSessionMessage, setScheduleEnabled, startRun, startSession,
   verifyApiKey,
   type TickDeps,
@@ -367,6 +367,12 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
             }
           }
           return send(res, 200, { run: runEvents, tasks });
+        }
+
+        // POST /runs/:id/cancel — retire a run; retries stop, queued hints no-op
+        if (req.method === "POST" && parts.length === 3 && parts[2] === "cancel") {
+          const ok = await cancelRun(deps, runId, "cancelled via API");
+          return ok ? send(res, 200, { cancelled: true }) : send(res, 404, { error: `run ${runId} is unknown or already terminal` });
         }
 
         // POST /runs/:id/approvals

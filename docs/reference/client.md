@@ -19,6 +19,7 @@ const client = new TorenClient({ url: "https://agents.example.com", token: proce
 | `listRuns()` | → `RunSummary[]` (the newest runs across every crew) |
 | `getEvents(runId)` | → the full event transcript: `{ run: events[], tasks: { taskId: events[] } }` |
 | `approve(runId, { taskId, stepId, granted, comment? })` | Resolve a parked [approval](../guides/approvals.md) |
+| `cancelRun(runId)` | Retire a run: retries stop, queued work for it becomes a no-op |
 | `uploadFile({ name, data })` | `POST /files` → `{ fileId, … }`; pass `data` as `Uint8Array` or base64 string |
 
 ## Sessions
