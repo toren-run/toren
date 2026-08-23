@@ -106,7 +106,10 @@ nav {
 nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
 nav .links a { color: var(--ink); text-decoration: none; font-weight: 600; font-size: 14.5px; }
 nav .links a:hover { color: var(--teal); }
-.cta { background: var(--signal); color: #fff !important; padding: 9px 18px; border-radius: 5px; font-weight: 600; font-size: 14.5px; text-decoration: none; box-shadow: 3px 3px 0 rgba(18,33,52,.85); transition: transform .12s, box-shadow .12s; }
+.cta { background: var(--signal); color: #fff !important; padding: 9px 18px; border-radius: 5px; font-weight: 600; font-size: 14.5px; text-decoration: none; white-space: nowrap; box-shadow: 3px 3px 0 rgba(18,33,52,.85); transition: transform .12s, box-shadow .12s; }
+.cta .cta-short { display: none; }
+.gh-link { display: inline-flex; align-items: center; }
+.gh-link svg { width: 21px; height: 21px; fill: currentColor; }
 .cta:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 rgba(18,33,52,.85); }
 
 /* ============ sections: numbered, each its own logic ============ */
@@ -284,8 +287,11 @@ footer { margin-top: 110px; }
   .sheet-frame { margin: 8px; }
   nav { gap: 14px; }
   .sheetchip { display: none; }
-  nav .links { gap: 0; }
+  nav .links { gap: 14px; }
   nav .links a:not(.cta):not(.keep) { display: none; }
+  .cta { padding: 8px 13px; font-size: 13px; }
+  .cta .cta-long { display: none; }
+  .cta .cta-short { display: inline; }
   .hero { padding-top: 56px; }
   .hero h1 { font-size: clamp(30px, 9.4vw, 40px); }
   .hero h1 br { display: none; }
@@ -326,8 +332,8 @@ footer { margin-top: 110px; }
     <a href="#s6">Compare</a>
     <a href="#s8">Plans</a>
     <a class="keep" href="/docs/">Docs</a>
-    <a class="keep" href="https://github.com/toren-run/toren">GitHub</a>
-    <a class="cta" href="#s3">Watch the kill test</a>
+    <a class="keep gh-link" href="https://github.com/toren-run/toren" aria-label="Toren on GitHub" title="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
+    <a class="cta" href="#s3"><span class="cta-long">Watch the kill test</span><span class="cta-short">Kill test</span></a>
   </div>
 </nav>
 
