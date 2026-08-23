@@ -5,6 +5,9 @@ import type { Delivery } from "./queue.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Exponential backoff for task retries: 0.2s doubling per attempt, capped at 60s. */
+export const retryDelaySeconds = (attempt: number): number => Math.min(60, 0.2 * 2 ** Math.max(0, attempt - 1));
+
 export interface WorkerOpts { concurrency?: number; visibilitySeconds?: number; pollMs?: number }
 
 /**
@@ -166,7 +169,17 @@ export class LocalWorkerRuntime {
           await this.shared.queue.nack(d, { delaySeconds: 20 });
           return;
         }
-        await this.shared.queue.nack(d, { delaySeconds: 0.2 });
+        // An outside dependency failed (a provider, a tool, the network). The
+        // retry is durability doing its job; the reason must not vanish into
+        // it. Record it on the run so jobs/console answer "why is it stuck"
+        // while the retries continue; a later success clears it.
+        try {
+          const reason = e instanceof Error ? e.message : String(e);
+          await deps.store.updateRun(msg.runId, {
+            error: `${reason}${msg.taskId ? ` (task ${msg.taskId}, attempt ${d.attempt})` : ""}`,
+          });
+        } catch { /* the store may be the thing that failed */ }
+        await this.shared.queue.nack(d, { delaySeconds: retryDelaySeconds(d.attempt) });
       } catch {
         // Queue unreachable too: do nothing. The visibility timeout redelivers
         // the message; hints are never truth, so losing an ack costs a retry.

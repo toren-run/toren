@@ -133,13 +133,14 @@ async function tickImpl(deps: TickDeps, runId: string): Promise<TickResult> {
       const output = await workflow(ctx);
       const r = await deps.store.append(runId, "run", session.head, [ev("RunCompleted", { output })]);
       if (!r.ok) throw new RunLeaseLostError("run stream advanced concurrently");
-      await deps.store.updateRun(runId, { status: "completed", output });
+      await deps.store.updateRun(runId, { status: "completed", output, error: null });
       await flush();
       return "completed";
     } catch (e) {
       if (e instanceof WorkflowBlocked) {
         await flush();
-        await deps.store.updateRun(runId, { status: "running" });
+        // Parking cleanly is progress: a transient error recorded by a worker retry is stale now.
+        await deps.store.updateRun(runId, { status: "running", error: null });
         return "blocked";
       }
       if (e instanceof RunLeaseLostError) throw e;

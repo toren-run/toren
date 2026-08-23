@@ -28,6 +28,44 @@ export function selectQueue(pool: ReturnType<typeof createPool>, env: NodeJS.Pro
   return new PgQueue(pool);
 }
 
+/** Provider prefixes ("anthropic", "openai") actually used by these agents; mock never counts. */
+export function usedProviderPrefixes(agents: Record<string, { model: string }>): string[] {
+  const prefixes = new Set<string>();
+  for (const a of Object.values(agents)) {
+    const p = a.model.split("/")[0]!;
+    if (p !== "mock") prefixes.add(p);
+  }
+  return [...prefixes];
+}
+
+/**
+ * One cheap authenticated call per provider actually in use, so a bad key is
+ * a startup line instead of a silent retry loop. The models endpoints cost
+ * nothing. TOREN_SKIP_PREFLIGHT=1 skips (air-gapped or offline starts).
+ */
+async function preflightProviders(agents: Record<string, { model: string }>): Promise<void> {
+  if (process.env.TOREN_SKIP_PREFLIGHT === "1") return;
+  for (const prefix of usedProviderPrefixes(agents)) {
+    const check: { env: string; url: string; headers: Record<string, string> } | null =
+      prefix === "anthropic"
+        ? { env: "ANTHROPIC_API_KEY", url: "https://api.anthropic.com/v1/models?limit=1", headers: { "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01" } }
+        : prefix === "openai"
+          ? { env: "OPENAI_API_KEY", url: "https://api.openai.com/v1/models", headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}` } }
+          : null;
+    if (!check) continue; // unknown prefix fails later with the router's own error
+    let res: Response;
+    try {
+      res = await fetch(check.url, { headers: check.headers });
+    } catch (e) {
+      throw new Error(`provider preflight for ${prefix}/ could not reach the API (${e instanceof Error ? e.message : String(e)}). Set TOREN_SKIP_PREFLIGHT=1 to start anyway.`);
+    }
+    if (!res.ok) {
+      const detail = (await res.text().catch(() => "")).slice(0, 200);
+      throw new Error(`provider preflight failed for ${prefix}/: HTTP ${res.status}${detail ? ` ${detail}` : ""}. Check ${check.env} before workers burn retries on it.`);
+    }
+  }
+}
+
 export interface Runtime {
   pool: ReturnType<typeof createPool>;
   deps: TickDeps;
@@ -100,6 +138,7 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
   const sandbox = await makeSandboxProvider(pool, loaded);
   if (sandbox) deps.sandbox = sandbox;
   deps.processes = makeProcessesFacet(pool, loaded.name, deps, { defaultProcess: loaded.defaultProcess });
+  await preflightProviders(loaded.agents);
   return { pool, deps, schema, close: () => pool.end() };
 }
 
@@ -135,6 +174,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
     };
     byAgent[name]!.processes = makeProcessesFacet(pool, name, byAgent[name]!, { defaultProcess: loaded.defaultProcess });
   }
+  await preflightProviders(Object.fromEntries(Object.values(project.crews).flatMap((c) => Object.values(c.agents)).map((a, i) => [i, a])));
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };
 }
 

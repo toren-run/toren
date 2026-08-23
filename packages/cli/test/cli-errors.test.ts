@@ -20,3 +20,10 @@ test("an unreachable database produces an actionable error, never a blank one", 
   expect(stderr).toMatch(/docker compose up -d db/);
   expect(stderr).toMatch(/DATABASE_URL/);
 });
+
+test("preflight targets only the provider prefixes agents actually use; mock never counts", async () => {
+  const { usedProviderPrefixes } = await import("../src/runtime.js");
+  expect(usedProviderPrefixes({ a: { model: "mock/echo" }, b: { model: "mock/slow" } })).toEqual([]);
+  expect(usedProviderPrefixes({ a: { model: "mock/echo" }, b: { model: "anthropic/claude-opus-5" }, c: { model: "openai/gpt-4o" } }).sort())
+    .toEqual(["anthropic", "openai"]);
+});

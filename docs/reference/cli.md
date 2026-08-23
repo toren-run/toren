@@ -1,6 +1,6 @@
 # CLI reference
 
-All commands take `--json` for machine-readable output where applicable. `DATABASE_URL` selects the Postgres instance (default `postgres://toren:toren@localhost:5433/toren`); `TOREN_QUEUE=sqs` selects the SQS queue adapter, which needs all three queue URLs (`TOREN_SQS_URL_ORCHESTRATOR`, `TOREN_SQS_URL_TASKS_SHORT`, `TOREN_SQS_URL_TASKS_LONG`) plus `AWS_REGION`; the Terraform module prints them. `TOREN_SANDBOX` (`auto`|`docker`|`e2b`|`none`) picks the [sandbox](../tools/sandbox.md) backend, with `E2B_API_KEY` for the cloud one.
+All commands take `--json` for machine-readable output where applicable. `DATABASE_URL` selects the Postgres instance (default `postgres://toren:toren@localhost:5433/toren`); `TOREN_QUEUE=sqs` selects the SQS queue adapter, which needs all three queue URLs (`TOREN_SQS_URL_ORCHESTRATOR`, `TOREN_SQS_URL_TASKS_SHORT`, `TOREN_SQS_URL_TASKS_LONG`) plus `AWS_REGION`; the Terraform module prints them. `TOREN_SANDBOX` (`auto`|`docker`|`e2b`|`none`) picks the [sandbox](../tools/sandbox.md) backend, with `E2B_API_KEY` for the cloud one; `TOREN_SKIP_PREFLIGHT=1` skips the startup provider-credential check.
 
 | Command | What it does |
 |---|---|
