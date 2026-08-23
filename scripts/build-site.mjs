@@ -18,8 +18,14 @@ if (flag !== "--skip-docs-build") {
 const dist = join(root, "docs/.vitepress/dist");
 if (!existsSync(dist)) { console.error(`no docs build at ${dist} — run pnpm docs:build`); process.exit(1); }
 
+// Preserve the Vercel project link across rebuilds: without it, a deploy
+// from this directory silently creates a brand-new project.
+const linkDir = join(outDir, ".vercel");
+const savedLink = existsSync(linkDir) ? join(outDir, "..", ".vercel-link-backup") : null;
+if (savedLink) { rmSync(savedLink, { recursive: true, force: true }); cpSync(linkDir, savedLink, { recursive: true }); }
 rmSync(outDir, { recursive: true, force: true });
 mkdirSync(join(outDir, "docs"), { recursive: true });
+if (savedLink) { cpSync(savedLink, linkDir, { recursive: true }); rmSync(savedLink, { recursive: true, force: true }); }
 cpSync(join(root, "site"), outDir, { recursive: true });
 cpSync(dist, join(outDir, "docs"), { recursive: true });
 // The themed 404 at the bundle root: Vercel serves /404.html for any miss;
