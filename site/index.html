@@ -324,10 +324,10 @@ footer { margin-top: 110px; }
     <a href="#s2">Principle</a>
     <a href="#s4">System</a>
     <a href="#s6">Compare</a>
-    <a href="#s8">Pricing</a>
+    <a href="#s8">Plans</a>
     <a class="keep" href="/docs/">Docs</a>
     <a class="keep" href="https://github.com/toren-run/toren">GitHub</a>
-    <a class="cta" href="#s3">Run the kill test</a>
+    <a class="cta" href="#s3">Watch the kill test</a>
   </div>
 </nav>
 
@@ -471,6 +471,7 @@ kill the worker mid-build:
 the successor reconnects the
 same workspace and keeps going</pre></div>
   </div>
+  <p class="lede" style="margin-top:26px">One runtime underneath: the same durable substrate runs your chat assistant, your overnight coding job, your scheduled pipelines, and the background runs a conversation spawns. Different shapes of agent, one guarantee.</p>
 </section>
 
 <!-- ======== 05 SPEC STRIP ======== -->
@@ -489,16 +490,20 @@ same workspace and keeps going</pre></div>
 <section id="s6">
   <span class="shnum" aria-hidden="true">06</span>
   <h2>They optimize time-to-first-agent. We optimize agent-lifetime.</h2>
+  <p class="lede">The real alternative to Toren isn't one tool. It's a stack: a framework for the agent, a workflow engine for durability, a sandbox vendor for the computer, glue for the rest. Every seam is yours to build, operate, and debug at 3am.</p>
   <div class="tablewrap rev"><table>
-    <thead><tr><th></th><th></th><th>Long-running agents</th><th>Your cloud</th><th>Never re-pay tokens</th><th>Open source</th></tr></thead>
+    <thead><tr><th></th><th>The layer</th><th>Assembled</th><th>In Toren</th></tr></thead>
     <tbody>
-      <tr><td class="idx">01</td><td>Vercel Eve</td><td>limited</td><td>no (theirs)</td><td>no</td><td>framework only</td></tr>
-      <tr><td class="idx">02</td><td>Temporal</td><td>code, not agents</td><td>yes</td><td>no</td><td>yes</td></tr>
-      <tr><td class="idx">03</td><td>LangGraph</td><td>checkpoints only</td><td>partly</td><td>no</td><td>yes</td></tr>
-      <tr><td class="idx">04</td><td>Inngest / Restate</td><td>functions, not agents</td><td>partly</td><td>no</td><td>partly</td></tr>
-      <tr class="toren"><td class="idx">05</td><td>TOREN</td><td>yes, by design</td><td>yes, by design</td><td>yes</td><td>yes · Apache-2.0</td></tr>
+      <tr><td class="idx">01</td><td>The agent loop</td><td>LangChain / CrewAI / your code</td><td>built in: task loops, subagents, waves</td></tr>
+      <tr><td class="idx">02</td><td>Durability</td><td>+ Temporal or Inngest, wired in</td><td>the event log <em>is</em> the runtime</td></tr>
+      <tr><td class="idx">03</td><td>A computer</td><td>+ E2B or Modal, state on you</td><td><code>sandbox: true</code>, survives the worker</td></tr>
+      <tr><td class="idx">04</td><td>Scheduling</td><td>+ cron and idempotency glue</td><td>exactly-once, crash-tested</td></tr>
+      <tr><td class="idx">05</td><td>Talking to it</td><td>+ a bot framework per channel</td><td>durable sessions: console, CLI, HTTP, Telegram</td></tr>
+      <tr><td class="idx">06</td><td>Approvals &amp; console</td><td>build it yourself</td><td>built in, parked at $0 compute</td></tr>
+      <tr><td class="idx">07</td><td>Deploy</td><td>compose all of the above</td><td><code>docker compose up</code> · <code>toren deploy-aws</code></td></tr>
     </tbody>
   </table></div>
+  <p class="lede" style="margin-top:22px">Six systems with six failure modes, or one runtime on one Postgres event log, where a <span style="white-space:nowrap">kill&nbsp;-9</span> anywhere loses nothing.</p>
 </section>
 
 <!-- ======== 07 DEPLOY ======== -->
@@ -531,7 +536,7 @@ same workspace and keeps going</pre></div>
     <div class="tier soon"><h3>Toren Cloud</h3><div class="price">coming soon</div>
       <ul><li>Fully hosted, zero ops</li><li>Dashboard &amp; approvals UI</li><li>Hosted memory</li><li>For teams without infra</li></ul></div>
     <div class="tier flag soon"><h3>Toren BYOC</h3><div class="price">coming soon · design partners welcome</div>
-      <ul><li>Data plane in <strong>your</strong> cloud: payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>The self-improvement loop, fed by fleet telemetry</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
+      <ul><li>Data plane in <strong>your</strong> cloud: payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>Fleet analytics across your deployments, from metadata only</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
   </div>
 </section>
 
@@ -546,8 +551,8 @@ same workspace and keeps going</pre></div>
     <div class="tcell"><span class="k">Drawn by</span>humans + agents, durably</div>
   </div>
   <div class="revtable">
-    <span>REV A · Aug 2026 · first issue</span>
-    <span>CHECKED · 94 assertions in CI</span>
+    <span>REV B · Aug 2026 · public issue</span>
+    <span>CHECKED · <a href="https://github.com/toren-run/toren/actions/workflows/ci.yml" style="color:inherit">kill matrix green in CI</a></span>
     <span>APPROVED · pending your kill -9</span>
   </div>
 </footer>
