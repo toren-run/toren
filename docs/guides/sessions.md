@@ -12,7 +12,7 @@ Sessions always talk to the crew's root agent. If the crew has a custom batch wo
 
 ## Where you talk
 
-Every surface is a [channel](/channels/) over the same session protocol: the [console](/channels/console), the [CLI](/channels/cli) (`toren chat`), the [HTTP API](/channels/http-api), and [Telegram](/channels/telegram), with MCP and WhatsApp on the way. A conversation started in one is visible in all of them, each message tagged with the channel it arrived from.
+Every surface is a [channel](/channels/) over the same session protocol: the [console](/channels/console), the [CLI](/channels/cli) (`toren chat`), the [HTTP API](/channels/http-api), and [Telegram](/channels/telegram), with WhatsApp on the way. Background runs are also drivable from [MCP clients](/channels/mcp) like Claude Code and Cursor. A conversation started in one is visible in all of them, each message tagged with the channel it arrived from.
 
 ## Lifecycle
 

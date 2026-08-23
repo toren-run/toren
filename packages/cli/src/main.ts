@@ -51,6 +51,14 @@ export async function main(argv: string[]): Promise<void> {
       return cmdChat(dir ?? ".", { ...opts, files: opts.file, databaseUrl: profile.databaseUrl });
     });
 
+  program.command("mcp")
+    .description("Serve this project's agents to a local MCP client (Claude Code, Cursor) over stdio; workers run inside")
+    .option("--dir <dir>", "agent directory, or a folder of agent directories (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])
+    .action(async (opts: { dir: string[] }) => {
+      const { cmdMcp } = await import("./commands.js");
+      await cmdMcp(opts.dir.length > 0 ? opts.dir : ["."]);
+    });
+
   program.command("dev")
     .description("Serve a fleet of process agents: workers + guardians for every agent in every --dir, plus the HTTP API and web console (ephemeral token minted unless TOREN_API_TOKEN pins one)")
     .option("--dir <dir>", "agent directory, or a folder of agent directories (repeatable)", (v: string, acc: string[]) => [...acc, v], [] as string[])

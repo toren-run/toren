@@ -140,6 +140,18 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       const principal = await authenticate(req, cfg);
       if (!principal) return send(res, 401, { error: "missing or invalid bearer token" });
 
+      // /mcp — the MCP serve channel over Streamable HTTP, behind the same
+      // bearer tokens as everything else. Stateless: one server per request.
+      if (parts.length === 1 && parts[0] === "mcp") {
+        const { buildMcpServer } = await import("./mcp.js");
+        const { StreamableHTTPServerTransport } = await import("@modelcontextprotocol/sdk/server/streamableHttp.js");
+        const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+        const server = buildMcpServer(byAgent, { defaultAgent, info: cfg.agentInfo });
+        await server.connect(transport);
+        res.on("close", () => { void transport.close(); void server.close(); });
+        return transport.handleRequest(req, res);
+      }
+
       // POST /files — upload a file; parsed to pages once, stored by content
       // hash. Attach the returned fileId to runs and session messages.
       if (req.method === "POST" && parts.length === 1 && parts[0] === "files") {

@@ -64,7 +64,7 @@ export default defineConfig({
           { text: "CLI", link: "/channels/cli" },
           { text: "HTTP API", link: "/channels/http-api" },
           { text: "Telegram", link: "/channels/telegram" },
-          { text: "MCP (soon)", link: "/channels/mcp" },
+          { text: "MCP", link: "/channels/mcp" },
           { text: "WhatsApp (soon)", link: "/channels/whatsapp" },
         ],
       },

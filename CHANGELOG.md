@@ -2,6 +2,10 @@
 
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
+## Unreleased
+
+- MCP serve channel: Toren is an MCP server. `toren mcp` serves a project over stdio to local clients (Claude Code, Cursor; workers run inside); every deployment also serves Streamable HTTP at `POST /mcp` behind the existing bearer tokens. Six tools: list_agents, start_run, run_status, list_runs, cancel_run, resolve_approval.
+
 ## 0.1.3 — 2026-08-23
 
 First release shaped by a production field report (Fargate + RDS + Telegram).

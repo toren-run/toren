@@ -108,6 +108,40 @@ function crewInfo(loaded: { name: string; agents: Record<string, import("@toren-
   };
 }
 
+/**
+ * MCP over stdio: a self-contained serving process for local MCP clients
+ * (Claude Code, Cursor). Spawned by the client, no auth, no network; workers
+ * and guardians run inside so started runs actually execute. stdout belongs
+ * to the transport — anything human goes to stderr.
+ */
+export async function cmdMcp(dirs: string | string[], opts: { databaseUrl?: string } = {}): Promise<void> {
+  const project = await loadProject(Array.isArray(dirs) ? dirs : [dirs]);
+  const rt = await buildFleetRuntime(project, opts.databaseUrl);
+  const { LocalWorkerRuntime } = await import("@toren-run/core");
+  const worker = new LocalWorkerRuntime(rt.byAgent, { concurrency: 4 });
+  worker.start();
+  const sweeps = setInterval(() => {
+    for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* next tick retries */ });
+    void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* next tick retries */ });
+    void sweepWatchers(rt.pool, rt.byAgent).catch(() => { /* next tick retries */ });
+  }, 5_000);
+  const names = Object.keys(rt.byAgent);
+  const info = {
+    default: names[0]!,
+    crews: Object.fromEntries(Object.entries(rt.crews).map(([name, loaded]) => [name, crewInfo(loaded)])),
+  };
+  const { buildMcpServer } = await import("./mcp.js");
+  const { StdioServerTransport } = await import("@modelcontextprotocol/sdk/server/stdio.js");
+  const server = buildMcpServer(rt.byAgent, { defaultAgent: names[0]!, info });
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error(`toren mcp: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents`} over stdio`);
+  await new Promise<void>((resolve) => { transport.onclose = resolve; });
+  clearInterval(sweeps);
+  await worker.stop();
+  await rt.close();
+}
+
 /** Long-running fleet daemon (the docker-image entrypoint): every agent in every --dir. */
 export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: string; sweepMs?: number; apiPort?: number } = {}, io: CmdIO = stdoutIO): Promise<never> {
   const project = await loadProject(Array.isArray(dirs) ? dirs : [dirs]);

@@ -8,6 +8,7 @@ All commands take `--json` for machine-readable output where applicable. `DATABA
 | `toren run <dir> --input <str> [--process <name>] [--file <path>]… [--json] [--detach] [--env <name>]` | Start a run and drive it to completion or an approval park (`--process`: pick a named process from `workflows/`; `--file`: attach a local pdf/docx/xlsx/text, repeatable; `--detach`: start it and exit; workers pick it up) |
 | `toren dev [--dir <dir>]… [--api-port <p>]` | Serve a fleet: workers + guardians for every agent in every `--dir` (repeatable; a folder of agent dirs loads them all). Always serves the [HTTP API](../guides/http-api.md) and the web console at `/console`; an ephemeral token is minted and printed unless `TOREN_API_TOKEN` pins one |
 | `toren chat [dir] [--agent <name>] [--session <runId>] [--file <path>]… [--env <name>]` | Talk to an agent from the terminal: a durable [session](../guides/sessions.md). `/end` closes; Ctrl+C leaves it open; `--session` resumes; `--file` attaches to the first message |
+| `toren mcp [--dir <dir>]…` | Serve the project to a local MCP client (Claude Code, Cursor) over stdio; workers run inside |
 | `toren channels telegram invite [--dir]` | Mint a one-time pairing code for the deny-by-default [Telegram channel](../channels/telegram.md) |
 | `toren jobs list [--dir] [--json]` | All runs with status, including `waiting_approval` |
 | `toren jobs show <runId> [--dir] [--json]` | Status, per-wave progress, pending approvals, cost roll-up, recorded errors, output |
