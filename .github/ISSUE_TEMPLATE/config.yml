@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions, ideas, and field reports
+    url: https://github.com/toren-run/toren/discussions
+    about: Anything that isn't a bug — setup help, design questions, what you built, what confused you.
