@@ -14,7 +14,7 @@ function hasDocker(): boolean {
   }
 }
 
-describe.skipIf(!hasDocker())("named processes × sandbox (lazy mount)", () => {
+describe.skipIf(!hasDocker() || process.env.TOREN_SKIP_DOCKER_TESTS === "1")("named processes × sandbox (lazy mount)", () => {
   const prior = process.env.TOREN_SANDBOX;
   beforeAll(() => { process.env.TOREN_SANDBOX = "docker"; });
   afterAll(() => {

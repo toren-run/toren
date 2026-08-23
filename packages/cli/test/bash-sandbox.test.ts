@@ -66,7 +66,7 @@ async function freshRun(): Promise<string> {
   return runId;
 }
 
-describe.skipIf(!hasDocker())("bash sandbox (docker)", () => {
+describe.skipIf(!hasDocker() || process.env.TOREN_SKIP_DOCKER_TESTS === "1")("bash sandbox (docker)", () => {
   beforeAll(async () => {
     await tx(pool, async (c) => { await migrateControl(c); await provisionAgent(c, "sbxtest"); });
     await pool.query(`TRUNCATE ${SCHEMA}.events, ${SCHEMA}.streams, ${SCHEMA}.leases, ${SCHEMA}.blobs, ${SCHEMA}.runs CASCADE`);
@@ -166,7 +166,7 @@ describe.skipIf(hasDocker())("bash sandbox (no docker on this machine)", () => {
   test("suite skipped", () => { expect(true).toBe(true); });
 });
 
-describe.skipIf(!hasDocker())("workspace file tools", () => {
+describe.skipIf(!hasDocker() || process.env.TOREN_SKIP_DOCKER_TESTS === "1")("workspace file tools", () => {
   test("write, read with line numbers, exact-string edit", { timeout: 60_000 }, async () => {
     const { SANDBOX_TOOLKIT } = await import("@toren-run/core");
     const byName = Object.fromEntries(SANDBOX_TOOLKIT.map((t) => [t.name, t]));
@@ -218,7 +218,7 @@ describe.skipIf(!hasDocker())("workspace file tools", () => {
   });
 });
 
-describe.skipIf(!hasDocker())("bash crash-window semantics (honest at-least-once)", () => {
+describe.skipIf(!hasDocker() || process.env.TOREN_SKIP_DOCKER_TESTS === "1")("bash crash-window semantics (honest at-least-once)", () => {
   test("a non-idempotent command may apply at-least-once across a crash, and this is the documented contract", { timeout: 120_000 }, async () => {
     // This test documents reality rather than overclaiming: bash side effects
     // are at-least-once in the crash window. We assert the workspace ends in a
