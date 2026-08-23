@@ -27,7 +27,13 @@ jobs:
           node-version: 22
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      # The docker-gated sandbox suites assume the default image is already
+      # local (as it is on any dev machine); a cold pull mid-test reads as a
+      # dead container.
+      - run: docker pull -q node:22-slim
       - run: pnpm typecheck
+      # vitest resolves @toren-run/console through its built entry.
+      - run: pnpm build
       # The full suite includes the chaos kill matrices: the stack is crashed
       # after every database write point and each model call must be billed
       # exactly once. Live-provider and E2B tests self-skip without keys.
