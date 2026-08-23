@@ -71,6 +71,8 @@ export function toOpenAIParams(req: ModelRequest): OpenAI.Chat.Completions.ChatC
   return {
     model: req.model.replace(/^openai\//, ""),
     max_completion_tokens: req.maxTokens,
+    // gpt-5.6+ reject tools via chat/completions unless reasoning_effort is set.
+    ...(req.reasoningEffort ? { reasoning_effort: req.reasoningEffort as OpenAI.Chat.Completions.ChatCompletionCreateParams["reasoning_effort"] } : {}),
     messages: [
       ...(req.system ? [{ role: "system" as const, content: req.system }] : []),
       ...toSdkMessages(req.messages),

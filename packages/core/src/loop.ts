@@ -27,6 +27,10 @@ export interface AgentSpec {
   tools: ToolDefAny[];
   maxTokens: number;
   maxSteps: number;
+  /** Passed to reasoning models (agent.yaml `reasoning_effort:`); absent leaves request digests untouched. */
+  reasoningEffort?: string;
+  /** Opt-in poison-pill (agent.yaml `limits.maxAttemptsPerTask`): terminally fail a task after this many attempts instead of retrying forever. */
+  maxTaskAttempts?: number;
   outputSchema?: z.ZodTypeAny;
   /** Declared env values (from agent.yaml `env:`) passed to tool handlers as ctx.env. */
   env?: Record<string, string>;
@@ -151,6 +155,11 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
   }
 
   const attempt = raw.filter((e) => e.type === "TaskStarted").length + 1;
+  if (agent.maxTaskAttempts && attempt > agent.maxTaskAttempts) {
+    const error = `gave up after ${agent.maxTaskAttempts} attempts (limits.maxAttemptsPerTask); the run's recorded error holds the last failure reason`;
+    await append([ev("TaskFailed", { error, willRetry: false })]);
+    return { status: "failed", error };
+  }
   await append([ev("TaskStarted", { attempt })]);
 
   const messages: ChatMessage[] = [{ role: "user", content: [{ type: "text", text: args.input }] }];
@@ -404,7 +413,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
 
     await maybeCompact();
 
-    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens };
+    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens, ...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}) };
     const response = await recordedLlmCall(request);
 
     messages.push({ role: "assistant", content: response.content });

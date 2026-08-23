@@ -23,7 +23,9 @@ interface AgentYaml {
   name?: string;
   model?: string;
   maxTokens?: number;
-  limits?: { maxStepsPerTask?: number };
+  limits?: { maxStepsPerTask?: number; maxAttemptsPerTask?: number };
+  /** For OpenAI reasoning models: "none" | "low" | "medium" | "high". gpt-5.6+ need it to use tools. */
+  reasoning_effort?: string;
   contextWindow?: number;
   env?: { required?: string[]; optional?: Record<string, string> };
   /** Built-in tools by name, e.g. [web_search]. Their required env folds into env.required. */
@@ -114,6 +116,8 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
       tools,
       maxTokens: yaml.maxTokens ?? 16_000,
       maxSteps: yaml.limits?.maxStepsPerTask ?? 50,
+      ...(yaml.limits?.maxAttemptsPerTask ? { maxTaskAttempts: yaml.limits.maxAttemptsPerTask } : {}),
+      ...(yaml.reasoning_effort ? { reasoningEffort: yaml.reasoning_effort } : {}),
       ...(yaml.contextWindow ? { contextWindow: yaml.contextWindow } : {}),
       env: resolveEnv(env, where, missing),
     },

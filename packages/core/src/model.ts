@@ -13,6 +13,8 @@ export interface ModelRequest {
   messages: ChatMessage[];
   tools: ToolSpec[];
   maxTokens: number;
+  /** OpenAI reasoning models: "none" | "low" | "medium" | "high". Absent keeps old request digests byte-identical. */
+  reasoningEffort?: string;
 }
 
 export type StopReason = "endTurn" | "toolUse" | "maxTokens" | "refusal";

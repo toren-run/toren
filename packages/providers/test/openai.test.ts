@@ -79,3 +79,10 @@ test.skipIf(!process.env.OPENAI_API_KEY)("live: one real completion round-trips 
   expect(r.content[0]?.type).toBe("text");
   expect(r.usage.outputTokens).toBeGreaterThan(0);
 }, 30_000);
+
+test("reasoning_effort passes through when set and stays absent when not", () => {
+  const base = { model: "openai/gpt-5.6-sol", system: "s", messages: [], tools: [], maxTokens: 10 };
+  expect("reasoning_effort" in toOpenAIParams(base)).toBe(false);
+  const withEffort = toOpenAIParams({ ...base, reasoningEffort: "none" });
+  expect((withEffort as unknown as Record<string, unknown>).reasoning_effort).toBe("none");
+});

@@ -67,3 +67,26 @@ test("cancel retires a run stuck on a broken dependency; retries stop, hints no-
     await worker.stop();
   }
 });
+
+test("maxAttemptsPerTask (opt-in) turns an endless retry into a terminal failure", { timeout: 30_000 }, async () => {
+  const capped: AgentSpec = { ...spec, maxTaskAttempts: 2 };
+  const deps: TickDeps = {
+    store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
+    provider: new BrokenProvider(), agents: { main: capped }, workflows: { main: wf },
+  };
+  const worker = new LocalWorkerRuntime({ canceltest: deps }, { concurrency: 2 });
+  worker.start();
+  try {
+    const runId = await startRun(deps, { agent: "canceltest", input: "go" });
+    let run = await store.getRun(runId);
+    const deadline = Date.now() + 20_000;
+    while (Date.now() < deadline && run!.status !== "failed") {
+      await new Promise((r) => setTimeout(r, 150));
+      run = await store.getRun(runId);
+    }
+    expect(run!.status).toBe("failed");
+    expect(String(run!.error)).toMatch(/gave up after 2 attempts/);
+  } finally {
+    await worker.stop();
+  }
+});
