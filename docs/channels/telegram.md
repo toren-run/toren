@@ -31,6 +31,8 @@ The modes mix freely: run only the shared bot, only dedicated ones, or both at o
 
 Bot identity is stored by agent name, not by token, so rotating a leaked token (via @BotFather) keeps every pairing and open conversation intact: swap the env value and restart.
 
+On AWS, `deploy-aws` handles `TELEGRAM_BOT_TOKEN` itself; dedicated bot tokens are your own env vars, so wire them like any other secret, through `agent_env_secret_arns` ([AWS guide](../guides/deploy-aws.md)).
+
 ## Who can talk to it
 
 Nobody, until you say so. The bot is deny-by-default: a stranger who finds it gets a polite refusal, whatever they send. Two ways in:
