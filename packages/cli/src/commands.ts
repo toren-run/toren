@@ -62,7 +62,8 @@ export async function cmdRun(dir: string, opts: { input: string; process?: strin
     const manifest = await attachLocalFiles(rt.pool, loaded.agents, opts.files ?? [], io);
     const process = opts.process ?? loaded.defaultProcess;
     const runId = await startRun(rt.deps, { agent: loaded.name, input: opts.input + manifest, ...(process ? { process } : {}) });
-    io.out(`run ${runId}  agent ${loaded.name}${process && process !== "main" ? `  process ${process}` : ""}  started`);
+    // --json consumers pipe this output; nothing but JSON may reach stdout.
+    if (!opts.json) io.out(`run ${runId}  agent ${loaded.name}${process && process !== "main" ? `  process ${process}` : ""}  started`);
     if (opts.detach) {
       io.out(opts.json ? JSON.stringify({ runId, status: "detached" }) : `detached; workers will pick it up. Check: toren jobs show ${runId}`);
       return { runId, status: "detached" };

@@ -4,6 +4,7 @@ All notable changes, per the [versioning & compatibility contract](https://toren
 
 ## Unreleased
 
+- `toren run --json` no longer prints a human-readable line before the JSON; piping to `jq` works.
 - Per-agent bots are now the standard Telegram posture: docs lead with `telegram.bot_token_env`, `toren init` scaffolds it, and the all-agents `TELEGRAM_BOT_TOKEN` bot is reframed as the operator's fleet bot (its invites expose the whole roster — don't hand them to outsiders). No behavior change.
 
 ## 0.1.6 — 2026-08-24
