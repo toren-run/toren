@@ -6,8 +6,9 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@toren-run/core": "workspace:^",
     "@anthropic-ai/sdk": "^0.110.0",
+    "@aws-sdk/client-bedrock-runtime": "^3.1116.0",
+    "@toren-run/core": "workspace:^",
     "openai": "^4.68.0"
   },
   "description": "Model provider adapters for Toren (Anthropic, OpenAI) — each SDK loads lazily on first use.",

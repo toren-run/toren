@@ -2,6 +2,10 @@
 
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
+## Unreleased
+
+- Amazon Bedrock provider: `bedrock/<model-id>` routes through the Converse API. Auth is the AWS credential chain (no API key), region from `AWS_REGION`; the SDK loads lazily like the other providers. On AWS the worker role needs `bedrock:InvokeModel`.
+
 ## 0.1.4 — 2026-08-24
 
 - MCP serve channel: Toren is an MCP server. `toren mcp` serves a project over stdio to local clients (Claude Code, Cursor; workers run inside); every deployment also serves Streamable HTTP at `POST /mcp` behind the existing bearer tokens. Six tools: list_agents, start_run, run_status, list_runs, cancel_run, resolve_approval.

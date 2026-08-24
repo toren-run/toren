@@ -2,7 +2,7 @@
 
 *The production posture, in your account: autoscaling workers, RDS, SQS, Secrets Manager, HTTPS via CloudFront. Create everything from scratch, or connect Toren to the VPC and Postgres you already run.*
 
-This is a reference architecture, not the only way to run Toren: the runtime itself needs just a container and Postgres, and the [Docker Compose tier](/deploy/compose) self-hosts it anywhere. Use this module when you want the managed-AWS posture; read it, fork it, or use it as-is. Run with `--plan-only` first: it shows every resource before anything is created, and account-specific obstacles (quotas, permission boundaries) surface there rather than mid-apply.
+This is a reference architecture, not the only way to run Toren: the runtime itself needs just a container and Postgres, and the [Docker Compose tier](/deploy/compose) self-hosts it anywhere. Use this module when you want the managed-AWS posture; read it, fork it, or use it as-is. Using `bedrock/` models: the worker task role needs `bedrock:InvokeModel` on the model resources you route (the credential chain does the rest; no API key). Run with `--plan-only` first: it shows every resource before anything is created, and account-specific obstacles (quotas, permission boundaries) surface there rather than mid-apply.
 
 One Terraform module (`infra/terraform-aws`), two modes:
 

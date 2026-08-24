@@ -52,7 +52,9 @@ async function preflightProviders(agents: Record<string, { model: string }>): Pr
         : prefix === "openai"
           ? { env: "OPENAI_API_KEY", url: "https://api.openai.com/v1/models", headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY ?? ""}` } }
           : null;
-    if (!check) continue; // unknown prefix fails later with the router's own error
+    // bedrock/ has no key to check: auth is the AWS credential chain (SigV4),
+    // verified on the first call; a failure lands on the run's recorded error.
+    if (!check) continue;
     let res: Response;
     try {
       res = await fetch(check.url, { headers: check.headers });

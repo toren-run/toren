@@ -18,3 +18,11 @@ test("importing the package loads neither SDK; each loads on first construction,
   new OpenAIProvider();
   expect(inCjsCache("node_modules/openai/")).toBe(true);
 });
+
+test("the bedrock SDK also loads only on first construction", async () => {
+  expect(inCjsCache("client-bedrock-runtime")).toBe(false);
+  const { BedrockProvider } = await import("../src/bedrock.js");
+  expect(inCjsCache("client-bedrock-runtime")).toBe(false);
+  new BedrockProvider();
+  expect(inCjsCache("client-bedrock-runtime")).toBe(true);
+});

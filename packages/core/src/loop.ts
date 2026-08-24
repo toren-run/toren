@@ -42,6 +42,7 @@ export interface AgentSpec {
 export function defaultContextWindow(model: string): number | undefined {
   if (model.startsWith("anthropic/")) return 200_000;
   if (model.startsWith("openai/")) return 128_000;
+  if (model.startsWith("bedrock/")) return model.includes("anthropic") ? 200_000 : 128_000;
   return undefined;
 }
 
