@@ -83,6 +83,7 @@ export default defineConfig({
         items: [
           { text: "CLI", link: "/reference/cli" },
           { text: "agent.yaml", link: "/reference/agent-yaml" },
+          { text: "Model providers", link: "/reference/providers" },
           { text: "Workflow API", link: "/reference/workflow-api" },
           { text: "Client SDK", link: "/reference/client" },
           { text: "Host API", link: "/reference/host-api" },

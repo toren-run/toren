@@ -15,6 +15,8 @@ export interface LoadedAgent {
   workflows: Record<string, WorkflowFn>;
   /** Process used when a trigger names none; undefined when ambiguous (several processes, no main, none declared). */
   defaultProcess?: string;
+  /** Env var name holding this agent's dedicated Telegram bot token (agent.yaml telegram.bot_token_env). Resolved where the bot starts, so other commands work without it set. */
+  telegramBotTokenEnv?: string;
   /** Root agent's sandbox settings with granted env resolved to values. */
   sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
 }
@@ -34,6 +36,8 @@ interface AgentYaml {
   sandbox?: boolean | { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] };
   /** Process run when a trigger names none. Defaults to "main", or the sole process. */
   default_process?: string;
+  /** Dedicated Telegram bot for this agent: the env var NAME holding its token. Without it the agent rides the shared TELEGRAM_BOT_TOKEN fleet bot. */
+  telegram?: { bot_token_env?: string };
 }
 
 function sandboxConfig(yaml: AgentYaml): { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] } | null {
@@ -197,7 +201,9 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     spec.tools = spec.tools.map((t) => (t.name === "run_process" ? { ...t, description: t.description + processLine } : t));
   }
 
-  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(sandbox ? { sandbox } : {}) };
+  const telegramBotTokenEnv = root.yaml.telegram?.bot_token_env;
+
+  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {

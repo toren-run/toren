@@ -84,6 +84,30 @@ CREATE TABLE IF NOT EXISTS toren_control.telegram_state (
   id int PRIMARY KEY DEFAULT 1,
   last_update_id bigint NOT NULL DEFAULT 0
 );
+CREATE TABLE IF NOT EXISTS toren_control.telegram_poll_state (
+  bot_key text PRIMARY KEY,
+  last_update_id bigint NOT NULL DEFAULT 0
+);
+INSERT INTO toren_control.telegram_poll_state (bot_key, last_update_id)
+  SELECT 'default', last_update_id FROM toren_control.telegram_state WHERE id = 1
+  ON CONFLICT (bot_key) DO NOTHING;
+ALTER TABLE toren_control.telegram_users ADD COLUMN IF NOT EXISTS bot_key text NOT NULL DEFAULT 'default';
+ALTER TABLE toren_control.telegram_invites ADD COLUMN IF NOT EXISTS bot_key text NOT NULL DEFAULT 'default';
+ALTER TABLE toren_control.telegram_bindings ADD COLUMN IF NOT EXISTS bot_key text NOT NULL DEFAULT 'default';
+DO $$ BEGIN
+  IF (SELECT count(*) FROM information_schema.key_column_usage
+      WHERE table_schema = 'toren_control' AND table_name = 'telegram_users'
+        AND constraint_name = 'telegram_users_pkey') = 1 THEN
+    ALTER TABLE toren_control.telegram_users DROP CONSTRAINT telegram_users_pkey;
+    ALTER TABLE toren_control.telegram_users ADD PRIMARY KEY (bot_key, user_id);
+  END IF;
+  IF (SELECT count(*) FROM information_schema.key_column_usage
+      WHERE table_schema = 'toren_control' AND table_name = 'telegram_bindings'
+        AND constraint_name = 'telegram_bindings_pkey') = 1 THEN
+    ALTER TABLE toren_control.telegram_bindings DROP CONSTRAINT telegram_bindings_pkey;
+    ALTER TABLE toren_control.telegram_bindings ADD PRIMARY KEY (bot_key, chat_id);
+  END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS toren_control.files (
   id text PRIMARY KEY,
   name text NOT NULL,

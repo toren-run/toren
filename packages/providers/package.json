@@ -1,6 +1,6 @@
 {
   "name": "@toren-run/providers",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -11,7 +11,7 @@
     "@toren-run/core": "workspace:^",
     "openai": "^4.68.0"
   },
-  "description": "Model provider adapters for Toren (Anthropic, OpenAI) — each SDK loads lazily on first use.",
+  "description": "Model provider adapters for Toren (Anthropic, OpenAI) \u2014 each SDK loads lazily on first use.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",

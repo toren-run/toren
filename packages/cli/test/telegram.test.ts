@@ -69,7 +69,7 @@ let tg: FakeTelegram;
 beforeAll(async () => {
   await tx(pool, async (c) => { await migrateControl(c); await provisionAgent(c, "tgtest"); });
   await pool.query(`TRUNCATE ${SCHEMA}.events, ${SCHEMA}.streams, ${SCHEMA}.leases, ${SCHEMA}.blobs, ${SCHEMA}.runs CASCADE`);
-  await pool.query("TRUNCATE toren_control.queue_messages, toren_control.telegram_users, toren_control.telegram_invites, toren_control.telegram_bindings, toren_control.telegram_state");
+  await pool.query("TRUNCATE toren_control.queue_messages, toren_control.telegram_users, toren_control.telegram_invites, toren_control.telegram_bindings, toren_control.telegram_state, toren_control.telegram_poll_state");
   deps = {
     store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
     provider: new LastEcho(), agents: { main: spec }, workflows: { main: wf },
@@ -131,4 +131,40 @@ test("/new starts fresh and /agent reports the roster", async () => {
 
   tg.message(ALICE, "round two");
   await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text === "re:round two"));
+});
+
+test("dedicated bots are isolated: pairing, invites, and bindings do not cross bot keys", async () => {
+  const BOB = 2002;
+  const tg2 = new FakeTelegram();
+  const channel2 = new TelegramChannel({
+    botToken: "test2", byAgent: { helper: deps }, defaultAgent: "helper", pool,
+    fetchImpl: tg2.fetch, pollTimeoutSec: 0, deliverMs: 150, botKey: "agent:helper",
+  });
+  channel2.start();
+  try {
+    // A shared-bot invite does not open the dedicated bot
+    const sharedCode = await createTelegramInvite(pool);
+    tg2.message(BOB, sharedCode);
+    await tg2.waitFor(() => tg2.sent.some((m) => m.chat_id === BOB && m.text.includes("private")));
+
+    // The scoped invite does, and the pairing stays on the dedicated bot
+    const code = await createTelegramInvite(pool, "agent:helper");
+    tg2.message(BOB, code);
+    await tg2.waitFor(() => tg2.sent.some((m) => m.chat_id === BOB && m.text.includes("paired")));
+    tg2.message(BOB, "dedicated hello");
+    await tg2.waitFor(() => tg2.sent.some((m) => m.chat_id === BOB && m.text === "re:dedicated hello"));
+
+    // Bob is still a stranger to the shared bot
+    tg.message(BOB, "shared hello");
+    await tg.waitFor(() => tg.sent.some((m) => m.chat_id === BOB && m.text.includes("private")));
+    expect(tg.sent.some((m) => m.text === "re:dedicated hello")).toBe(false);
+
+    // Each bot keeps its own binding row for the same chat id
+    const { rows } = await pool.query(
+      "SELECT bot_key FROM toren_control.telegram_bindings WHERE chat_id = $1 ORDER BY bot_key", [BOB],
+    );
+    expect(rows.map((r: { bot_key: string }) => r.bot_key)).toEqual(["agent:helper"]);
+  } finally {
+    await channel2.stop();
+  }
 });

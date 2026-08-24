@@ -161,11 +161,12 @@ export async function main(argv: string[]): Promise<void> {
     .description("Mint a one-time pairing code — the bot is deny-by-default")
     .option("--dir <dir>", "agent directory", ".")
     .option("--env <name>", "environment profile", "local")
-    .action(async (opts: { dir: string; env?: string }) => {
+    .option("--agent <name>", "mint for this agent's dedicated bot instead of the shared one")
+    .action(async (opts: { dir: string; env?: string; agent?: string }) => {
       const profile = resolveEnvProfile(opts.env, opts.dir);
       if (profile.kind === "api") throw new Error("invite codes are minted against the database — use a db-backed environment profile");
       const { cmdTelegramInvite } = await import("./commands.js");
-      return cmdTelegramInvite(opts.dir, { databaseUrl: profile.databaseUrl });
+      return cmdTelegramInvite(opts.dir, { databaseUrl: profile.databaseUrl, agent: opts.agent });
     });
 
   const schedule = program.command("schedule").description("Cron-triggered runs — fired by the workers, exactly once, crash-safe");

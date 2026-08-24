@@ -172,12 +172,15 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       }
 
       // POST /channels/telegram/invites — admin-token only; mints a one-time
-      // pairing code for the deny-by-default Telegram bot.
+      // pairing code for the deny-by-default Telegram bot. Body {agent} targets
+      // that agent's dedicated bot; no body targets the shared one.
       if (req.method === "POST" && parts[0] === "channels" && parts[1] === "telegram" && parts[2] === "invites") {
         if (principal.kind !== "admin") return send(res, 403, { error: "invite minting requires the admin token" });
         if (!cfg.pool) return send(res, 501, { error: "invite minting unavailable (no database pool configured)" });
+        const body = (await readJson(req).catch(() => ({}))) as { agent?: string };
+        if (body.agent && !byAgent[body.agent]) return send(res, 404, { error: `unknown agent: ${body.agent}` });
         const { createTelegramInvite } = await import("./telegram.js");
-        const code = await createTelegramInvite(cfg.pool);
+        const code = await createTelegramInvite(cfg.pool, body.agent ? `agent:${body.agent}` : "default");
         return send(res, 201, { code });
       }
 

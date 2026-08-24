@@ -29,6 +29,8 @@ interface TgUpdate {
 
 export interface TelegramChannelOpts {
   botToken: string;
+  /** Scopes pairing, bindings, and poll state. "default" = the shared fleet bot; dedicated bots use "agent:<name>" so token rotation never orphans pairings. */
+  botKey?: string;
   byAgent: Record<string, TickDeps>;
   defaultAgent: string;
   pool: pg.Pool;
@@ -43,7 +45,15 @@ export class TelegramChannel {
   private stopped = false;
   private client: PoolClient | null = null;
   private loops: Promise<void>[] = [];
-  constructor(private opts: TelegramChannelOpts) {}
+  private readonly botKey: string;
+  constructor(private opts: TelegramChannelOpts) { this.botKey = opts.botKey ?? "default"; }
+
+  /** int4 for the two-arg advisory lock: one poller election per bot, not per deployment. */
+  private lockArg(): number {
+    let h = 0;
+    for (const c of this.botKey) h = ((h << 5) - h + c.charCodeAt(0)) | 0;
+    return h;
+  }
 
   start(): void {
     this.loops = [this.runElected().catch(() => { /* stop() mid-flight */ })];
@@ -53,7 +63,7 @@ export class TelegramChannel {
     this.stopped = true;
     await Promise.allSettled(this.loops);
     if (this.client) {
-      await this.client.query("SELECT pg_advisory_unlock($1)", [LOCK_KEY]).catch(() => {});
+      await this.client.query("SELECT pg_advisory_unlock($1, $2)", [LOCK_KEY, this.lockArg()]).catch(() => {});
       this.client.release();
       this.client = null;
     }
@@ -74,7 +84,7 @@ export class TelegramChannel {
   private async runElected(): Promise<void> {
     while (!this.stopped) {
       const client = await this.opts.pool.connect();
-      const r = await client.query<{ won: boolean }>("SELECT pg_try_advisory_lock($1) AS won", [LOCK_KEY]);
+      const r = await client.query<{ won: boolean }>("SELECT pg_try_advisory_lock($1, $2) AS won", [LOCK_KEY, this.lockArg()]);
       if (!r.rows[0]?.won) {
         client.release();
         await sleep(10_000, () => this.stopped);
@@ -89,7 +99,7 @@ export class TelegramChannel {
   private async inboundLoop(): Promise<void> {
     let offset = 0;
     const { rows } = await this.opts.pool.query<{ last_update_id: string }>(
-      "SELECT last_update_id FROM toren_control.telegram_state WHERE id = 1",
+      "SELECT last_update_id FROM toren_control.telegram_poll_state WHERE bot_key = $1", [this.botKey],
     );
     let lastSeen = rows[0] ? Number(rows[0].last_update_id) : 0;
     while (!this.stopped) {
@@ -103,9 +113,9 @@ export class TelegramChannel {
           if (u.message) await this.handleMessage(u.message).catch(() => { /* one bad update never stalls the loop */ });
           lastSeen = u.update_id;
           await this.opts.pool.query(
-            `INSERT INTO toren_control.telegram_state (id, last_update_id) VALUES (1, $1)
-             ON CONFLICT (id) DO UPDATE SET last_update_id = GREATEST(toren_control.telegram_state.last_update_id, $1)`,
-            [lastSeen],
+            `INSERT INTO toren_control.telegram_poll_state (bot_key, last_update_id) VALUES ($1, $2)
+             ON CONFLICT (bot_key) DO UPDATE SET last_update_id = GREATEST(toren_control.telegram_poll_state.last_update_id, $2)`,
+            [this.botKey, lastSeen],
           );
         }
         if (updates.length === 0 && (this.opts.pollTimeoutSec ?? 25) === 0) await sleep(150, () => this.stopped);
@@ -123,13 +133,13 @@ export class TelegramChannel {
 
     if (!(await this.isAllowed(from))) {
       const redeemed = await this.opts.pool.query(
-        "UPDATE toren_control.telegram_invites SET used_by = $2 WHERE code = $1 AND used_by IS NULL RETURNING code",
-        [text, from],
+        "UPDATE toren_control.telegram_invites SET used_by = $2 WHERE code = $1 AND bot_key = $3 AND used_by IS NULL RETURNING code",
+        [text, from, this.botKey],
       );
       if (redeemed.rowCount) {
         await this.opts.pool.query(
-          "INSERT INTO toren_control.telegram_users (user_id, via_code) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-          [from, text],
+          "INSERT INTO toren_control.telegram_users (bot_key, user_id, via_code) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+          [this.botKey, from, text],
         );
         await say("You're paired. Say anything to start a conversation, or /agent to pick who you talk to.");
       } else {
@@ -229,7 +239,7 @@ export class TelegramChannel {
     while (!this.stopped) {
       await sleep(this.opts.deliverMs ?? 2_500, () => this.stopped);
       const { rows } = await this.opts.pool.query<{ chat_id: string; agent: string; run_id: string; last_delivered_seq: number }>(
-        "SELECT chat_id, agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE run_id IS NOT NULL",
+        "SELECT chat_id, agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE bot_key = $1 AND run_id IS NOT NULL", [this.botKey],
       );
       for (const row of rows) {
         try {
@@ -249,8 +259,8 @@ export class TelegramChannel {
       if (t.role !== "assistant" || t.seq <= prev) continue;
       await this.api("sendMessage", { chat_id: chat, text: t.text || "…" });
       const r = await this.opts.pool.query(
-        "UPDATE toren_control.telegram_bindings SET last_delivered_seq = $1, updated_at = now() WHERE chat_id = $2 AND last_delivered_seq = $3",
-        [t.seq, chat, prev],
+        "UPDATE toren_control.telegram_bindings SET last_delivered_seq = $1, updated_at = now() WHERE bot_key = $4 AND chat_id = $2 AND last_delivered_seq = $3",
+        [t.seq, chat, prev, this.botKey],
       );
       if (!r.rowCount) return; // someone else moved the cursor — defer to them
       prev = t.seq;
@@ -258,9 +268,9 @@ export class TelegramChannel {
     if (s.state === "working") await this.typing(chat).catch(() => {});
     if (s.state === "failed") {
       await this.api("sendMessage", { chat_id: chat, text: "The agent hit an error and this conversation ended. Say anything to start fresh." });
-      await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE chat_id = $1 AND run_id = $2", [chat, runId]);
+      await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE bot_key = $3 AND chat_id = $1 AND run_id = $2", [chat, runId, this.botKey]);
     } else if (s.state === "completed" || s.state === "cancelled") {
-      await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE chat_id = $1 AND run_id = $2", [chat, runId]);
+      await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE bot_key = $3 AND chat_id = $1 AND run_id = $2", [chat, runId, this.botKey]);
     }
   }
 
@@ -270,31 +280,31 @@ export class TelegramChannel {
 
   private async isAllowed(userId: number): Promise<boolean> {
     if (this.opts.allowedUsers?.has(userId)) return true;
-    const { rowCount } = await this.opts.pool.query("SELECT 1 FROM toren_control.telegram_users WHERE user_id = $1", [userId]);
+    const { rowCount } = await this.opts.pool.query("SELECT 1 FROM toren_control.telegram_users WHERE bot_key = $1 AND user_id = $2", [this.botKey, userId]);
     return (rowCount ?? 0) > 0;
   }
 
   private async getBinding(chat: number): Promise<{ agent: string; runId: string | null; lastSeq: number } | null> {
     const { rows } = await this.opts.pool.query<{ agent: string; run_id: string | null; last_delivered_seq: number }>(
-      "SELECT agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE chat_id = $1",
-      [chat],
+      "SELECT agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE bot_key = $1 AND chat_id = $2",
+      [this.botKey, chat],
     );
     return rows[0] ? { agent: rows[0].agent, runId: rows[0].run_id, lastSeq: rows[0].last_delivered_seq } : null;
   }
 
   private async putBinding(chat: number, agent: string, runId: string | null): Promise<void> {
     await this.opts.pool.query(
-      `INSERT INTO toren_control.telegram_bindings (chat_id, agent, run_id, last_delivered_seq)
-       VALUES ($1, $2, $3, 0)
-       ON CONFLICT (chat_id) DO UPDATE SET agent = $2, run_id = $3, last_delivered_seq = 0, updated_at = now()`,
-      [chat, agent, runId],
+      `INSERT INTO toren_control.telegram_bindings (bot_key, chat_id, agent, run_id, last_delivered_seq)
+       VALUES ($4, $1, $2, $3, 0)
+       ON CONFLICT (bot_key, chat_id) DO UPDATE SET agent = $2, run_id = $3, last_delivered_seq = 0, updated_at = now()`,
+      [chat, agent, runId, this.botKey],
     );
   }
 }
 
-export async function createTelegramInvite(pool: pg.Pool): Promise<string> {
+export async function createTelegramInvite(pool: pg.Pool, botKey = "default"): Promise<string> {
   const code = randomBytes(4).toString("hex");
-  await pool.query("INSERT INTO toren_control.telegram_invites (code) VALUES ($1)", [code]);
+  await pool.query("INSERT INTO toren_control.telegram_invites (code, bot_key) VALUES ($1, $2)", [code, botKey]);
   return code;
 }
 

@@ -176,18 +176,35 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
     if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart); set TOREN_API_TOKEN to pin one`);
   }
-  let telegram: { stop(): Promise<void> } | undefined;
-  if (process.env.TELEGRAM_BOT_TOKEN) {
+  const telegramChannels: { stop(): Promise<void> }[] = [];
+  const dedicated = Object.entries(rt.crews).filter(([, loaded]) => loaded.telegramBotTokenEnv);
+  if (process.env.TELEGRAM_BOT_TOKEN || dedicated.length) {
     const { TelegramChannel } = await import("./telegram.js");
     const allowedUsers = new Set(
       (process.env.TELEGRAM_ALLOWED_USERS ?? "").split(",").map((s) => parseInt(s.trim(), 10)).filter(Number.isFinite),
     );
-    const tg = new TelegramChannel({
-      botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers,
-    });
-    tg.start();
-    telegram = tg;
-    io.out("toren telegram: channel up (deny-by-default; pair via invite code or TELEGRAM_ALLOWED_USERS)");
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      // The shared fleet bot: reaches every agent, botKey "default" so pre-existing pairings keep working.
+      const tg = new TelegramChannel({
+        botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers,
+      });
+      tg.start();
+      telegramChannels.push(tg);
+      io.out("toren telegram: shared bot up (deny-by-default; pair via invite code or TELEGRAM_ALLOWED_USERS)");
+    }
+    for (const [name, loaded] of dedicated) {
+      const botToken = process.env[loaded.telegramBotTokenEnv!];
+      if (!botToken) throw new Error(`agent ${name}: telegram.bot_token_env names ${loaded.telegramBotTokenEnv}, but it is not set in the environment`);
+      // Dedicated bot: sees exactly one agent. botKey is the agent name, not the token,
+      // so rotating a leaked token never orphans pairings or bindings.
+      const tg = new TelegramChannel({
+        botToken, byAgent: { [name]: rt.byAgent[name]! }, defaultAgent: name,
+        pool: rt.pool, allowedUsers, botKey: `agent:${name}`,
+      });
+      tg.start();
+      telegramChannels.push(tg);
+      io.out(`toren telegram: dedicated bot up for ${name} (pair via \`toren telegram invite --agent ${name}\`)`);
+    }
   }
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* transient DB error — next tick retries */ });
@@ -197,7 +214,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   await new Promise<void>((resolveExit) => {
     const stop = () => {
       clearInterval(interval);
-      void (telegram?.stop() ?? Promise.resolve()).then(() => worker.stop()).then(() => rt.close()).then(() => resolveExit());
+      void Promise.all(telegramChannels.map((t) => t.stop())).then(() => worker.stop()).then(() => rt.close()).then(() => resolveExit());
     };
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
@@ -235,13 +252,17 @@ export async function cmdChat(dir: string, opts: { agent?: string; session?: str
   }
 }
 
-export async function cmdTelegramInvite(dir: string, opts: { databaseUrl?: string }, io: CmdIO = stdoutIO): Promise<void> {
+export async function cmdTelegramInvite(dir: string, opts: { databaseUrl?: string; agent?: string }, io: CmdIO = stdoutIO): Promise<void> {
   const loaded = await loadAgentDir(dir);
+  if (opts.agent) {
+    if (opts.agent !== loaded.name) throw new Error(`--agent ${opts.agent} does not match this directory's agent (${loaded.name})`);
+    if (!loaded.telegramBotTokenEnv) throw new Error(`agent ${loaded.name} has no dedicated bot — declare telegram.bot_token_env in agent.yaml first`);
+  }
   const rt = await buildRuntime(loaded, opts.databaseUrl);
   try {
     const { createTelegramInvite } = await import("./telegram.js");
-    const code = await createTelegramInvite(rt.pool);
-    io.out(`one-time pairing code: ${code}`);
+    const code = await createTelegramInvite(rt.pool, opts.agent ? `agent:${opts.agent}` : "default");
+    io.out(`one-time pairing code: ${code}${opts.agent ? ` (for ${opts.agent}'s dedicated bot)` : ""}`);
     io.out("send it to the bot in a direct message; it pairs the sender and then burns");
   } finally {
     await rt.close();

@@ -2,6 +2,11 @@
 
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
+## 0.1.6 — 2026-08-24
+
+- Per-agent Telegram bots: `telegram.bot_token_env` in agent.yaml gives an agent its own bot (name, avatar, audience) next to or instead of the shared `TELEGRAM_BOT_TOKEN` one. Pairing, conversations, and delivery cursors are isolated per bot; `toren channels telegram invite --agent <name>` and `POST /channels/telegram/invites {agent}` mint scoped codes. Existing shared-bot pairings migrate untouched, and bot identity is keyed by agent name so token rotation keeps every pairing.
+- New docs page: Model providers (auth per prefix, reasoning models, Bedrock ids, `TOREN_MODEL_PRICES`).
+
 ## 0.1.5 — 2026-08-24
 
 - Amazon Bedrock provider: `bedrock/<model-id>` routes through the Converse API. Auth is the AWS credential chain (no API key), region from `AWS_REGION`; the SDK loads lazily like the other providers. On AWS the worker role needs `bedrock:InvokeModel`.
