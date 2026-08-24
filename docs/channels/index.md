@@ -7,7 +7,7 @@ A channel is any surface where a person talks to your agents. Under every channe
 | [Console](/channels/console) | shipped | Chat in the deployment's web console |
 | [CLI](/channels/cli) | shipped | `toren chat` in your terminal |
 | [HTTP API](/channels/http-api) | shipped | `POST /sessions` from anything that speaks JSON |
-| [Telegram](/channels/telegram) | shipped | A bot DM, deny-by-default |
+| [Telegram](/channels/telegram) | shipped | Each agent its own bot; DMs, deny-by-default |
 | [MCP](/channels/mcp) | coming soon | Your agents as tools inside Claude, Cursor, and friends |
 | [WhatsApp](/channels/whatsapp) | coming soon | Same model as Telegram |
 

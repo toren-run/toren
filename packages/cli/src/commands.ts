@@ -184,13 +184,13 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
       (process.env.TELEGRAM_ALLOWED_USERS ?? "").split(",").map((s) => parseInt(s.trim(), 10)).filter(Number.isFinite),
     );
     if (process.env.TELEGRAM_BOT_TOKEN) {
-      // The shared fleet bot: reaches every agent, botKey "default" so pre-existing pairings keep working.
+      // The operator's fleet bot: reaches every agent, botKey "default" so pre-existing pairings keep working.
       const tg = new TelegramChannel({
         botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers,
       });
       tg.start();
       telegramChannels.push(tg);
-      io.out("toren telegram: shared bot up (deny-by-default; pair via invite code or TELEGRAM_ALLOWED_USERS)");
+      io.out("toren telegram: fleet bot up — reaches every agent, treat its invites as operator access (deny-by-default)");
     }
     for (const [name, loaded] of dedicated) {
       const botToken = process.env[loaded.telegramBotTokenEnv!];

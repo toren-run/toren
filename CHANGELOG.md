@@ -2,6 +2,10 @@
 
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
+## Unreleased
+
+- Per-agent bots are now the standard Telegram posture: docs lead with `telegram.bot_token_env`, `toren init` scaffolds it, and the all-agents `TELEGRAM_BOT_TOKEN` bot is reframed as the operator's fleet bot (its invites expose the whole roster — don't hand them to outsiders). No behavior change.
+
 ## 0.1.6 — 2026-08-24
 
 - Per-agent Telegram bots: `telegram.bot_token_env` in agent.yaml gives an agent its own bot (name, avatar, audience) next to or instead of the shared `TELEGRAM_BOT_TOKEN` one. Pairing, conversations, and delivery cursors are isolated per bot; `toren channels telegram invite --agent <name>` and `POST /channels/telegram/invites {agent}` mint scoped codes. Existing shared-bot pairings migrate untouched, and bot identity is keyed by agent name so token rotation keeps every pairing.

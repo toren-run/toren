@@ -80,6 +80,8 @@ model: mock/echo          # or anthropic/claude-sonnet-5, openai/gpt-4o-mini —
 maxTokens: 16000
 limits:
   maxStepsPerTask: 50
+# telegram:               # give this agent its own Telegram bot (via @BotFather):
+#   bot_token_env: ${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_BOT_TOKEN
 `,
   "instructions.md": `You are ${name}, a helpful agent. Answer directly and concisely.
 `,
