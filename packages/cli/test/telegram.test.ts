@@ -133,6 +133,37 @@ test("/new starts fresh and /agent reports the roster", async () => {
   await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text === "re:round two"));
 });
 
+test("a failing poller is loud and self-healing: status exposed, transition logged, loop survives", async () => {
+  const lines: string[] = [];
+  let failing = true;
+  const flaky = (async (url: RequestInfo | URL, init?: RequestInit) => {
+    if (failing && String(url).includes("getUpdates")) throw new Error("ECONNRESET");
+    return tg.fetch(url, init);
+  }) as typeof fetch;
+  const ch = new TelegramChannel({
+    botToken: "flaky", byAgent: { helper: deps }, defaultAgent: "helper", pool,
+    fetchImpl: flaky, pollTimeoutSec: 0, deliverMs: 60_000, botKey: "agent:flaky",
+    log: (l) => lines.push(l), heartbeatMs: 50,
+  });
+  ch.start();
+  try {
+    await tg.waitFor(() => ch.status().consecutiveFailures >= 1, 10_000);
+    const st = ch.status();
+    expect(st.lastError).toContain("ECONNRESET");
+    expect(st.lastErrorAt).not.toBeNull();
+    expect(lines.some((l) => l.includes("ECONNRESET"))).toBe(true);
+    expect(lines.some((l) => l.includes("elected poller"))).toBe(true);
+
+    // recovery: the loop never died, so clearing the fault heals it
+    failing = false;
+    await tg.waitFor(() => ch.status().consecutiveFailures === 0, 15_000);
+    expect(lines.some((l) => l.includes("recovered"))).toBe(true);
+    await tg.waitFor(() => lines.some((l) => l.includes("poller alive")), 10_000);
+  } finally {
+    await ch.stop();
+  }
+});
+
 test("dedicated bots are isolated: pairing, invites, and bindings do not cross bot keys", async () => {
   const BOB = 2002;
   const tg2 = new FakeTelegram();

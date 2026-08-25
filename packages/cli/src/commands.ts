@@ -153,6 +153,10 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   worker.start();
   io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`}. Workers + guardians up; Ctrl+C to stop.`);
 
+  // Channels register their live status here after the API server starts, so
+  // /healthz can tell a dead poller from a quiet one (field report 2026-08-25).
+  const channelHealth: Record<string, () => unknown> = {};
+
   // No configured token → mint an ephemeral one so the API + console work out
   // of the box. It rotates every restart; set TOREN_API_TOKEN to pin it.
   const configured = process.env.TOREN_API_TOKEN;
@@ -171,7 +175,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     const defaultProcess = Object.fromEntries(
       Object.entries(rt.crews).flatMap(([name, loaded]) => (loaded.defaultProcess ? [[name, loaded.defaultProcess]] : [])),
     );
-    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess });
+    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess, channelHealth });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
@@ -187,10 +191,11 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     if (process.env.TELEGRAM_BOT_TOKEN) {
       // The operator's fleet bot: reaches every agent, botKey "default" so pre-existing pairings keep working.
       const tg = new TelegramChannel({
-        botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers,
+        botToken: process.env.TELEGRAM_BOT_TOKEN, byAgent: rt.byAgent, defaultAgent: names[0]!, pool: rt.pool, allowedUsers, log: io.out,
       });
       tg.start();
       telegramChannels.push(tg);
+      channelHealth["telegram:default"] = () => tg.status();
       io.out("toren telegram: fleet bot up — reaches every agent, treat its invites as operator access (deny-by-default)");
     }
     for (const [name, loaded] of dedicated) {
@@ -200,10 +205,11 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
       // so rotating a leaked token never orphans pairings or bindings.
       const tg = new TelegramChannel({
         botToken, byAgent: { [name]: rt.byAgent[name]! }, defaultAgent: name,
-        pool: rt.pool, allowedUsers, botKey: `agent:${name}`,
+        pool: rt.pool, allowedUsers, botKey: `agent:${name}`, log: io.out,
       });
       tg.start();
       telegramChannels.push(tg);
+      channelHealth[`telegram:agent:${name}`] = () => tg.status();
       io.out(`toren telegram: dedicated bot up for ${name} (pair via \`toren telegram invite --agent ${name}\`)`);
     }
   }

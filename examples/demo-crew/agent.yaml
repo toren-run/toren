@@ -1,0 +1,6 @@
+name: research_crew
+model: mock/slow
+maxTokens: 16000
+limits:
+  maxStepsPerTask: 50
+# builtin_tools: [web_search]   # real web search via Tavily; needs TAVILY_API_KEY

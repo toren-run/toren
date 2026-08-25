@@ -31,6 +31,8 @@ export interface ApiConfig {
   agentInfo?: unknown;
   /** Per-agent default process (agent.yaml default_process) used when POST /runs names none. */
   defaultProcess?: Record<string, string>;
+  /** Live channel health probes (e.g. Telegram pollers), included in /healthz so a dead poller is visible from outside. Mutable: channels register after the server starts. */
+  channelHealth?: Record<string, () => unknown>;
 }
 
 type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
@@ -119,7 +121,12 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
       const url = new URL(req.url ?? "/", "http://local");
       const parts = url.pathname.split("/").filter(Boolean);
 
-      if (req.method === "GET" && url.pathname === "/healthz") return send(res, 200, { ok: true });
+      if (req.method === "GET" && url.pathname === "/healthz") {
+        const channels = Object.fromEntries(Object.entries(cfg.channelHealth ?? {}).map(([k, probe]) => {
+          try { return [k, probe()]; } catch { return [k, { error: "probe failed" }]; }
+        }));
+        return send(res, 200, { ok: true, ...(Object.keys(channels).length ? { channels } : {}) });
+      }
       if (req.method === "GET" && cfg.consoleDir && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
         // The app's asset URLs are page-relative, so the page must live at
         // /console/ — without the slash the browser asks the API root for

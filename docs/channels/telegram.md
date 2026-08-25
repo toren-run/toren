@@ -59,3 +59,11 @@ Just send a message: it continues your open conversation, or starts one. The bot
 ## Durability, same as everywhere else
 
 The channel runs inside the workers, and any worker can host it: they race for a Postgres advisory lock (one election per bot) and exactly one worker polls each bot at a time. If that worker dies, another takes over within seconds. Inbound updates are deduplicated through the database, and outbound replies advance a delivered-cursor with a compare-and-swap, so a crash mid-delivery never double-sends a turn and never drops one. Your chat survives deploys, worker kills, and everything else the runtime survives, because it is the runtime.
+
+## Observability: a dead poller must be loud
+
+A quiet hour and a dead poller must never look the same. Three guarantees, added after a production incident where 22 silent hours could not be diagnosed:
+
+- **Nothing exits silently.** Every failure path in the channel logs on the transition into failure and keeps retrying; a database blip at boot or mid-flight can no longer kill a loop for the life of the process.
+- **A heartbeat line** (`poller alive, offset N`) prints every 5 minutes while polling is healthy, so "no logs" now always means "not healthy".
+- **`GET /healthz` reports channel health**: each bot appears under `channels` with `elected`, `polling`, `lastPollOkAt`, `lastUpdateId`, `lastError`, and `consecutiveFailures`. The endpoint is unauthenticated (it exists for load balancers), so point your alerting at it: `lastPollOkAt` older than a few minutes means the poller is stuck, whatever the process state says.

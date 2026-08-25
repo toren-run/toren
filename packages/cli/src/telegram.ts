@@ -39,6 +39,22 @@ export interface TelegramChannelOpts {
   /** getUpdates long-poll horizon; 0 makes tests snappy. */
   pollTimeoutSec?: number;
   deliverMs?: number;
+  /** Where operational lines go (elections, poll failures, heartbeats). Default: stderr — a silent death mode is worse than a noisy log. */
+  log?: (line: string) => void;
+  /** Heartbeat interval for the "poller alive" line; default 5 minutes. */
+  heartbeatMs?: number;
+}
+
+/** Live health of one bot's channel, exposed via /healthz. A dead poller must be distinguishable from a quiet one. */
+export interface TelegramChannelStatus {
+  botKey: string;
+  elected: boolean;
+  polling: boolean;
+  lastPollOkAt: string | null;
+  lastUpdateId: number;
+  lastError: string | null;
+  lastErrorAt: string | null;
+  consecutiveFailures: number;
 }
 
 export class TelegramChannel {
@@ -46,7 +62,30 @@ export class TelegramChannel {
   private client: PoolClient | null = null;
   private loops: Promise<void>[] = [];
   private readonly botKey: string;
-  constructor(private opts: TelegramChannelOpts) { this.botKey = opts.botKey ?? "default"; }
+  private readonly log: (line: string) => void;
+  private st: TelegramChannelStatus;
+  constructor(private opts: TelegramChannelOpts) {
+    this.botKey = opts.botKey ?? "default";
+    this.log = opts.log ?? ((line) => console.error(line));
+    this.st = { botKey: this.botKey, elected: false, polling: false, lastPollOkAt: null, lastUpdateId: 0, lastError: null, lastErrorAt: null, consecutiveFailures: 0 };
+  }
+
+  status(): TelegramChannelStatus { return { ...this.st }; }
+
+  private noteError(where: string, e: unknown): void {
+    const msg = `${where}: ${e instanceof Error ? e.message : String(e)}`;
+    // Log on transition into failure, not on every retry — and never silently.
+    if (this.st.consecutiveFailures === 0) this.log(`toren telegram[${this.botKey}]: ${msg} (retrying)`);
+    this.st.lastError = msg;
+    this.st.lastErrorAt = new Date().toISOString();
+    this.st.consecutiveFailures++;
+  }
+
+  private noteOk(): void {
+    if (this.st.consecutiveFailures > 0) this.log(`toren telegram[${this.botKey}]: recovered after ${this.st.consecutiveFailures} failed attempts`);
+    this.st.consecutiveFailures = 0;
+    this.st.lastPollOkAt = new Date().toISOString();
+  }
 
   /** int4 for the two-arg advisory lock: one poller election per bot, not per deployment. */
   private lockArg(): number {
@@ -82,28 +121,56 @@ export class TelegramChannel {
   }
 
   private async runElected(): Promise<void> {
+    // Nothing in here may exit silently: a channel that dies while the
+    // process stays RUNNING is indistinguishable from a quiet day (field
+    // report 2026-08-25). Every failure path logs and retries.
     while (!this.stopped) {
-      const client = await this.opts.pool.connect();
-      const r = await client.query<{ won: boolean }>("SELECT pg_try_advisory_lock($1, $2) AS won", [LOCK_KEY, this.lockArg()]);
-      if (!r.rows[0]?.won) {
+      let client: PoolClient;
+      try {
+        client = await this.opts.pool.connect();
+      } catch (e) {
+        this.noteError("db connect", e);
+        await sleep(5_000, () => this.stopped);
+        continue;
+      }
+      try {
+        const r = await client.query<{ won: boolean }>("SELECT pg_try_advisory_lock($1, $2) AS won", [LOCK_KEY, this.lockArg()]);
+        if (!r.rows[0]?.won) {
+          client.release();
+          await sleep(10_000, () => this.stopped);
+          continue;
+        }
+      } catch (e) {
         client.release();
-        await sleep(10_000, () => this.stopped);
+        this.noteError("lock election", e);
+        await sleep(5_000, () => this.stopped);
         continue;
       }
       this.client = client;
+      this.st.elected = true;
+      this.log(`toren telegram[${this.botKey}]: elected poller`);
       await Promise.allSettled([this.inboundLoop(), this.deliveryLoop()]);
-      return;
+      this.st.elected = false;
+      this.st.polling = false;
+      if (!this.stopped) this.log(`toren telegram[${this.botKey}]: loops exited unexpectedly; re-electing`);
     }
   }
 
   private async inboundLoop(): Promise<void> {
     let offset = 0;
-    const { rows } = await this.opts.pool.query<{ last_update_id: string }>(
-      "SELECT last_update_id FROM toren_control.telegram_poll_state WHERE bot_key = $1", [this.botKey],
-    );
-    let lastSeen = rows[0] ? Number(rows[0].last_update_id) : 0;
+    let lastSeen = -1; // resolved inside the loop so a boot-time DB blip retries instead of killing the loop for the process's lifetime
+    let lastHeartbeat = Date.now();
+    const heartbeatMs = this.opts.heartbeatMs ?? 300_000;
+    this.st.polling = true;
     while (!this.stopped) {
       try {
+        if (lastSeen < 0) {
+          const { rows } = await this.opts.pool.query<{ last_update_id: string }>(
+            "SELECT last_update_id FROM toren_control.telegram_poll_state WHERE bot_key = $1", [this.botKey],
+          );
+          lastSeen = rows[0] ? Number(rows[0].last_update_id) : 0;
+          this.st.lastUpdateId = lastSeen;
+        }
         const updates = await this.api<TgUpdate[]>("getUpdates", {
           offset, timeout: this.opts.pollTimeoutSec ?? 25,
         });
@@ -112,14 +179,25 @@ export class TelegramChannel {
           if (u.update_id <= lastSeen) continue; // redelivered after a crash
           if (u.message) await this.handleMessage(u.message).catch(() => { /* one bad update never stalls the loop */ });
           lastSeen = u.update_id;
+          this.st.lastUpdateId = lastSeen;
           await this.opts.pool.query(
             `INSERT INTO toren_control.telegram_poll_state (bot_key, last_update_id) VALUES ($1, $2)
              ON CONFLICT (bot_key) DO UPDATE SET last_update_id = GREATEST(toren_control.telegram_poll_state.last_update_id, $2)`,
             [this.botKey, lastSeen],
           );
         }
+        this.noteOk();
+        if (Date.now() - lastHeartbeat >= heartbeatMs) {
+          lastHeartbeat = Date.now();
+          this.log(`toren telegram[${this.botKey}]: poller alive, offset ${this.st.lastUpdateId}`);
+        }
         if (updates.length === 0 && (this.opts.pollTimeoutSec ?? 25) === 0) await sleep(150, () => this.stopped);
-      } catch {
+      } catch (e) {
+        this.noteError("poll", e);
+        if (Date.now() - lastHeartbeat >= heartbeatMs) {
+          lastHeartbeat = Date.now();
+          this.log(`toren telegram[${this.botKey}]: poller FAILING for ${this.st.consecutiveFailures} attempts, last error ${this.st.lastError}`);
+        }
         await sleep(3_000, () => this.stopped);
       }
     }
@@ -238,13 +316,17 @@ export class TelegramChannel {
   private async deliveryLoop(): Promise<void> {
     while (!this.stopped) {
       await sleep(this.opts.deliverMs ?? 2_500, () => this.stopped);
-      const { rows } = await this.opts.pool.query<{ chat_id: string; agent: string; run_id: string; last_delivered_seq: number }>(
-        "SELECT chat_id, agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE bot_key = $1 AND run_id IS NOT NULL", [this.botKey],
-      );
-      for (const row of rows) {
-        try {
-          await this.deliverOne(Number(row.chat_id), row.agent, row.run_id, row.last_delivered_seq);
-        } catch { /* next tick retries */ }
+      try {
+        const { rows } = await this.opts.pool.query<{ chat_id: string; agent: string; run_id: string; last_delivered_seq: number }>(
+          "SELECT chat_id, agent, run_id, last_delivered_seq FROM toren_control.telegram_bindings WHERE bot_key = $1 AND run_id IS NOT NULL", [this.botKey],
+        );
+        for (const row of rows) {
+          try {
+            await this.deliverOne(Number(row.chat_id), row.agent, row.run_id, row.last_delivered_seq);
+          } catch { /* next tick retries */ }
+        }
+      } catch (e) {
+        this.noteError("delivery scan", e); // a DB blip must never end the loop for the process's lifetime
       }
     }
   }

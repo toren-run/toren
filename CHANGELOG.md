@@ -2,8 +2,14 @@
 
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
-## Unreleased
+## 0.1.7 — 2026-08-25
 
+Shaped by a second production field report: a Telegram poller's failure modes were indistinguishable from its quiet modes (22 silent hours, process RUNNING throughout).
+
+- Telegram channel loops can no longer die silently: every failure path (DB connect, lock election, poll-state read, getUpdates, delivery scan) logs on the transition into failure and retries with backoff. Previously a single DB blip at boot killed inbound polling for the life of the process with zero log lines.
+- Heartbeat: `poller alive, offset N` every 5 minutes while healthy; a FAILING line at the same cadence while not. No logs now always means not healthy.
+- `GET /healthz` reports live channel health per bot: `elected`, `polling`, `lastPollOkAt`, `lastUpdateId` (the getUpdates confirm-offset, now queryable), `lastError`, `consecutiveFailures`.
+- `TelegramChannel` gains `status()`, and `log`/`heartbeatMs` options.
 - `toren run --json` no longer prints a human-readable line before the JSON; piping to `jq` works.
 - Per-agent bots are now the standard Telegram posture: docs lead with `telegram.bot_token_env`, `toren init` scaffolds it, and the all-agents `TELEGRAM_BOT_TOKEN` bot is reframed as the operator's fleet bot (its invites expose the whole roster — don't hand them to outsiders). No behavior change.
 
