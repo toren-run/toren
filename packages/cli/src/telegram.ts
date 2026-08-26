@@ -73,7 +73,11 @@ export class TelegramChannel {
   status(): TelegramChannelStatus { return { ...this.st }; }
 
   private noteError(where: string, e: unknown): void {
-    const msg = `${where}: ${e instanceof Error ? e.message : String(e)}`;
+    // The bot token lives in every API URL; error strings from the fetch stack
+    // must never carry it into logs or /healthz (the same class of leak as a
+    // pinned API token in the boot banner).
+    const raw = `${where}: ${e instanceof Error ? e.message : String(e)}`;
+    const msg = raw.split(this.opts.botToken).join("<bot-token>");
     // Log on transition into failure, not on every retry — and never silently.
     if (this.st.consecutiveFailures === 0) this.log(`toren telegram[${this.botKey}]: ${msg} (retrying)`);
     this.st.lastError = msg;

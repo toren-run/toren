@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Defense-in-depth for the boot-log token fix: Telegram channel error strings are scrubbed of the bot token before they reach logs or `/healthz` (the token is embedded in every Telegram API URL, so a future fetch-stack change could otherwise echo it).
+
 ## 0.1.8 — 2026-08-26
 
 - Security: `toren dev` no longer prints the console URL with the token embedded when `TOREN_API_TOKEN` is pinned — a pinned token is a long-lived credential and the boot log ends up in log aggregators (CloudWatch et al.). The pre-authenticated link still prints for ephemeral tokens, which rotate every restart. Reported from a production deployment.
