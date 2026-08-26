@@ -33,6 +33,8 @@ export interface ApiConfig {
   defaultProcess?: Record<string, string>;
   /** Live channel health probes (e.g. Telegram pollers), included in /healthz so a dead poller is visible from outside. Mutable: channels register after the server starts. */
   channelHealth?: Record<string, () => unknown>;
+  /** Fleet sign-in sheet probe: live workers and their versions, included in /healthz so version skew across containers is visible from outside. */
+  workers?: () => unknown;
 }
 
 type Principal = { kind: "admin" } | { kind: "key"; id: string; name: string };
@@ -125,7 +127,9 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
         const channels = Object.fromEntries(Object.entries(cfg.channelHealth ?? {}).map(([k, probe]) => {
           try { return [k, probe()]; } catch { return [k, { error: "probe failed" }]; }
         }));
-        return send(res, 200, { ok: true, ...(Object.keys(channels).length ? { channels } : {}) });
+        let workers: unknown;
+        try { workers = cfg.workers?.(); } catch { workers = { error: "probe failed" }; }
+        return send(res, 200, { ok: true, ...(Object.keys(channels).length ? { channels } : {}), ...(workers !== undefined ? { workers } : {}) });
       }
       if (req.method === "GET" && cfg.consoleDir && (url.pathname === "/console" || url.pathname.startsWith("/console/"))) {
         // The app's asset URLs are page-relative, so the page must live at

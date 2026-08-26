@@ -20,7 +20,7 @@ Start with compose if you just want Toren running somewhere today. Reach for the
 
 Multiple Toren containers share one Postgres safely: queue messages are labeled by agent and each fleet claims only its own. Two rules when you run several:
 
-- **Pin all containers to the same exact Toren version** (`"0.1.9"`, not `"^0.1.9"`) and upgrade them in the same deploy. They share `toren_control`, which migrates at boot; additive migrations make small drift survivable, but version skew is not a state to live in.
+- **Pin all containers to the same exact Toren version** (`"0.1.9"`, not `"^0.1.9"`) and upgrade them in the same deploy. They share `toren_control`, which migrates at boot; additive migrations make small drift survivable, but version skew is not a state to live in. The runtime watches for it: every worker signs into `toren_control.workers` with its version, and when two versions are live against one database it says so in the log (once on transition, again every few minutes while it lasts) and in `GET /healthz` under `workers`. Skew during a rolling deploy appears and clears on its own; skew that persists means a deployment missed its upgrade.
 - Split by **trust domain**, not by agent count. Agents that share credentials and blast radius belong in one container, however many there are.
 
 ## Postgres requirements (any tier)

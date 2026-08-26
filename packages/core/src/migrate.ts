@@ -126,6 +126,13 @@ CREATE TABLE IF NOT EXISTS toren_control.run_watchers (
   settled boolean NOT NULL DEFAULT false
 );
 CREATE INDEX IF NOT EXISTS run_watchers_open_idx ON toren_control.run_watchers (agent) WHERE NOT settled;
+CREATE TABLE IF NOT EXISTS toren_control.workers (
+  worker_id text PRIMARY KEY,
+  version text NOT NULL,
+  hostname text,
+  started_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS toren_control.sandboxes (
   run_id uuid PRIMARY KEY,
   provider text NOT NULL,

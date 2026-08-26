@@ -157,6 +157,11 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   // /healthz can tell a dead poller from a quiet one (field report 2026-08-25).
   const channelHealth: Record<string, () => unknown> = {};
 
+  const { WorkerRegistry } = await import("./worker-registry.js");
+  const { createRequire } = await import("node:module");
+  const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
+  const registry = new WorkerRegistry(rt.pool, version, io.out);
+
   // No configured token → mint an ephemeral one so the API + console work out
   // of the box. It rotates every restart; set TOREN_API_TOKEN to pin it.
   const configured = process.env.TOREN_API_TOKEN;
@@ -175,7 +180,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     const defaultProcess = Object.fromEntries(
       Object.entries(rt.crews).flatMap(([name, loaded]) => (loaded.defaultProcess ? [[name, loaded.defaultProcess]] : [])),
     );
-    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess, channelHealth });
+    const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess, channelHealth, workers: () => registry.status() });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
     // A pinned token is a long-lived credential: never echo it, or it lands in
@@ -221,11 +226,12 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* transient DB error — next tick retries */ });
     void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
     void sweepWatchers(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
+    void registry.tick().catch(() => { /* transient DB error — next tick retries */ });
   }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {
     const stop = () => {
       clearInterval(interval);
-      void Promise.all(telegramChannels.map((t) => t.stop())).then(() => worker.stop()).then(() => rt.close()).then(() => resolveExit());
+      void Promise.all([...telegramChannels.map((t) => t.stop()), registry.stop()]).then(() => worker.stop()).then(() => rt.close()).then(() => resolveExit());
     };
     process.once("SIGINT", stop);
     process.once("SIGTERM", stop);
