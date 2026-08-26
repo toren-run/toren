@@ -1,6 +1,6 @@
 {
   "name": "toren-run",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "type": "module",
   "bin": {
     "toren": "./bin/toren.js"

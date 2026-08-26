@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.10 — 2026-08-26
 
 - Fleet sign-in sheet: every worker registers its version in `toren_control.workers` with a heartbeat, and version skew across containers sharing one database is detected and reported — in the log on transition and every few minutes while it persists, and continuously in `GET /healthz` under `workers` (which also finally answers "what exactly is running against this database"). Skew during a rolling deploy clears itself; persistent skew means a deployment missed its upgrade. Detection, not enforcement: blocking on mismatch would break rolling deploys. Prompted by a production deployment running 0.1.7 and 0.1.9 side by side after a two-target deploy built only one image.
 
