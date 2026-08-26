@@ -22,6 +22,30 @@ type PoolClient = pg.PoolClient;
 
 const LOCK_KEY = 0x746f7267; // "torg" — the telegram poller election lock
 
+/** Telegram rejects sendMessage over 4096 chars; stay under with headroom. */
+const MAX_MESSAGE_CHARS = 4000;
+
+export class TelegramApiError extends Error {
+  constructor(message: string, readonly code: number) { super(message); }
+  /** 4xx minus rate limiting: retrying the identical payload can never succeed. */
+  get permanent(): boolean { return this.code >= 400 && this.code < 500 && this.code !== 429; }
+}
+
+/** Split at the last newline before the limit, else the last space, else hard. */
+export function splitMessage(text: string, limit = MAX_MESSAGE_CHARS): string[] {
+  const parts: string[] = [];
+  let rest = text;
+  while (rest.length > limit) {
+    const window = rest.slice(0, limit);
+    const at = Math.max(window.lastIndexOf("\n"), window.lastIndexOf(" "));
+    const cut = at > limit / 2 ? at : limit;
+    parts.push(rest.slice(0, cut));
+    rest = rest.slice(cut).replace(/^\s+/, "");
+  }
+  parts.push(rest);
+  return parts;
+}
+
 interface TgUpdate {
   update_id: number;
   message?: { message_id: number; from?: { id: number }; chat?: { id: number; type?: string }; text?: string };
@@ -119,9 +143,27 @@ export class TelegramChannel {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(params),
     });
-    const body = (await res.json()) as { ok: boolean; result?: T; description?: string };
-    if (!body.ok) throw new Error(`telegram ${method}: ${body.description ?? res.status}`);
+    const body = (await res.json()) as { ok: boolean; result?: T; description?: string; error_code?: number };
+    if (!body.ok) throw new TelegramApiError(`telegram ${method}: ${body.description ?? res.status}`, body.error_code ?? res.status);
     return body.result as T;
+  }
+
+  /**
+   * sendMessage that can always deliver: Telegram rejects texts over 4096
+   * chars, so long turns are split at line/word boundaries. A response the API
+   * still permanently refuses (a 4xx that isn't rate limiting) is replaced by
+   * a short notice — one bad message must never wedge the chat's cursor.
+   */
+  private async sendText(chat: number, text: string): Promise<void> {
+    for (const part of splitMessage(text)) {
+      try {
+        await this.api("sendMessage", { chat_id: chat, text: part });
+      } catch (e) {
+        if (!(e instanceof TelegramApiError) || !e.permanent) throw e;
+        this.noteError("sendMessage (permanent, message replaced by notice)", e);
+        await this.api("sendMessage", { chat_id: chat, text: "(a reply could not be delivered to Telegram; it is still in the run log — toren jobs show)" }).catch(() => {});
+      }
+    }
   }
 
   private async runElected(): Promise<void> {
@@ -211,7 +253,7 @@ export class TelegramChannel {
     const from = msg.from?.id, chat = msg.chat?.id;
     const text = (msg.text ?? "").trim();
     if (!from || !chat || !text) return;
-    const say = (t: string) => this.api("sendMessage", { chat_id: chat, text: t });
+    const say = (t: string) => this.sendText(chat, t);
 
     if (!(await this.isAllowed(from))) {
       const redeemed = await this.opts.pool.query(
@@ -343,7 +385,7 @@ export class TelegramChannel {
     let prev = lastSeq;
     for (const t of s.transcript) {
       if (t.role !== "assistant" || t.seq <= prev) continue;
-      await this.api("sendMessage", { chat_id: chat, text: t.text || "…" });
+      await this.sendText(chat, t.text || "…");
       const r = await this.opts.pool.query(
         "UPDATE toren_control.telegram_bindings SET last_delivered_seq = $1, updated_at = now() WHERE bot_key = $4 AND chat_id = $2 AND last_delivered_seq = $3",
         [t.seq, chat, prev, this.botKey],

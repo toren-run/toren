@@ -4,7 +4,7 @@ import {
   PgStateStore, PgQueue, PgLeases, LocalWorkerRuntime,
   type AgentSpec, type ModelProvider, type ModelRequest, type ModelResponse, type TickDeps, type WorkflowFn,
 } from "@toren-run/core";
-import { createTelegramInvite, TelegramChannel } from "../src/telegram.js";
+import { createTelegramInvite, splitMessage, TelegramChannel } from "../src/telegram.js";
 
 const pool = createPool();
 const SCHEMA = "agent_tgtest";
@@ -38,6 +38,14 @@ class FakeTelegram {
     if (method === "getUpdates") {
       result = this.updates.filter((u: any) => u.update_id >= (params.offset ?? 0));
     } else if (method === "sendMessage") {
+      // Mirror the real API: hard 400 on oversized texts.
+      if (String(params.text).length > 4096) {
+        return new Response(JSON.stringify({ ok: false, error_code: 400, description: "Bad Request: message is too long" }), { headers: { "content-type": "application/json" } });
+      }
+      // Deterministic permanent refusal, for the poison-pill path.
+      if (String(params.text).includes("POISON400")) {
+        return new Response(JSON.stringify({ ok: false, error_code: 400, description: "Bad Request: rejected" }), { headers: { "content-type": "application/json" } });
+      }
       this.sent.push({ chat_id: params.chat_id, text: params.text });
       result = { message_id: 0 };
     } else if (method === "sendChatAction") {
@@ -198,4 +206,41 @@ test("dedicated bots are isolated: pairing, invites, and bindings do not cross b
   } finally {
     await channel2.stop();
   }
+});
+
+test("splitMessage: respects the limit, prefers line and word boundaries", () => {
+  expect(splitMessage("short")).toEqual(["short"]);
+  const lines = Array.from({ length: 200 }, (_, i) => `line ${i} ${"x".repeat(30)}`).join("\n");
+  const parts = splitMessage(lines);
+  expect(parts.length).toBeGreaterThan(1);
+  for (const p of parts) expect(p.length).toBeLessThanOrEqual(4000);
+  // content survives; a chunk boundary may swap one whitespace char
+  const norm = (s: string) => s.replace(/\s+/g, " ");
+  expect(norm(parts.join(" "))).toBe(norm(lines));
+  // no boundaries at all: hard cut, nothing lost
+  const wall = "a".repeat(9000);
+  const hard = splitMessage(wall);
+  expect(hard.map((p) => p.length)).toEqual([4000, 4000, 1000]);
+});
+
+test("a reply over telegram's 4096 limit is split, delivered, and never wedges the chat", async () => {
+  const big = "b".repeat(5000);
+  tg.message(ALICE, big);
+  await tg.waitFor(() => tg.sent.filter((m) => m.chat_id === ALICE && m.text.startsWith("re:".slice(0, 1)) === false || true).length > 0 && tg.sent.some((m) => m.chat_id === ALICE && m.text.endsWith("b".repeat(50))));
+  const chunks = tg.sent.filter((m) => m.chat_id === ALICE && m.text.includes("bbbb"));
+  expect(chunks.length).toBeGreaterThan(1);
+  for (const c of chunks) expect(c.text.length).toBeLessThanOrEqual(4096);
+  expect(chunks.map((c) => c.text).join("")).toBe(`re:${big}`);
+
+  // the cursor advanced: the next turn still flows
+  tg.message(ALICE, "still alive?");
+  await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text === "re:still alive?"));
+});
+
+test("a permanently refused message becomes a notice instead of wedging the chat", async () => {
+  tg.message(ALICE, "POISON400 hello");
+  await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text.includes("could not be delivered")));
+
+  tg.message(ALICE, "after poison");
+  await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text === "re:after poison"));
 });
