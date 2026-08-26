@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.9 — 2026-08-26
 
 - Telegram delivery can no longer be wedged by one message: replies over Telegram's 4,096-char limit are split at line/word boundaries and delivered in parts (previously the send failed forever and the chat's delivery cursor never advanced — a permanently dead chat). A message Telegram permanently refuses for any other reason is replaced by a short notice pointing at the run log instead of retrying eternally. Third production field report, third same-day fix.
 - Defense-in-depth for the boot-log token fix: Telegram channel error strings are scrubbed of the bot token before they reach logs or `/healthz` (the token is embedded in every Telegram API URL, so a future fetch-stack change could otherwise echo it).

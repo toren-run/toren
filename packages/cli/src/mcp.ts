@@ -24,7 +24,7 @@ const json = (v: unknown) => ({ content: [{ type: "text" as const, text: JSON.st
 const fail = (e: unknown) => ({ content: [{ type: "text" as const, text: e instanceof Error ? e.message : String(e) }], isError: true });
 
 export function buildMcpServer(byAgent: Record<string, TickDeps>, opts: McpOpts): McpServer {
-  const server = new McpServer({ name: "toren", version: "0.1.8" });
+  const server = new McpServer({ name: "toren", version: "0.1.9" });
   const depsFor = (agent?: string) => {
     const name = agent ?? opts.defaultAgent;
     const deps = byAgent[name];
