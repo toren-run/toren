@@ -222,11 +222,17 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
       io.out(`toren telegram: dedicated bot up for ${name} (pair via \`toren telegram invite --agent ${name}\`)`);
     }
   }
+  const { sweepSandboxes } = await import("./sandbox-reaper.js");
+  let lastSandboxSweep = 0;
   const interval = setInterval(() => {
     for (const [name, deps] of Object.entries(rt.byAgent)) void sweep(deps, name).catch(() => { /* transient DB error — next tick retries */ });
     void sweepSchedules(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
     void sweepWatchers(rt.pool, rt.byAgent).catch(() => { /* transient DB error — next tick retries */ });
     void registry.tick().catch(() => { /* transient DB error — next tick retries */ });
+    if (Date.now() - lastSandboxSweep > 60_000) {
+      lastSandboxSweep = Date.now();
+      void sweepSandboxes(rt.pool, rt.byAgent, { log: io.out }).catch(() => { /* transient — next minute retries */ });
+    }
   }, opts.sweepMs ?? 5_000);
   await new Promise<void>((resolveExit) => {
     const stop = () => {

@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Sandbox reaper: a worker killed mid-run could never run its sandbox teardown, so docker containers (`toren-sbx-<runId>`) outlived their runs indefinitely. The runtime now sweeps once a minute and removes containers whose runs are finished — plus day-old containers belonging to no known run. Live runs are never touched (their containers are disposable by design: the workspace directory is the state and is never deleted), and crash-orphaned E2B rows in `toren_control.sandboxes` are cleared the same way.
+
 ## 0.1.10 — 2026-08-26
 
 - Fleet sign-in sheet: every worker registers its version in `toren_control.workers` with a heartbeat, and version skew across containers sharing one database is detected and reported — in the log on transition and every few minutes while it persists, and continuously in `GET /healthz` under `workers` (which also finally answers "what exactly is running against this database"). Skew during a rolling deploy clears itself; persistent skew means a deployment missed its upgrade. Detection, not enforcement: blocking on mismatch would break rolling deploys. Prompted by a production deployment running 0.1.7 and 0.1.9 side by side after a two-target deploy built only one image.

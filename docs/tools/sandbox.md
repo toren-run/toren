@@ -69,6 +69,8 @@ Whatever the choice, the agent's tools and behavior are identical; only the exec
 
 **Local docker** starts a container over a bind-mounted workspace (sub-second on a pulled image). Good for development; docker is already part of the quickstart.
 
+The container is disposable; the workspace directory is the state. If a worker dies mid-run (the whole premise), the next tool call recreates the container around the same workspace — and the orphaned one is collected by the runtime's sandbox reaper, which sweeps once a minute and removes containers whose runs are finished (a day-old container belonging to no known run counts too). Live runs are never touched, and workspace directories are never deleted, so artifacts survive.
+
 **E2B** runs each run's workspace in a Firecracker microVM and is the backend for cloud deployments, where docker is unavailable. Each run's sandbox id is recorded durably, so a worker that dies mid-run is replaced by one that reconnects to the *same* sandbox (same disk) rather than starting over. Get a key at [e2b.dev](https://e2b.dev); the free tier covers development. On AWS, `deploy-aws` reads `E2B_API_KEY` and stores it in Secrets Manager like the model keys.
 
 The [Docker Compose tier](/deploy/compose) uses `e2b` (its default `auto` resolves to E2B when you set `E2B_API_KEY`); local docker sandboxes are intentionally not run from inside the compose worker container.
