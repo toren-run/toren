@@ -178,7 +178,11 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
     const apiServer = createApiServer(rt.byAgent, { token, agent: names[0]!, pool: rt.pool, consoleDir, agentInfo, defaultProcess, channelHealth });
     await new Promise<void>((r) => apiServer.listen(port, r));
     io.out(`toren api: http://0.0.0.0:${port} (bearer auth; POST /runs, GET /runs/:id, POST /runs/:id/approvals)`);
-    if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
+    // A pinned token is a long-lived credential: never echo it, or it lands in
+    // CloudWatch and friends. The pre-authenticated link is for ephemeral
+    // tokens only, which rotate every restart and exist to be printed.
+    if (consoleDir && configured) io.out(`toren console: http://localhost:${port}/console/ (sign in with your TOREN_API_TOKEN)`);
+    else if (consoleDir) io.out(`toren console: http://localhost:${port}/console/#token=${token}`);
     if (!configured) io.out(`toren: using an ephemeral API token (rotates on restart); set TOREN_API_TOKEN to pin one`);
   }
   const telegramChannels: { stop(): Promise<void> }[] = [];

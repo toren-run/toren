@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Security: `toren dev` no longer prints the console URL with the token embedded when `TOREN_API_TOKEN` is pinned — a pinned token is a long-lived credential and the boot log ends up in log aggregators (CloudWatch et al.). The pre-authenticated link still prints for ephemeral tokens, which rotate every restart. Reported from a production deployment.
+
 All notable changes, per the [versioning & compatibility contract](https://toren.run/docs/reference/versioning). GitHub Releases mirror this file.
 
 ## 0.1.7 — 2026-08-25
