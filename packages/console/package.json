@@ -1,6 +1,6 @@
 {
   "name": "@toren-run/console",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Toren's built-in web console: live runs, event timelines, approvals, API keys. Served by `toren dev`.",
   "license": "Apache-2.0",
   "type": "module",
