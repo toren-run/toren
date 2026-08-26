@@ -1,6 +1,6 @@
 # Toren documentation
 
-*Toren is the open-source runtime for long-running, durable agents, in your own cloud.*
+*Toren is an open-source durable agent runtime: long-running agents in your own cloud.*
 
 The docs follow [Diátaxis](https://diataxis.fr/): learn by doing → solve a task → look something up → understand why.
 

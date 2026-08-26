@@ -8,7 +8,7 @@
 
 *A real recording (waits sped up): a 13-task crew, `kill -9` mid-run, a fresh worker resumes it. The receipt at the end: exactly 13 model calls, 4 replayed from the log, nothing re-paid.*
 
-Toren is an open-source runtime for **process-shaped agents**: work measured in hours and days, not seconds. Agents run as durable processes on an append-only Postgres event log. They survive crashes, deploys, restarts, and a literal `kill -9`, and they run in **your** cloud.
+Toren is an open-source **durable agent runtime** for process-shaped agents: work measured in hours and days, not seconds. Agents run as durable processes on an append-only Postgres event log. They survive crashes, deploys, restarts, and a literal `kill -9`, and they run in **your** cloud.
 
 - **A resumed run never re-pays for a completed model call.** Every LLM and tool call is recorded the moment it completes; on resume, finished steps replay from the log instead of the provider. Crash-tested with a kill matrix that murders the process after every single database write and asserts exactly-once billing.
 - **One deployment, many process agents.** `toren dev --dir crews/` serves a whole fleet. Each agent crew gets its own isolated event-log schema, the API routes runs by agent, and the console shows every crew.
