@@ -12,6 +12,17 @@ The same agent directory moves up the ladder unchanged: develop locally, self-ho
 
 Start with compose if you just want Toren running somewhere today. Reach for the AWS module when you want a production posture in your own account; it is a reference architecture: read it, fork it, or use it as-is.
 
+## One container or several
+
+`toren dev` serves every agent in every `--dir`: one container runs the whole fleet, one version by construction, one API and console. That is the right default, with one deliberate exception.
+
+**The container is the trust boundary.** Env vars are per-process, so every agent in a container resolves the same variable name to the same value. When two agents must hold *different* credentials for the same thing — a CFO agent whose `SQL_DATABASE_URL` maps to a role that reads finance, a CMO agent whose maps to one that reads marketing — give them separate containers. The database role does the enforcing (the prompt asks nicely, the grant actually refuses); the separate container is what lets each agent carry its own credential. This is the same line the rest of the industry draws: Airflow directs teams needing real separation to separate environments, and Dagster ships a process per code location as its default topology.
+
+Multiple Toren containers share one Postgres safely: queue messages are labeled by agent and each fleet claims only its own. Two rules when you run several:
+
+- **Pin all containers to the same exact Toren version** (`"0.1.9"`, not `"^0.1.9"`) and upgrade them in the same deploy. They share `toren_control`, which migrates at boot; additive migrations make small drift survivable, but version skew is not a state to live in.
+- Split by **trust domain**, not by agent count. Agents that share credentials and blast radius belong in one container, however many there are.
+
 ## Postgres requirements (any tier)
 
 Toren brings its own schemas; you bring a database and a role.
