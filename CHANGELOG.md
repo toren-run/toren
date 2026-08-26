@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.11 — 2026-08-26
 
 - Sandbox reaper: a worker killed mid-run could never run its sandbox teardown, so docker containers (`toren-sbx-<runId>`) outlived their runs indefinitely. The runtime now sweeps once a minute and removes containers whose runs are finished — plus day-old containers belonging to no known run. Live runs are never touched (their containers are disposable by design: the workspace directory is the state and is never deleted), and crash-orphaned E2B rows in `toren_control.sandboxes` are cleared the same way.
 
