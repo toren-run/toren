@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.12 — 2026-08-27
 
 - `maxAttemptsPerTask` counts faults, not `TaskStarted` events: conversation turns and approval wakes no longer count as attempts, so a 5-attempt poison-pill is no longer a 5-turn conversation cap that silently kills healthy sessions (field report 2026-08-27). An attempt is a start that resumes a cycle which ended with no completion and no parking marker.
 - Telegram approvals round-trip: a gated tool call is delivered into the bound chat (tool + arguments) and answered with `/approve` or `/deny` (optional comment). Previously a gated call on this channel hung forever behind a typing indicator, forcing `approval: never` to use sandboxes at all.
