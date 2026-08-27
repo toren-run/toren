@@ -13,6 +13,8 @@ export default defineConfig({
   rewrites: { "README.md": "index.md" },
   head: [
     ["link", { rel: "icon", type: "image/svg+xml", href: "/docs/toren-mark.svg" }],
+    // Vercel Web Analytics — the landing page has this too; without it here, docs visits are invisible.
+    ["script", { defer: "", src: "/_vercel/insights/script.js" }],
     ["link", {
       rel: "stylesheet",
       href: "https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap",
