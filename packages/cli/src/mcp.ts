@@ -108,8 +108,8 @@ export function buildMcpServer(byAgent: Record<string, TickDeps>, opts: McpOpts)
     },
   }, async ({ run_id, task_id, step_id, granted, comment }) => {
     try {
-      const { deps } = await findRun(run_id);
-      await resolveApproval(deps, { runId: run_id, taskId: task_id, stepId: step_id, granted, by: "mcp", comment });
+      const { agent, deps } = await findRun(run_id);
+      await resolveApproval(deps, { runId: run_id, taskId: task_id, stepId: step_id, agent, granted, by: "mcp", comment });
       return json({ resolved: true, granted });
     } catch (e) { return fail(e); }
   });

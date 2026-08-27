@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- `maxAttemptsPerTask` counts faults, not `TaskStarted` events: conversation turns and approval wakes no longer count as attempts, so a 5-attempt poison-pill is no longer a 5-turn conversation cap that silently kills healthy sessions (field report 2026-08-27). An attempt is a start that resumes a cycle which ended with no completion and no parking marker.
+- Telegram approvals round-trip: a gated tool call is delivered into the bound chat (tool + arguments) and answered with `/approve` or `/deny` (optional comment). Previously a gated call on this channel hung forever behind a typing indicator, forcing `approval: never` to use sandboxes at all.
+- New `send_to_channel` builtin (ships with the sandbox toolkit): sends a workspace file to the run's bound chat as a photo or document with a caption, through a durable outbox in `toren_control.channel_outbox`. Ends the era of models fabricating `sandbox:/` download links; errors clearly when the run has no bound channel.
+- Approval wake messages now carry the agent label. Unlabeled wakes could be claimed by a fleet not serving that agent — swallowed (until a guardian re-nudged) in scoped deployments, or in shared-schema setups executed by the wrong fleet's provider. Found by the new approval round-trip test.
+
 ## 0.1.11 — 2026-08-26
 
 - Sandbox reaper: a worker killed mid-run could never run its sandbox teardown, so docker containers (`toren-sbx-<runId>`) outlived their runs indefinitely. The runtime now sweeps once a minute and removes containers whose runs are finished — plus day-old containers belonging to no known run. Live runs are never touched (their containers are disposable by design: the workspace directory is the state and is never deleted), and crash-orphaned E2B rows in `toren_control.sandboxes` are cleared the same way.

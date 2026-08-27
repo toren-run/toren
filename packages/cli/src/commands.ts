@@ -507,7 +507,7 @@ export async function cmdJobsApprove(
   const rt = await buildRuntime(loaded, opts.databaseUrl);
   try {
     await resolveApproval(rt.deps, {
-      runId, taskId, stepId,
+      runId, taskId, stepId, agent: loaded.name,
       granted: !opts.deny,
       by: process.env.USER ?? "operator",
       comment: opts.comment,

@@ -5,6 +5,7 @@ import {
   LocalWorkerRuntime, listPendingApprovals, makeProcessesFacet,
   type QueueAdapter, type TickDeps,
 } from "@toren-run/core";
+import type pg from "pg";
 import { SqsQueue } from "@toren-run/adapters-aws";
 import { RouterProvider } from "./router.js";
 import type { LoadedAgent, LoadedProject } from "./loader.js";
@@ -140,8 +141,37 @@ export async function buildRuntime(loaded: LoadedAgent, databaseUrl?: string): P
   const sandbox = await makeSandboxProvider(pool, loaded);
   if (sandbox) deps.sandbox = sandbox;
   deps.processes = makeProcessesFacet(pool, loaded.name, deps, { defaultProcess: loaded.defaultProcess });
+  deps.channels = makeChannelDelivery(pool, deps.files!);
   await preflightProviders(loaded.agents);
   return { pool, deps, schema, close: () => pool.end() };
+}
+
+/**
+ * Channel delivery facet (send_to_channel builtin): the tool queues a file
+ * into toren_control.channel_outbox; whichever channel holds the run's
+ * binding uploads it from there. The tool never touches bot tokens, and the
+ * binding check up front gives the model a clear error instead of a silently
+ * undeliverable file.
+ */
+export function makeChannelDelivery(pool: pg.Pool, files: PgFiles): NonNullable<TickDeps["channels"]> {
+  return {
+    forRun(runId: string) {
+      return {
+        async send(file) {
+          const bound = await pool.query("SELECT 1 FROM toren_control.telegram_bindings WHERE run_id = $1 LIMIT 1", [runId]);
+          if (!bound.rowCount) return "no-channel";
+          const data = Buffer.from(file.dataBase64, "base64");
+          const mediaType = file.kind === "photo" ? "image/*" : "application/octet-stream";
+          const stored = await files.put({ name: file.name, mediaType, data, pages: [] });
+          await pool.query(
+            "INSERT INTO toren_control.channel_outbox (run_id, kind, file_id, caption) VALUES ($1, $2, $3, $4)",
+            [runId, file.kind, stored.id, file.caption ?? null],
+          );
+          return "queued";
+        },
+      };
+    },
+  };
 }
 
 export interface FleetRuntime {
@@ -175,6 +205,7 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       ...(sandbox ? { sandbox } : {}),
     };
     byAgent[name]!.processes = makeProcessesFacet(pool, name, byAgent[name]!, { defaultProcess: loaded.defaultProcess });
+    byAgent[name]!.channels = makeChannelDelivery(pool, files);
   }
   await preflightProviders(Object.fromEntries(Object.values(project.crews).flatMap((c) => Object.values(c.agents)).map((a, i) => [i, a])));
   return { pool, byAgent, crews: project.crews, close: () => pool.end() };

@@ -45,6 +45,8 @@ export interface ResolveApprovalDeps { store: PgStateStore; leases: PgLeases; qu
 export interface ResolveApprovalReq {
   runId: string; taskId: string; stepId: string;
   granted: boolean; by: string; comment?: string;
+  /** Agent (crew) name: labels the wake message so only the fleet serving this agent claims it. Unlabeled wakes are claimable by any fleet, which swallows them in scoped deployments. */
+  agent?: string;
 }
 
 /**
@@ -69,5 +71,5 @@ export async function resolveApproval(deps: ResolveApprovalDeps, req: ResolveApp
     await deps.leases.release(lease);
   }
   // Wake the task, then the orchestrator will absorb the outcome.
-  await deps.queue.send("tasks-short", { kind: "task", runId: req.runId, taskId: req.taskId, dedupeKey: `approve-${req.taskId}-${req.stepId}` });
+  await deps.queue.send("tasks-short", { kind: "task", runId: req.runId, taskId: req.taskId, ...(req.agent ? { agent: req.agent } : {}), dedupeKey: `approve-${req.taskId}-${req.stepId}` });
 }

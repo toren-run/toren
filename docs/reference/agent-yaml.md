@@ -7,7 +7,7 @@ maxTokens: 16000           # per model call (default 16000)
 reasoning_effort: low      # OpenAI reasoning models: none|low|medium|high. gpt-5.6+ need it to use tools
 limits:
   maxStepsPerTask: 50      # hard cap on loop steps per task (default 50)
-  maxAttemptsPerTask: 20   # opt-in poison-pill: fail terminally after N attempts instead of retrying forever
+  maxAttemptsPerTask: 20   # opt-in poison-pill: fail terminally after N faulted attempts (conversation turns and approval wakes never count)
 contextWindow: 200000      # tokens; defaults per provider (anthropic 200k, openai 128k). Drives compaction
 builtin_tools: [web_search]      # standalone tools; see the Tools docs
 sandbox:                   # true, or a block: gives the agent a computer (bash + file tools)

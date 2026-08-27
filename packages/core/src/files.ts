@@ -30,6 +30,17 @@ export class PgFiles {
     return { id, name: file.name, mediaType: file.mediaType, bytes: file.data.length, pages: file.pages };
   }
 
+  /** Raw bytes, for channel delivery (Telegram uploads etc.). */
+  async getData(id: string): Promise<{ name: string; mediaType: string; data: Buffer } | null> {
+    const r = await this.pool.query(
+      `SELECT name, media_type, data FROM toren_control.files WHERE id = $1`,
+      [id],
+    );
+    const row = r.rows[0];
+    if (!row || !row.data) return null;
+    return { name: row.name, mediaType: row.media_type, data: row.data };
+  }
+
   async get(id: string): Promise<StoredFile | null> {
     const r = await this.pool.query(
       `SELECT id, name, media_type, bytes, pages FROM toren_control.files WHERE id = $1`,

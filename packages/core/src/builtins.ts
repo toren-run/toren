@@ -156,6 +156,46 @@ const bash = defineTool({
   },
 });
 
+// ---- send_to_channel: hand a workspace file to the human on the run's chat
+// channel. Without it, models with a sandbox write files and then fabricate
+// download links, because there is no sanctioned way out (field report
+// 2026-08-27). Photos and documents are inferred by extension; the runtime's
+// channel delivery loop does the actual upload.
+
+const PHOTO_EXT = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+const MAX_CHANNEL_FILE_B64 = 15_000_000; // ~11MB decoded; telegram documents cap at 50MB but exec output shouldn't carry that
+
+const sendToChannel = defineTool({
+  name: "send_to_channel",
+  description:
+    "Send a file from this run's workspace to the person you are talking to on the chat channel (as a photo for images, " +
+    "a document otherwise). Use this to deliver reports, charts, or any file you created — never write download links, they do not work.",
+  input: z.object({
+    path: z.string().describe("path of the file in the workspace"),
+    caption: z.string().max(1000).optional().describe("short caption shown with the file"),
+  }),
+  effects: "external",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ path, caption }, ctx) => {
+    if (!ctx.channels) throw new Error("send_to_channel: this run has no channel delivery configured");
+    if (!ctx.sandbox) throw new Error("send_to_channel: no sandbox workspace to read files from");
+    const r = await ctx.sandbox.exec(`base64 < ${JSON.stringify(path)}`, { timeoutMs: 60_000 });
+    if (r.exitCode !== 0) throw new Error(`send_to_channel: cannot read ${path}: ${r.stderr.trim() || "no such file"}`);
+    const dataBase64 = r.stdout.replace(/\s+/g, "");
+    if (!dataBase64) throw new Error(`send_to_channel: ${path} is empty`);
+    if (dataBase64.length > MAX_CHANNEL_FILE_B64) throw new Error(`send_to_channel: ${path} is too large (limit ~11MB)`);
+    const name = path.split("/").at(-1)!;
+    const ext = name.split(".").at(-1)?.toLowerCase() ?? "";
+    const kind = PHOTO_EXT.has(ext) ? ("photo" as const) : ("document" as const);
+    const res = await ctx.channels.send({ name, dataBase64, caption, kind });
+    if (res === "no-channel") {
+      throw new Error("send_to_channel: this run is not bound to a chat channel (it was not started from one), so there is nobody to deliver to");
+    }
+    return `queued ${name} (${kind}) for delivery to the bound chat`;
+  },
+});
+
 // ---- sql_query: read-only database access as a tool.
 // Defense in depth on top of the STRONGLY RECOMMENDED read-only DB role:
 // only a single SELECT/WITH runs, forbidden keywords are rejected, stacked
@@ -241,14 +281,14 @@ const checkRun = defineTool({
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash, run_process: runProcess, check_run: checkRun };
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash, run_process: runProcess, check_run: checkRun, send_to_channel: sendToChannel };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [], run_process: [], check_run: [] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [], run_process: [], check_run: [], send_to_channel: [] };
 
 /**
  * The toolkit `sandbox: true` grants: a computer for the agent. bash gates on
  * approval by default; workspace file operations are free (their blast radius
  * is the workspace itself).
  */
-export const SANDBOX_TOOLKIT: ToolDefAny[] = [bash, wsReadFile, wsWriteFile, wsEditFile];
+export const SANDBOX_TOOLKIT: ToolDefAny[] = [bash, wsReadFile, wsWriteFile, wsEditFile, sendToChannel];

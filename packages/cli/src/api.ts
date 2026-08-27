@@ -367,7 +367,7 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
         }
         const hit = await findRun(runId);
         if (!hit) return send(res, 404, { error: `run ${runId} not found` });
-        const { deps, run } = hit;
+        const { agent, deps, run } = hit;
 
         // GET /runs/:id
         if (req.method === "GET" && parts.length === 2) {
@@ -431,7 +431,7 @@ export function createApiServer(depsIn: TickDeps | Record<string, TickDeps>, cfg
             return send(res, 400, { error: "body must be {taskId, stepId, granted, comment?}" });
           }
           await resolveApproval(deps, {
-            runId, taskId: body.taskId, stepId: body.stepId,
+            runId, taskId: body.taskId, stepId: body.stepId, agent,
             granted: body.granted, by: "api", comment: body.comment as string | undefined,
           });
           return send(res, 200, { ok: true });

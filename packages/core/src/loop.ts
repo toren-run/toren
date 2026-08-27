@@ -77,6 +77,8 @@ export interface TaskLoopArgs {
   sandbox?: import("./tools.js").SandboxExec;
   /** Background named-process runs for the run_process/check_run builtins; wired by the runtime. */
   processes?: import("./tools.js").ProcessesCtx;
+  /** Outbound file delivery for the send_to_channel builtin; wired by the runtime. */
+  channels?: import("./tools.js").ToolCtx["channels"];
   /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
   sessionMode?: boolean;
 }
@@ -155,7 +157,27 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     invalidated = true;
   }
 
-  const attempt = raw.filter((e) => e.type === "TaskStarted").length + 1;
+  // Attempt = fault count, not TaskStarted count. Session tasks append
+  // TaskStarted per conversation turn and approval wakes, and neither is a
+  // failure — counting raw starts made maxAttemptsPerTask a conversation-
+  // length cap (field report 2026-08-27: a 5-attempt poison-pill silently
+  // killed every 6-turn conversation). A start is a retry only when the
+  // previous cycle ended with no clean marker: no completion, no parking
+  // for input, no parking for approval. Crashed or thrown ticks leave none.
+  let attempt = 1;
+  {
+    let sawStart = false, cleanSinceStart = true;
+    for (const e of raw) {
+      if (e.type === "TaskStarted") {
+        if (sawStart && !cleanSinceStart) attempt += 1;
+        sawStart = true;
+        cleanSinceStart = false;
+      } else if (e.type === "TaskCompleted" || e.type === "InputRequested" || e.type === "ApprovalRequested") {
+        cleanSinceStart = true;
+      }
+    }
+    if (sawStart && !cleanSinceStart) attempt += 1; // the tick about to start resumes a dirty cycle
+  }
   if (agent.maxTaskAttempts && attempt > agent.maxTaskAttempts) {
     const error = `gave up after ${agent.maxTaskAttempts} attempts (limits.maxAttemptsPerTask); the run's recorded error holds the last failure reason`;
     await append([ev("TaskFailed", { error, willRetry: false })]);
@@ -342,7 +364,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     let isError = false;
     try {
       const parsed = def.input.parse(tu.input);
-      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes }));
+      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes, channels: args.channels }));
     } catch (e) {
       result = `tool error: ${e instanceof Error ? e.message : String(e)}`;
       isError = true;

@@ -31,8 +31,17 @@ class FakeTelegram {
     this.updates.push({ update_id: this.nextId++, message: { message_id: this.nextId, from: { id: from }, chat: { id: from, type: "private" }, text } });
   }
 
+  docs: { chat_id: string; method: string; file_name: string; caption: string | null }[] = [];
+
   fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
     const method = String(url).split("/").at(-1)!;
+    if (method === "sendDocument" || method === "sendPhoto") {
+      const form = init?.body as FormData;
+      const field = method === "sendPhoto" ? "photo" : "document";
+      const blob = form.get(field) as File | null;
+      this.docs.push({ chat_id: String(form.get("chat_id")), method, file_name: blob?.name ?? "?", caption: form.get("caption") as string | null });
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 0 } }), { headers: { "content-type": "application/json" } });
+    }
     const params = init?.body ? JSON.parse(String(init.body)) : {};
     let result: unknown = true;
     if (method === "getUpdates") {
@@ -243,4 +252,103 @@ test("a permanently refused message becomes a notice instead of wedging the chat
 
   tg.message(ALICE, "after poison");
   await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text === "re:after poison"));
+});
+
+test("approval round-trip in chat: gated tool surfaces as a message, /approve resumes the run", { timeout: 30_000 }, async () => {
+  const { defineTool, LocalWorkerRuntime: LWR } = await import("@toren-run/core");
+  const { z } = await import("zod");
+  const gated = defineTool({
+    name: "send_report", description: "Send.", input: z.object({ to: z.string() }),
+    effects: "external", idempotency: "keyed", approval: "always",
+    handler: async ({ to }: { to: string }) => `sent to ${to}`,
+  });
+  let step = 0;
+  const provider: ModelProvider = {
+    async complete(): Promise<ModelResponse> {
+      step += 1;
+      if (step === 1) return { content: [{ type: "toolUse", id: "tu1", name: "send_report", input: { to: "boss" } }], stopReason: "toolUse", usage: { inputTokens: 1, outputTokens: 1 } };
+      return { content: [{ type: "text", text: "report sent, done" }], stopReason: "endTurn", usage: { inputTokens: 1, outputTokens: 1 } };
+    },
+  };
+  const gspec: AgentSpec = { model: "mock/m", system: "sys", tools: [gated], maxTokens: 100, maxSteps: 6 };
+  const deps2: TickDeps = {
+    store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
+    provider, agents: { main: gspec }, workflows: { main: wf },
+  };
+  const worker2 = new LWR({ gatedbot: deps2 }, { concurrency: 1 });
+  worker2.start();
+  const tg3 = new FakeTelegram();
+  const APPROVER = 7007;
+  const ch3 = new TelegramChannel({
+    botToken: "test3", byAgent: { gatedbot: deps2 }, defaultAgent: "gatedbot", pool,
+    allowedUsers: new Set([APPROVER]), fetchImpl: tg3.fetch, pollTimeoutSec: 0, deliverMs: 150, botKey: "agent:gatedbot",
+  });
+  ch3.start();
+  try {
+    tg3.message(APPROVER, "send the report");
+    await tg3.waitFor(() => tg3.sent.some((m) => m.chat_id === APPROVER && m.text.includes("Approval needed") && m.text.includes("send_report")), 20_000);
+
+    tg3.message(APPROVER, "/approve");
+    await tg3.waitFor(() => tg3.sent.some((m) => m.chat_id === APPROVER && m.text.includes("Approved")), 15_000);
+    await tg3.waitFor(() => tg3.sent.some((m) => m.chat_id === APPROVER && m.text === "report sent, done"), 20_000);
+
+    // the prompt was sent exactly once
+    expect(tg3.sent.filter((m) => m.text.includes("Approval needed")).length).toBe(1);
+  } finally {
+    await ch3.stop();
+    await worker2.stop();
+  }
+});
+
+test("send_to_channel: a workspace file reaches the chat as an upload, never a fake link", { timeout: 30_000 }, async () => {
+  const { LocalWorkerRuntime: LWR, PgFiles, BUILTIN_TOOLS } = await import("@toren-run/core");
+  const { makeChannelDelivery } = await import("../src/runtime.js");
+  const report = Buffer.from("quarterly numbers: up and to the right").toString("base64");
+  const fakeSandbox = {
+    forRun: () => ({
+      exec: async (cmd: string) => cmd.includes("report.pdf")
+        ? { stdout: report, stderr: "", exitCode: 0 }
+        : { stdout: "", stderr: "no such file", exitCode: 1 },
+      readFile: async () => "", writeFile: async () => {},
+    }),
+  };
+  let step = 0;
+  const provider: ModelProvider = {
+    async complete(): Promise<ModelResponse> {
+      step += 1;
+      if (step === 1) return { content: [{ type: "toolUse", id: "tu9", name: "send_to_channel", input: { path: "/workspace/report.pdf", caption: "the report" } }], stopReason: "toolUse", usage: { inputTokens: 1, outputTokens: 1 } };
+      return { content: [{ type: "text", text: "sent, check the file above" }], stopReason: "endTurn", usage: { inputTokens: 1, outputTokens: 1 } };
+    },
+  };
+  const files = new PgFiles(pool);
+  const fspec: AgentSpec = { model: "mock/m", system: "sys", tools: [BUILTIN_TOOLS.send_to_channel!], maxTokens: 100, maxSteps: 6 };
+  const deps3: TickDeps = {
+    store: new PgStateStore(pool, SCHEMA), queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
+    provider, agents: { main: fspec }, workflows: { main: wf },
+    files, sandbox: fakeSandbox as never, channels: makeChannelDelivery(pool, files),
+  };
+  const worker3 = new LWR({ filebot: deps3 }, { concurrency: 1 });
+  worker3.start();
+  const tg4 = new FakeTelegram();
+  const READER = 8008;
+  const ch4 = new TelegramChannel({
+    botToken: "test4", byAgent: { filebot: deps3 }, defaultAgent: "filebot", pool,
+    allowedUsers: new Set([READER]), fetchImpl: tg4.fetch, pollTimeoutSec: 0, deliverMs: 150, botKey: "agent:filebot",
+  });
+  ch4.start();
+  try {
+    tg4.message(READER, "make me the report");
+    await tg4.waitFor(() => tg4.docs.some((d) => d.file_name === "report.pdf" && d.chat_id === String(READER)), 20_000);
+    expect(tg4.docs[0]!.method).toBe("sendDocument");
+    expect(tg4.docs[0]!.caption).toBe("the report");
+    await tg4.waitFor(() => tg4.sent.some((m) => m.chat_id === READER && m.text === "sent, check the file above"), 20_000);
+
+    // outbox drained, delivered exactly once
+    const { rows } = await pool.query("SELECT delivered_at FROM toren_control.channel_outbox");
+    expect(rows.every((r: { delivered_at: unknown }) => r.delivered_at !== null)).toBe(true);
+    expect(tg4.docs.length).toBe(1);
+  } finally {
+    await ch4.stop();
+    await worker3.stop();
+  }
 });

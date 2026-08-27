@@ -154,6 +154,7 @@ export class LocalWorkerRuntime {
           runId: msg.runId, taskId, agent, input: spec.input, files: deps.files,
           sandbox: deps.sandbox?.forRun(msg.runId),
           processes: deps.processes,
+          channels: deps.channels?.forRun(msg.runId),
           sessionMode: run?.mode === "session",
         });
         await this.shared.queue.ack(d);

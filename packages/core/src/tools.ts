@@ -32,6 +32,15 @@ export interface ToolCtx {
   sandbox?: SandboxExec;
   /** Background named-process runs for the run_process/check_run builtins; wired by the runtime. */
   processes?: ProcessesCtx;
+  /** Outbound file delivery to the run's bound chat channel (send_to_channel builtin); wired by the runtime. */
+  channels?: {
+    send(file: { name: string; dataBase64: string; caption?: string; kind: "photo" | "document" }): Promise<"queued" | "no-channel">;
+  };
+}
+
+/** Per-run channel delivery, wired by the runtime for the send_to_channel builtin. */
+export interface ChannelDeliveryProvider {
+  forRun(runId: string): NonNullable<ToolCtx["channels"]>;
 }
 
 /** One run's sandbox: commands and file operations against a persistent workspace. */

@@ -230,3 +230,27 @@ test("sessions bypass a crew's custom workflow: chatting with a JSON-parsing bat
     await worker.stop();
   }
 });
+
+test("maxAttemptsPerTask counts faults, not conversation turns: a capped session survives past the cap", { timeout: 30_000 }, async () => {
+  // field report 2026-08-27: maxAttemptsPerTask: 5 silently killed every
+  // conversation at turn 6, because turns counted as attempts.
+  const provider = new TurnProvider({});
+  const deps = makeDeps(new PgStateStore(pool, SCHEMA), provider);
+  (deps.agents.main as AgentSpec) = { ...spec, maxTaskAttempts: 3 };
+  const worker = new LocalWorkerRuntime({ sess: deps }, { concurrency: 1 });
+  worker.start();
+  try {
+    const runId = await startSession(deps, { agent: "sess", message: "turn 1" });
+    await worker.drain(15_000);
+    for (let i = 2; i <= 6; i++) {
+      await sendSessionMessage(deps, runId, { text: `turn ${i}`, channel: "api" });
+      await worker.drain(15_000);
+    }
+    const s = (await getSession(deps.store, runId))!;
+    expect(s.state).toBe("awaiting_input"); // alive well past maxTaskAttempts turns
+    expect(s.transcript.filter((t) => t.role === "assistant").length).toBe(6);
+    expect((await deps.store.getRun(runId))!.status).not.toBe("failed");
+  } finally {
+    await worker.stop();
+  }
+});

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type pg from "pg";
 import {
-  getSession, sendSessionMessage, SessionBusyError, startSession,
+  getSession, listPendingApprovals, resolveApproval, sendSessionMessage, SessionBusyError, startSession,
   type TickDeps,
 } from "@toren-run/core";
 
@@ -88,6 +88,8 @@ export class TelegramChannel {
   private readonly botKey: string;
   private readonly log: (line: string) => void;
   private st: TelegramChannelStatus;
+  /** Approval prompts already sent, keyed runId:stepId. In-memory: a restarted poller re-prompts once, which doubles as a reminder. */
+  private deliveredApprovals = new Set<string>();
   constructor(private opts: TelegramChannelOpts) {
     this.botKey = opts.botKey ?? "default";
     this.log = opts.log ?? ((line) => console.error(line));
@@ -312,8 +314,30 @@ export class TelegramChannel {
         "Just talk: any message continues your open conversation (or starts one).\n" +
         "/new [agent] starts a fresh conversation\n" +
         "/agent shows the agents and who you are talking to\n" +
+        "/approve or /deny answers a pending approval\n" +
         "/end closes the open conversation",
       );
+      return;
+    }
+    if (cmd === "/approve" || cmd === "/deny") {
+      if (!b?.runId) {
+        await say("No open conversation, so nothing to approve.");
+        return;
+      }
+      const deps = this.opts.byAgent[b.agent]!;
+      const pending = await listPendingApprovals(deps.store, b.runId);
+      const p = pending[0];
+      if (!p) {
+        await say("Nothing is waiting for approval.");
+        return;
+      }
+      const comment = text.slice(cmd.length).trim() || undefined;
+      await resolveApproval(deps, {
+        runId: p.runId, taskId: p.taskId, stepId: p.stepId, agent: b.agent,
+        granted: cmd === "/approve", by: "telegram", comment,
+      });
+      this.deliveredApprovals.delete(`${p.runId}:${p.stepId}`);
+      await say(cmd === "/approve" ? "Approved. The agent continues." : "Denied. The agent will be told.");
       return;
     }
     if (cmd === "/agent" || cmd === "/agents") {
@@ -393,12 +417,62 @@ export class TelegramChannel {
       if (!r.rowCount) return; // someone else moved the cursor — defer to them
       prev = t.seq;
     }
-    if (s.state === "working") await this.typing(chat).catch(() => {});
+    await this.deliverOutbox(chat, runId, deps).catch((e) => this.noteError("outbox delivery", e));
+    if (s.state === "working") {
+      // A gated tool call parks the run; without this, the chat shows a typing
+      // indicator forever (field report 2026-08-27). Surface each pending
+      // approval once; /approve and /deny answer it.
+      const pending = await listPendingApprovals(deps.store, runId).catch(() => []);
+      for (const p of pending) {
+        const key = `${p.runId}:${p.stepId}`;
+        if (this.deliveredApprovals.has(key)) continue;
+        const args = JSON.stringify(p.args ?? {});
+        await this.sendText(chat, `Approval needed. The agent wants to run:\n${p.tool}: ${args.length > 500 ? args.slice(0, 500) + "…" : args}\n\nReply /approve or /deny (optionally with a comment).`);
+        this.deliveredApprovals.add(key);
+      }
+      if (pending.length === 0) await this.typing(chat).catch(() => {});
+    }
     if (s.state === "failed") {
       await this.api("sendMessage", { chat_id: chat, text: "The agent hit an error and this conversation ended. Say anything to start fresh." });
       await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE bot_key = $3 AND chat_id = $1 AND run_id = $2", [chat, runId, this.botKey]);
     } else if (s.state === "completed" || s.state === "cancelled") {
       await this.opts.pool.query("UPDATE toren_control.telegram_bindings SET run_id = NULL, updated_at = now() WHERE bot_key = $3 AND chat_id = $1 AND run_id = $2", [chat, runId, this.botKey]);
+    }
+  }
+
+  /**
+   * Upload files the run queued via the send_to_channel builtin. Claim is a
+   * conditional UPDATE on delivered_at, so a crash mid-upload re-sends (at
+   * least once — the alternative silently loses the CEO's report) and two
+   * pollers never double-claim.
+   */
+  private async deliverOutbox(chat: number, runId: string, deps: TickDeps): Promise<void> {
+    const { rows } = await this.opts.pool.query<{ id: string; kind: string; file_id: string; caption: string | null }>(
+      "SELECT id, kind, file_id, caption FROM toren_control.channel_outbox WHERE run_id = $1 AND delivered_at IS NULL ORDER BY id",
+      [runId],
+    );
+    for (const row of rows) {
+      const file = await deps.files?.getData(row.file_id);
+      if (!file) {
+        await this.opts.pool.query("UPDATE toren_control.channel_outbox SET delivered_at = now() WHERE id = $1", [row.id]);
+        continue; // file vanished — nothing to send, never wedge the outbox
+      }
+      const method = row.kind === "photo" ? "sendPhoto" : "sendDocument";
+      const field = row.kind === "photo" ? "photo" : "document";
+      const form = new FormData();
+      form.append("chat_id", String(chat));
+      if (row.caption) form.append("caption", row.caption.slice(0, 1000));
+      form.append(field, new Blob([new Uint8Array(file.data)]), file.name);
+      const f = this.opts.fetchImpl ?? fetch;
+      const res = await f(`https://api.telegram.org/bot${this.opts.botToken}/${method}`, { method: "POST", body: form });
+      const body = (await res.json()) as { ok: boolean; description?: string; error_code?: number };
+      if (!body.ok) {
+        const err = new TelegramApiError(`telegram ${method}: ${body.description ?? res.status}`, body.error_code ?? res.status);
+        if (!err.permanent) throw err; // transient — next delivery tick retries
+        this.noteError(`${method} (permanent, file dropped)`, err);
+        await this.api("sendMessage", { chat_id: chat, text: `(a file could not be delivered: ${file.name}. it is still in the run's file store)` }).catch(() => {});
+      }
+      await this.opts.pool.query("UPDATE toren_control.channel_outbox SET delivered_at = now() WHERE id = $1 AND delivered_at IS NULL", [row.id]);
     }
   }
 

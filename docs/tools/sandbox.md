@@ -74,3 +74,7 @@ The container is disposable; the workspace directory is the state. If a worker d
 **E2B** runs each run's workspace in a Firecracker microVM and is the backend for cloud deployments, where docker is unavailable. Each run's sandbox id is recorded durably, so a worker that dies mid-run is replaced by one that reconnects to the *same* sandbox (same disk) rather than starting over. Get a key at [e2b.dev](https://e2b.dev); the free tier covers development. On AWS, `deploy-aws` reads `E2B_API_KEY` and stores it in Secrets Manager like the model keys.
 
 The [Docker Compose tier](/deploy/compose) uses `e2b` (its default `auto` resolves to E2B when you set `E2B_API_KEY`); local docker sandboxes are intentionally not run from inside the compose worker container.
+
+## Delivering files from the workspace
+
+`send_to_channel` ships with the sandbox toolkit: it sends a workspace file to the person on the run's bound chat channel (photo for images, document otherwise, optional caption). Models with sandboxes but no delivery path fabricate download links; this tool is the sanctioned way out, and it errors clearly when the run has no bound channel.

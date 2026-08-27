@@ -54,7 +54,16 @@ Just send a message: it continues your open conversation, or starts one. The bot
 | --- | --- |
 | `/new [agent]` | Start a fresh conversation (`[agent]` only matters on the fleet bot) |
 | `/agent` | Who you are talking to; on the fleet bot, the full roster |
+| `/approve` / `/deny` | Answer a pending tool approval (optionally with a comment) |
 | `/end` | Close the open conversation |
+
+## Approvals happen in the chat
+
+When the agent hits a gated tool (sandbox `bash` defaults to requiring approval), the bot sends the pending call into the conversation — tool name and arguments — and waits. Reply `/approve` or `/deny`, with an optional comment the agent will see. The run parks at zero compute while it waits, and the approval is recorded in the event log like everything else, so a resumed run never re-asks. No more choosing between sandboxes and `approval: never` on this channel.
+
+## Files arrive as files
+
+An agent with a sandbox can hand its work over with the built-in `send_to_channel` tool: the file lands in the chat as a photo (images) or a document (everything else), with an optional caption. Delivery goes through a durable outbox, so a worker crash mid-upload re-sends rather than losing the file. If a run has no bound chat, the tool tells the model so in plain words instead of letting it invent a download link.
 
 ## Durability, same as everywhere else
 

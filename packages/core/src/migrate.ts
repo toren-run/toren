@@ -117,6 +117,16 @@ CREATE TABLE IF NOT EXISTS toren_control.files (
   data bytea,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS toren_control.channel_outbox (
+  id bigserial PRIMARY KEY,
+  run_id uuid NOT NULL,
+  kind text NOT NULL,
+  file_id text NOT NULL,
+  caption text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  delivered_at timestamptz
+);
+CREATE INDEX IF NOT EXISTS channel_outbox_pending_idx ON toren_control.channel_outbox (run_id) WHERE delivered_at IS NULL;
 CREATE TABLE IF NOT EXISTS toren_control.run_watchers (
   child_run_id uuid PRIMARY KEY,
   parent_run_id uuid NOT NULL,
