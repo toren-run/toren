@@ -65,6 +65,26 @@ When the agent hits a gated tool (sandbox `bash` defaults to requiring approval)
 
 An agent with a sandbox can hand its work over with the built-in `send_to_channel` tool: the file lands in the chat as a photo (images) or a document (everything else), with an optional caption. Delivery goes through a durable outbox, so a worker crash mid-upload re-sends rather than losing the file. If a run has no bound chat, the tool tells the model so in plain words instead of letting it invent a download link.
 
+## Observer mode: bots that listen and never speak
+
+Some bots exist to watch, not talk — a silent logger in a busy group, a monitor collecting signals. Declare it per agent:
+
+```yaml
+telegram:
+  bot_token_env: AFF_BOT_TOKEN
+  groups: observe
+  observe:
+    updates: [message, edited_message, my_chat_member]
+```
+
+With `groups: observe`, everything the bot sees in group chats is recorded to `toren_control.telegram_observations` — sender, text, media type and `file_id`, edits, membership changes (a kick shows up as `my_chat_member`), plus the raw update as JSON. No replies, no pairing prompts, no runs, no model calls. DMs keep normal conversation behavior, so the same bot can converse privately and observe publicly.
+
+Nothing executes per observation, by design: processing belongs in a [scheduled process](../guides/scheduling.md) that sweeps the table in batch — one run classifying hundreds of observations beats a run per message on every axis, and your logic stays durable and auditable instead of living inside a poller. `WHERE bot_key = 'agent:<name>' AND id > $last` is the whole consumption contract.
+
+**The observations table is a stable, documented interface** — unlike the channel's internal tables, it is meant to be queried, and its columns fall under the [versioning promise](/reference/versioning).
+
+Pairing never gated what a bot can *hear* — it gates who can *talk to the agent*. The authorization for observing a group is membership: you put the bot there.
+
 ## Durability, same as everywhere else
 
 The channel runs inside the workers, and any worker can host it: they race for a Postgres advisory lock (one election per bot) and exactly one worker polls each bot at a time. If that worker dies, another takes over within seconds. Inbound updates are deduplicated through the database, and outbound replies advance a delivered-cursor with a compare-and-swap, so a crash mid-delivery never double-sends a turn and never drops one. Your chat survives deploys, worker kills, and everything else the runtime survives, because it is the runtime.

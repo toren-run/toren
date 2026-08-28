@@ -136,6 +136,23 @@ CREATE TABLE IF NOT EXISTS toren_control.run_watchers (
   settled boolean NOT NULL DEFAULT false
 );
 CREATE INDEX IF NOT EXISTS run_watchers_open_idx ON toren_control.run_watchers (agent) WHERE NOT settled;
+CREATE TABLE IF NOT EXISTS toren_control.telegram_observations (
+  id bigserial PRIMARY KEY,
+  bot_key text NOT NULL,
+  chat_id bigint NOT NULL,
+  chat_type text,
+  chat_title text,
+  update_type text NOT NULL,
+  sender_id bigint,
+  sender_username text,
+  message_id bigint,
+  text text,
+  media_type text,
+  media_file_id text,
+  payload jsonb NOT NULL,
+  received_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS telegram_observations_scan_idx ON toren_control.telegram_observations (bot_key, chat_id, id);
 CREATE TABLE IF NOT EXISTS toren_control.workers (
   worker_id text PRIMARY KEY,
   version text NOT NULL,

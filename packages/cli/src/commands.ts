@@ -215,6 +215,8 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
       const tg = new TelegramChannel({
         botToken, byAgent: { [name]: rt.byAgent[name]! }, defaultAgent: name,
         pool: rt.pool, allowedUsers, botKey: `agent:${name}`, log: io.out,
+        ...(loaded.telegramGroupsMode ? { groupsMode: loaded.telegramGroupsMode } : {}),
+        ...(loaded.telegramObserveUpdates ? { observeUpdates: loaded.telegramObserveUpdates } : {}),
       });
       tg.start();
       telegramChannels.push(tg);

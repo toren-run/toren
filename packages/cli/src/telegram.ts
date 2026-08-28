@@ -46,10 +46,42 @@ export function splitMessage(text: string, limit = MAX_MESSAGE_CHARS): string[] 
   return parts;
 }
 
+interface TgMessage {
+  message_id: number;
+  from?: { id: number; username?: string };
+  chat?: { id: number; type?: string; title?: string };
+  text?: string;
+  caption?: string;
+  photo?: { file_id: string }[];
+  document?: { file_id: string };
+  voice?: { file_id: string };
+  video?: { file_id: string };
+  sticker?: { file_id: string };
+}
+
 interface TgUpdate {
   update_id: number;
-  message?: { message_id: number; from?: { id: number }; chat?: { id: number; type?: string }; text?: string };
+  message?: TgMessage;
+  edited_message?: TgMessage;
+  my_chat_member?: {
+    chat?: { id: number; type?: string; title?: string };
+    from?: { id: number; username?: string };
+    new_chat_member?: { status?: string };
+  };
 }
+
+/** [media_type, file_id] of the richest media on a message, if any. */
+function mediaOf(m: TgMessage): [string, string] | null {
+  if (m.photo?.length) return ["photo", m.photo[m.photo.length - 1]!.file_id];
+  if (m.document) return ["document", m.document.file_id];
+  if (m.voice) return ["voice", m.voice.file_id];
+  if (m.video) return ["video", m.video.file_id];
+  if (m.sticker) return ["sticker", m.sticker.file_id];
+  return null;
+}
+
+const OBSERVABLE_UPDATES = ["message", "edited_message", "my_chat_member"] as const;
+export type ObservableUpdate = (typeof OBSERVABLE_UPDATES)[number];
 
 export interface TelegramChannelOpts {
   botToken: string;
@@ -67,6 +99,14 @@ export interface TelegramChannelOpts {
   log?: (line: string) => void;
   /** Heartbeat interval for the "poller alive" line; default 5 minutes. */
   heartbeatMs?: number;
+  /**
+   * "observe": group traffic is recorded to toren_control.telegram_observations
+   * and never answered — no replies, no pairing prompts, no runs. DMs keep
+   * conversation behavior. The observations table is a documented, stable contract.
+   */
+  groupsMode?: "observe";
+  /** Which update kinds an observing bot records (default ["message"]). */
+  observeUpdates?: ObservableUpdate[];
 }
 
 /** Live health of one bot's channel, exposed via /healthz. A dead poller must be distinguishable from a quiet one. */
@@ -219,13 +259,17 @@ export class TelegramChannel {
           lastSeen = rows[0] ? Number(rows[0].last_update_id) : 0;
           this.st.lastUpdateId = lastSeen;
         }
+        // allowed_updates persists server-side per bot: always name what we
+        // consume, so an observer's extra kinds arrive and a conversational
+        // bot stays on plain messages.
         const updates = await this.api<TgUpdate[]>("getUpdates", {
           offset, timeout: this.opts.pollTimeoutSec ?? 25,
+          allowed_updates: ["message", ...(this.opts.groupsMode === "observe" ? (this.opts.observeUpdates ?? []) : [])].filter((v, i, a) => a.indexOf(v) === i),
         });
         for (const u of updates) {
           offset = Math.max(offset, u.update_id + 1);
           if (u.update_id <= lastSeen) continue; // redelivered after a crash
-          if (u.message) await this.handleMessage(u.message).catch(() => { /* one bad update never stalls the loop */ });
+          await this.routeUpdate(u).catch(() => { /* one bad update never stalls the loop */ });
           lastSeen = u.update_id;
           this.st.lastUpdateId = lastSeen;
           await this.opts.pool.query(
@@ -251,11 +295,61 @@ export class TelegramChannel {
     }
   }
 
+  /** One update, routed: conversation, observation, or silence. */
+  private async routeUpdate(u: TgUpdate): Promise<void> {
+    const observing = this.opts.groupsMode === "observe";
+    const wants = new Set<ObservableUpdate>(observing ? (this.opts.observeUpdates ?? ["message"]) : []);
+    const isGroup = (t?: string) => t !== undefined && t !== "private";
+
+    if (u.message) {
+      if (isGroup(u.message.chat?.type) && observing) {
+        if (wants.has("message")) await this.recordObservation("message", u.message.chat, u.message.from, u.message, u);
+        return; // observed groups are never answered
+      }
+      await this.handleMessage(u.message);
+      return;
+    }
+    if (u.edited_message && observing && wants.has("edited_message") && isGroup(u.edited_message.chat?.type)) {
+      await this.recordObservation("edited_message", u.edited_message.chat, u.edited_message.from, u.edited_message, u);
+      return;
+    }
+    if (u.my_chat_member && observing && wants.has("my_chat_member")) {
+      await this.recordObservation("my_chat_member", u.my_chat_member.chat, u.my_chat_member.from, undefined, u);
+    }
+  }
+
+  private async recordObservation(
+    updateType: ObservableUpdate,
+    chat: { id: number; type?: string; title?: string } | undefined,
+    from: { id: number; username?: string } | undefined,
+    msg: TgMessage | undefined,
+    raw: TgUpdate,
+  ): Promise<void> {
+    if (!chat) return;
+    const media = msg ? mediaOf(msg) : null;
+    await this.opts.pool.query(
+      `INSERT INTO toren_control.telegram_observations
+         (bot_key, chat_id, chat_type, chat_title, update_type, sender_id, sender_username, message_id, text, media_type, media_file_id, payload)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        this.botKey, chat.id, chat.type ?? null, chat.title ?? null, updateType,
+        from?.id ?? null, from?.username ?? null, msg?.message_id ?? null,
+        msg?.text ?? msg?.caption ?? null, media?.[0] ?? null, media?.[1] ?? null,
+        JSON.stringify(raw),
+      ],
+    );
+  }
+
   private async handleMessage(msg: NonNullable<TgUpdate["message"]>): Promise<void> {
     const from = msg.from?.id, chat = msg.chat?.id;
     const text = (msg.text ?? "").trim();
     if (!from || !chat || !text) return;
     const say = (t: string) => this.sendText(chat, t);
+
+    // In group chats, an unpaired sender gets silence, not a pairing prompt:
+    // most group members are bystanders, and prompting them is spam (and burns
+    // any bot meant to be quiet). Pairing happens in DMs.
+    if (msg.chat?.type !== undefined && msg.chat.type !== "private" && !(await this.isAllowed(from))) return;
 
     if (!(await this.isAllowed(from))) {
       const redeemed = await this.opts.pool.query(

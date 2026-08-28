@@ -31,6 +31,14 @@ class FakeTelegram {
     this.updates.push({ update_id: this.nextId++, message: { message_id: this.nextId, from: { id: from }, chat: { id: from, type: "private" }, text } });
   }
 
+  groupMessage(from: number, chatId: number, text: string, extra: Record<string, unknown> = {}): void {
+    this.updates.push({ update_id: this.nextId++, message: { message_id: this.nextId, from: { id: from, username: "u" + from }, chat: { id: chatId, type: "supergroup", title: "affiliates" }, text, ...extra } });
+  }
+
+  memberUpdate(chatId: number, status: string): void {
+    this.updates.push({ update_id: this.nextId++, my_chat_member: { chat: { id: chatId, type: "supergroup", title: "affiliates" }, from: { id: 1 }, new_chat_member: { status } } });
+  }
+
   docs: { chat_id: string; method: string; file_name: string; caption: string | null }[] = [];
 
   fetch = (async (url: RequestInfo | URL, init?: RequestInit) => {
@@ -350,5 +358,62 @@ test("send_to_channel: a workspace file reaches the chat as an upload, never a f
   } finally {
     await ch4.stop();
     await worker3.stop();
+  }
+});
+
+test("group chats: unpaired senders get silence, not a pairing prompt", async () => {
+  const before = tg.sent.length;
+  tg.groupMessage(31337, -100500, "who is this bot?");
+  await new Promise((r) => setTimeout(r, 800));
+  expect(tg.sent.length).toBe(before); // nothing sent to anyone
+});
+
+test("observer bot: records group traffic, never replies, never starts runs; DMs still converse", async () => {
+  await pool.query("DELETE FROM toren_control.telegram_observations WHERE bot_key = 'agent:obs'");
+  const tg2 = new FakeTelegram();
+  const obs = new TelegramChannel({
+    botToken: "obs", byAgent: { helper: deps }, defaultAgent: "helper", pool,
+    allowedUsers: new Set([ALICE]), fetchImpl: tg2.fetch, pollTimeoutSec: 0, deliverMs: 150,
+    botKey: "agent:obs", groupsMode: "observe", observeUpdates: ["message", "my_chat_member"],
+  });
+  obs.start();
+  try {
+    const runsBefore = Number((await pool.query(`SELECT count(*) AS n FROM ${SCHEMA}.runs`)).rows[0].n);
+
+    tg2.groupMessage(9001, -42, "payment issue, see screenshot", { photo: [{ file_id: "small" }, { file_id: "big" }] });
+    tg2.memberUpdate(-42, "kicked");
+    // poll until both rows land
+    const deadline = Date.now() + 10_000;
+    let rows: any[] = [];
+    while (Date.now() < deadline) {
+      rows = (await pool.query("SELECT * FROM toren_control.telegram_observations WHERE bot_key = 'agent:obs' ORDER BY id")).rows;
+      if (rows.length >= 2) break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(rows.length).toBe(2);
+    const msg = rows[0];
+    expect(msg.update_type).toBe("message");
+    expect(Number(msg.chat_id)).toBe(-42);
+    expect(Number(msg.sender_id)).toBe(9001);
+    expect(msg.text).toBe("payment issue, see screenshot");
+    expect(msg.media_type).toBe("photo");
+    expect(msg.media_file_id).toBe("big"); // richest size wins
+    expect(rows[1].update_type).toBe("my_chat_member");
+    expect(rows[1].payload.my_chat_member.new_chat_member.status).toBe("kicked");
+
+    // no replies into the group, no runs started
+    expect(tg2.sent.length).toBe(0);
+    const runsAfter = Number((await pool.query(`SELECT count(*) AS n FROM ${SCHEMA}.runs`)).rows[0].n);
+    expect(runsAfter).toBe(runsBefore);
+
+    // a DM to the same bot still converses
+    tg2.message(ALICE, "still a chatbot?");
+    const dmDeadline = Date.now() + 15_000;
+    while (Date.now() < dmDeadline && !tg2.sent.some((m) => m.text === "re:still a chatbot?")) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(tg2.sent.some((m) => m.text === "re:still a chatbot?")).toBe(true);
+  } finally {
+    await obs.stop();
   }
 });

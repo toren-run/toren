@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Telegram observer mode: `telegram.groups: observe` records everything a bot sees in group chats — text, media metadata, edits, membership changes — to `toren_control.telegram_observations` (a documented, stable table) with no replies, no pairing prompts, no runs, and no model calls. DMs keep conversation behavior, so one bot can observe publicly and converse privately. Process observations in batch with a scheduled process. From a production feature request.
+- Group-chat fix for every bot: unpaired senders in groups now get silence instead of a pairing prompt. Prompting bystanders in a group was spam, and it burned any bot meant to stay quiet.
+
 ## 0.1.12 — 2026-08-27
 
 - `maxAttemptsPerTask` counts faults, not `TaskStarted` events: conversation turns and approval wakes no longer count as attempts, so a 5-attempt poison-pill is no longer a 5-turn conversation cap that silently kills healthy sessions (field report 2026-08-27). An attempt is a start that resumes a cycle which ended with no completion and no parking marker.

@@ -17,6 +17,10 @@ export interface LoadedAgent {
   defaultProcess?: string;
   /** Env var name holding this agent's dedicated Telegram bot token (agent.yaml telegram.bot_token_env). Resolved where the bot starts, so other commands work without it set. */
   telegramBotTokenEnv?: string;
+  /** agent.yaml telegram.groups: "observe" — group traffic recorded, never answered. */
+  telegramGroupsMode?: "observe";
+  /** agent.yaml telegram.observe.updates, validated. */
+  telegramObserveUpdates?: ("message" | "edited_message" | "my_chat_member")[];
   /** Root agent's sandbox settings with granted env resolved to values. */
   sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
 }
@@ -37,7 +41,13 @@ interface AgentYaml {
   /** Process run when a trigger names none. Defaults to "main", or the sole process. */
   default_process?: string;
   /** Dedicated Telegram bot for this agent: the env var NAME holding its token. Without it the agent rides the shared TELEGRAM_BOT_TOKEN fleet bot. */
-  telegram?: { bot_token_env?: string };
+  telegram?: {
+    bot_token_env?: string;
+    /** "observe": record group traffic to toren_control.telegram_observations, never reply there. DMs still converse. */
+    groups?: "observe";
+    /** Update kinds an observing bot records (default ["message"]): message, edited_message, my_chat_member. */
+    observe?: { updates?: string[] };
+  };
 }
 
 function sandboxConfig(yaml: AgentYaml): { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] } | null {
@@ -202,8 +212,17 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
   }
 
   const telegramBotTokenEnv = root.yaml.telegram?.bot_token_env;
+  const telegramGroupsMode = root.yaml.telegram?.groups;
+  if (telegramGroupsMode !== undefined && telegramGroupsMode !== "observe") {
+    throw new Error(`agent.yaml telegram.groups: unknown mode "${String(telegramGroupsMode)}" (only "observe" is supported)`);
+  }
+  const OBSERVABLE = ["message", "edited_message", "my_chat_member"];
+  const telegramObserveUpdates = root.yaml.telegram?.observe?.updates as ("message" | "edited_message" | "my_chat_member")[] | undefined;
+  for (const kind of telegramObserveUpdates ?? []) {
+    if (!OBSERVABLE.includes(kind)) throw new Error(`agent.yaml telegram.observe.updates: unknown kind "${String(kind)}" (known: ${OBSERVABLE.join(", ")})`);
+  }
 
-  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(sandbox ? { sandbox } : {}) };
+  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(telegramGroupsMode ? { telegramGroupsMode } : {}), ...(telegramObserveUpdates ? { telegramObserveUpdates } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {
