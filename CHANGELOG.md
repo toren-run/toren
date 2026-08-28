@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.13 — 2026-08-28
 
 - Telegram observer mode: `telegram.groups: observe` records everything a bot sees in group chats — text, media metadata, edits, membership changes — to `toren_control.telegram_observations` (a documented, stable table) with no replies, no pairing prompts, no runs, and no model calls. DMs keep conversation behavior, so one bot can observe publicly and converse privately. Process observations in batch with a scheduled process. From a production feature request.
 - Group-chat fix for every bot: unpaired senders in groups now get silence instead of a pairing prompt. Prompting bystanders in a group was spam, and it burned any bot meant to stay quiet.
