@@ -179,11 +179,13 @@ CREATE TABLE IF NOT EXISTS ${s}.runs (
   code_hash text, trace_context jsonb,
   mode text NOT NULL DEFAULT 'task',
   process text NOT NULL DEFAULT 'main',
+  channel text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS mode text NOT NULL DEFAULT 'task';
 ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS process text NOT NULL DEFAULT 'main';
+ALTER TABLE ${s}.runs ADD COLUMN IF NOT EXISTS channel text;
 CREATE TABLE IF NOT EXISTS ${s}.streams (
   run_id uuid NOT NULL, stream_id text NOT NULL,
   head_seq bigint NOT NULL DEFAULT 0,

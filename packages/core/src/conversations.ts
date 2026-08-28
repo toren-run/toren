@@ -34,7 +34,7 @@ export async function startSession(
   deps: TickDeps,
   req: { agent: string; message: string; channel?: string },
 ): Promise<string> {
-  return startRun(deps, { agent: req.agent, input: req.message, mode: "session" });
+  return startRun(deps, { agent: req.agent, input: req.message, mode: "session", channel: req.channel });
 }
 
 async function foldSession(store: PgStateStore, runId: string) {

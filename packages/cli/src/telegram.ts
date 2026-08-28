@@ -31,6 +31,53 @@ export class TelegramApiError extends Error {
   get permanent(): boolean { return this.code >= 400 && this.code < 500 && this.code !== 429; }
 }
 
+/**
+ * Best-effort markdown → Telegram HTML. Models write markdown out of habit;
+ * Telegram renders none of it as plain text and a strict subset as HTML.
+ * Conservative by design: bold, italic, code, headings-as-bold, links, and
+ * tables wrapped in <pre> so columns at least align. Anything the Telegram
+ * parser still rejects falls back to plain text at send time.
+ */
+export function mdToTelegramHtml(text: string): string {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const lines = text.split("\n");
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    // fenced code block
+    if (/^```/.test(line)) {
+      const buf: string[] = [];
+      i += 1;
+      while (i < lines.length && !/^```/.test(lines[i]!)) { buf.push(lines[i]!); i += 1; }
+      i += 1; // closing fence (or EOF)
+      out.push(`<pre>${esc(buf.join("\n"))}</pre>`);
+      continue;
+    }
+    // markdown table block: consecutive |...| lines
+    if (/^\s*\|.*\|\s*$/.test(line)) {
+      const buf: string[] = [];
+      while (i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i]!)) { buf.push(lines[i]!); i += 1; }
+      out.push(`<pre>${esc(buf.join("\n"))}</pre>`);
+      continue;
+    }
+    let l = esc(line);
+    l = l.replace(/^#{1,6}\s+(.*)$/, "<b>$1</b>");                       // heading → bold line
+    l = l.replace(/`([^`\n]+)`/g, "<code>$1</code>");                    // inline code
+    l = l.replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");                    // bold
+    l = l.replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2">$1</a>'); // real links
+    l = l.replace(/\[([^\]\n]+)\]\([^)\s]*\)/g, "$1");                   // fake links (sandbox:/ etc.) → text
+    out.push(l);
+    i += 1;
+  }
+  return out.join("\n");
+}
+
+/** Strip the HTML we generate, for the plain-text fallback. */
+function htmlToPlain(html: string): string {
+  return html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+}
+
 /** Split at the last newline before the limit, else the last space, else hard. */
 export function splitMessage(text: string, limit = MAX_MESSAGE_CHARS): string[] {
   const parts: string[] = [];
@@ -198,12 +245,20 @@ export class TelegramChannel {
    */
   private async sendText(chat: number, text: string): Promise<void> {
     for (const part of splitMessage(text)) {
+      const html = mdToTelegramHtml(part);
       try {
-        await this.api("sendMessage", { chat_id: chat, text: part });
+        await this.api("sendMessage", { chat_id: chat, text: html, parse_mode: "HTML" });
       } catch (e) {
         if (!(e instanceof TelegramApiError) || !e.permanent) throw e;
-        this.noteError("sendMessage (permanent, message replaced by notice)", e);
-        await this.api("sendMessage", { chat_id: chat, text: "(a reply could not be delivered to Telegram; it is still in the run log — toren jobs show)" }).catch(() => {});
+        // HTML the parser rejects (or any other permanent refusal): degrade to
+        // plain text, and only then to the notice. Never wedge the cursor.
+        try {
+          await this.api("sendMessage", { chat_id: chat, text: htmlToPlain(html) });
+        } catch (e2) {
+          if (!(e2 instanceof TelegramApiError) || !e2.permanent) throw e2;
+          this.noteError("sendMessage (permanent, message replaced by notice)", e2);
+          await this.api("sendMessage", { chat_id: chat, text: "(a reply could not be delivered to Telegram; it is still in the run log — toren jobs show)" }).catch(() => {});
+        }
       }
     }
   }

@@ -38,13 +38,13 @@ const SESSION_WORKFLOW: WorkflowFn = async (ctx) => {
   return w.results[0]?.output ?? "";
 };
 
-export async function startRun(deps: TickDeps, req: { agent: string; input: string; process?: string; runId?: string; mode?: "task" | "session" }): Promise<string> {
+export async function startRun(deps: TickDeps, req: { agent: string; input: string; process?: string; runId?: string; mode?: "task" | "session"; channel?: string }): Promise<string> {
   const runId = req.runId ?? randomUUID();
   const process = req.process ?? "main";
   if (req.mode !== "session" && !deps.workflows[process]) {
     throw new Error(`no process "${process}" for ${req.agent} (has: ${Object.keys(deps.workflows).join(", ")})`);
   }
-  await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode, process });
+  await deps.store.createRun({ runId, agent: req.agent, input: req.input, mode: req.mode, process, channel: req.channel });
   const r = await deps.store.append(runId, "run", 0, [ev("RunCreated", { agent: req.agent, input: req.input, process })]);
   if (!r.ok) throw new Error("fresh run stream was not empty");
   await deps.queue.send("orchestrator", { kind: "tick", runId, agent: req.agent, dedupeKey: `start-${runId}` });

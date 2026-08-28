@@ -85,6 +85,13 @@ Nothing executes per observation, by design: processing belongs in a [scheduled 
 
 Pairing never gated what a bot can *hear* — it gates who can *talk to the agent*. The authorization for observing a group is membership: you put the bot there.
 
+## The model knows it's on Telegram
+
+Two layers keep replies readable without per-deployment prompt patches:
+
+1. **A channel primer.** Sessions born on Telegram get a short, constant addition to the system prompt describing the pipe: markdown doesn't render, keep replies short, deliver files with `send_to_channel`, no tables. The primer is keyed to the run's birth channel and never changes mid-run, so replay digests stay stable; sessions created before this feature keep their old prompt untouched.
+2. **Rendering at delivery.** Outbound text is translated to Telegram's HTML subset: `**bold**` and `` `code` `` render properly, headings become bold lines, markdown tables arrive as aligned monospace blocks, real links become links, and fabricated ones (a model inventing `sandbox:/` paths) degrade to plain text. Anything Telegram's parser still refuses falls back to plain text — a formatting mistake can never wedge delivery.
+
 ## Durability, same as everywhere else
 
 The channel runs inside the workers, and any worker can host it: they race for a Postgres advisory lock (one election per bot) and exactly one worker polls each bot at a time. If that worker dies, another takes over within seconds. Inbound updates are deduplicated through the database, and outbound replies advance a delivered-cursor with a compare-and-swap, so a crash mid-delivery never double-sends a turn and never drops one. Your chat survives deploys, worker kills, and everything else the runtime survives, because it is the runtime.

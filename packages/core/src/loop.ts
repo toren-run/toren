@@ -81,6 +81,8 @@ export interface TaskLoopArgs {
   channels?: import("./tools.js").ToolCtx["channels"];
   /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
   sessionMode?: boolean;
+  /** The channel the run was born on (runs.channel); selects a channel primer in session mode. Immutable per run, so replay digests stay stable. */
+  channel?: string;
 }
 
 export type TaskLoopResult =
@@ -105,6 +107,23 @@ export const SESSION_PREAMBLE =
   "\n\nYou are in an interactive session with a user. Answer their current message directly; " +
   "ask a clarifying question when the request is ambiguous. Keep responses conversational and " +
   "sized to the question — the user can always ask for more.";
+
+/**
+ * Channel primers: the runtime knows which pipe a session speaks through and
+ * the model does not, so describe the pipe's affordances. Keyed off the run's
+ * birth channel (runs.channel, immutable) and constant per channel — both
+ * required for replay digest stability. Old runs have no channel: no primer,
+ * no invalidation.
+ */
+export const CHANNEL_PRIMERS: Record<string, string> = {
+  telegram:
+    "\n\nThis conversation happens on Telegram. It renders plain text: markdown headers, tables, " +
+    "and ** or ## are shown literally, so never use them. Write short paragraphs and simple lists " +
+    "with the - character. Bold and inline code are fine. Keep replies well under 4000 characters; " +
+    "for anything long, summarize and offer to expand. Never invent download links or write file " +
+    "paths as links — if you have the send_to_channel tool, it is the only way to deliver a file. " +
+    "For tabular data use short labeled lines, one item per line, never a table.",
+};
 
 export async function runTaskLoop(args: TaskLoopArgs): Promise<TaskLoopResult> {
   return withSpan("toren.task", { "toren.run_id": args.runId, "toren.task_id": args.taskId }, () => runTaskLoopImpl(args));
@@ -187,7 +206,9 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
 
   const messages: ChatMessage[] = [{ role: "user", content: [{ type: "text", text: args.input }] }];
   const specs = toolSpecs(agent.tools);
-  const system = args.sessionMode ? agent.system + SESSION_PREAMBLE : agent.system;
+  const system = args.sessionMode
+    ? agent.system + SESSION_PREAMBLE + (CHANNEL_PRIMERS[args.channel ?? ""] ?? "")
+    : agent.system;
   let steps = 0;
 
   // ---- context pressure: exact usage from the previous model call plus a

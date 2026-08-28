@@ -12,7 +12,9 @@ const ALICE = 1001; // allowlisted
 const MALLORY = 4004; // stranger
 
 class LastEcho implements ModelProvider {
+  systems: string[] = [];
   async complete(req: ModelRequest): Promise<ModelResponse> {
+    this.systems.push(req.system);
     const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
     const t = lastUser?.content.find((b) => b.type === "text");
     const text = t && t.type === "text" ? t.text : "?";
@@ -416,4 +418,32 @@ test("observer bot: records group traffic, never replies, never starts runs; DMs
   } finally {
     await obs.stop();
   }
+});
+
+test("mdToTelegramHtml: models write markdown, telegram gets its html subset", async () => {
+  const { mdToTelegramHtml } = await import("../src/telegram.js");
+  expect(mdToTelegramHtml("plain text stays plain")).toBe("plain text stays plain");
+  expect(mdToTelegramHtml("## Registrations today")).toBe("<b>Registrations today</b>");
+  expect(mdToTelegramHtml("**1,152 registrations**")).toBe("<b>1,152 registrations</b>");
+  expect(mdToTelegramHtml("run `toren dev` now")).toBe("run <code>toren dev</code> now");
+  expect(mdToTelegramHtml("[docs](https://toren.run)")).toBe('<a href="https://toren.run">docs</a>');
+  // fabricated links lose the link, keep the text
+  expect(mdToTelegramHtml("[Download](sandbox:/workspace/x.pdf)")).toBe("Download");
+  // tables become monospace blocks, entities escaped
+  const table = "| Brand | Regs |\n|---|---:|\n| Cash<lounge | 659 |";
+  const html = mdToTelegramHtml(table);
+  expect(html.startsWith("<pre>")).toBe(true);
+  expect(html).toContain("Cash&lt;lounge");
+  // fenced code survives as pre
+  expect(mdToTelegramHtml("```\nSELECT 1\n```")).toBe("<pre>SELECT 1</pre>");
+});
+
+test("telegram-born sessions carry the channel primer; markdown replies render as html", async () => {
+  const provider = deps.provider as InstanceType<typeof LastEcho>;
+  provider.systems = [];
+  tg.message(ALICE, "/new helper");
+  await tg.waitFor(() => tg.sent.some((m) => m.chat_id === ALICE && m.text.includes("Fresh conversation")));
+  tg.message(ALICE, "primer check");
+  await tg.waitFor(() => tg.sent.some((m) => m.text === "re:primer check"));
+  expect(provider.systems.some((sys) => sys.includes("This conversation happens on Telegram"))).toBe(true);
 });

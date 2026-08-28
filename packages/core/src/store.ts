@@ -6,24 +6,24 @@ export type AppendResult =
   | { ok: true; lastSeq: number }
   | { ok: false; conflict: true; actualSeq: number };
 
-export interface CreateRun { runId: string; agent: string; input?: unknown; codeHash?: string; mode?: "task" | "session"; process?: string }
+export interface CreateRun { runId: string; agent: string; input?: unknown; codeHash?: string; mode?: "task" | "session"; process?: string; channel?: string }
 
 export class PgStateStore {
   constructor(private pool: pg.Pool, private schema: string) {}
 
   async createRun(req: CreateRun): Promise<void> {
     await this.pool.query(
-      `INSERT INTO ${this.schema}.runs (run_id, agent, input, code_hash, mode, process) VALUES ($1,$2,$3,$4,$5,$6)`,
-      [req.runId, req.agent, JSON.stringify(req.input ?? null), req.codeHash ?? null, req.mode ?? "task", req.process ?? "main"],
+      `INSERT INTO ${this.schema}.runs (run_id, agent, input, code_hash, mode, process, channel) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [req.runId, req.agent, JSON.stringify(req.input ?? null), req.codeHash ?? null, req.mode ?? "task", req.process ?? "main", req.channel ?? null],
     );
   }
 
-  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; mode: string; process: string; input: unknown; output: unknown; error: unknown } | null> {
+  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; mode: string; process: string; channel?: string; input: unknown; output: unknown; error: unknown } | null> {
     const r = await this.pool.query(
-      `SELECT run_id, agent, status, mode, process, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
+      `SELECT run_id, agent, status, mode, process, channel, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
     );
     const row = r.rows[0];
-    return row ? { runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, process: row.process, input: row.input, output: row.output, error: row.error } : null;
+    return row ? { runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, process: row.process, channel: row.channel ?? undefined, input: row.input, output: row.output, error: row.error } : null;
   }
 
   async updateRun(runId: string, patch: { status?: string; output?: unknown; error?: unknown }): Promise<void> {

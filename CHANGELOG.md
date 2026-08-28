@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Telegram-born sessions get a channel primer: the runtime tells the model it is speaking on Telegram (no markdown tables or headers, short replies, files via `send_to_channel`) as a constant addition to the system prompt keyed to the run's birth channel — replay-safe by construction, and sessions created earlier are untouched. Runs now record the channel they started on (`runs.channel`).
+- Outbound Telegram messages render markdown into Telegram's HTML subset: bold, code, headings as bold lines, tables as monospace blocks, fabricated links stripped to text. Rejected HTML falls back to plain text, then to the undeliverable notice — formatting can never wedge a chat. From a production screenshot of a report arriving as raw `##` and pipe tables.
 - Load-time warning for the double-fire trap: a tool declared `effects: "external"` with `idempotency: "none"` and `approval: "never"` is at-least-once with real side effects — legal, but now `toren dev` says so at boot, per tool, instead of leaving it documented-only. Suggested by a reader on the launch thread.
 
 ## 0.1.13 — 2026-08-28
