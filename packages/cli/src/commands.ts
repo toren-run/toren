@@ -152,6 +152,7 @@ export async function cmdDev(dirs: string | string[], opts: { databaseUrl?: stri
   const worker = new LocalWorkerRuntime(rt.byAgent, { concurrency: 4 });
   worker.start();
   io.out(`toren dev: serving ${names.length === 1 ? `agent "${names[0]}"` : `${names.length} agents (${names.join(", ")})`}. Workers + guardians up; Ctrl+C to stop.`);
+  for (const loaded of Object.values(rt.crews)) for (const w of loaded.warnings ?? []) io.out(`toren warning: ${w}`);
 
   // Channels register their live status here after the API server starts, so
   // /healthz can tell a dead poller from a quiet one (field report 2026-08-25).

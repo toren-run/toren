@@ -21,6 +21,8 @@ export interface LoadedAgent {
   telegramGroupsMode?: "observe";
   /** agent.yaml telegram.observe.updates, validated. */
   telegramObserveUpdates?: ("message" | "edited_message" | "my_chat_member")[];
+  /** Non-fatal loader findings worth an operator's eyes; printed at dev boot. */
+  warnings?: string[];
   /** Root agent's sandbox settings with granted env resolved to values. */
   sandbox?: { image?: string; network?: boolean; env?: Record<string, string> };
 }
@@ -211,6 +213,20 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     spec.tools = spec.tools.map((t) => (t.name === "run_process" ? { ...t, description: t.description + processLine } : t));
   }
 
+  // The double-fire trap, surfaced at load: an external tool that is unkeyed
+  // AND never gated is at-least-once with real side effects — legal, but it
+  // should be a choice someone can point to, not a default nobody noticed.
+  const warnings: string[] = [];
+  for (const [agentRef, spec] of Object.entries(agents)) {
+    for (const t of spec.tools) {
+      if (t.effects === "external" && t.idempotency === "none" && t.approval === "never") {
+        warnings.push(
+          `${agentRef === "main" ? name : `${name}/${agentRef}`}: tool "${t.name}" is external, unkeyed, and unapproved — a crash mid-call can fire it twice on resume. Give it idempotency: "keyed", an approval gate, or accept at-least-once knowingly.`,
+        );
+      }
+    }
+  }
+
   const telegramBotTokenEnv = root.yaml.telegram?.bot_token_env;
   const telegramGroupsMode = root.yaml.telegram?.groups;
   if (telegramGroupsMode !== undefined && telegramGroupsMode !== "observe") {
@@ -222,7 +238,7 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     if (!OBSERVABLE.includes(kind)) throw new Error(`agent.yaml telegram.observe.updates: unknown kind "${String(kind)}" (known: ${OBSERVABLE.join(", ")})`);
   }
 
-  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(telegramGroupsMode ? { telegramGroupsMode } : {}), ...(telegramObserveUpdates ? { telegramObserveUpdates } : {}), ...(sandbox ? { sandbox } : {}) };
+  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(telegramGroupsMode ? { telegramGroupsMode } : {}), ...(telegramObserveUpdates ? { telegramObserveUpdates } : {}), ...(warnings.length ? { warnings } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {

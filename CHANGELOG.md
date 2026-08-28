@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Load-time warning for the double-fire trap: a tool declared `effects: "external"` with `idempotency: "none"` and `approval: "never"` is at-least-once with real side effects — legal, but now `toren dev` says so at boot, per tool, instead of leaving it documented-only. Suggested by a reader on the launch thread.
+
 ## 0.1.13 — 2026-08-28
 
 - Telegram observer mode: `telegram.groups: observe` records everything a bot sees in group chats — text, media metadata, edits, membership changes — to `toren_control.telegram_observations` (a documented, stable table) with no replies, no pairing prompts, no runs, and no model calls. DMs keep conversation behavior, so one bot can observe publicly and converse privately. Process observations in batch with a scheduled process. From a production feature request.
