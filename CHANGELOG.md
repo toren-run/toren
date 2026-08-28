@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.14 — 2026-08-28
 
 - Telegram-born sessions get a channel primer: the runtime tells the model it is speaking on Telegram (no markdown tables or headers, short replies, files via `send_to_channel`) as a constant addition to the system prompt keyed to the run's birth channel — replay-safe by construction, and sessions created earlier are untouched. Runs now record the channel they started on (`runs.channel`).
 - Outbound Telegram messages render markdown into Telegram's HTML subset: bold, code, headings as bold lines, tables as monospace blocks, fabricated links stripped to text. Rejected HTML falls back to plain text, then to the undeliverable notice — formatting can never wedge a chat. From a production screenshot of a report arriving as raw `##` and pipe tables.
