@@ -254,3 +254,62 @@ test("maxAttemptsPerTask counts faults, not conversation turns: a capped session
     await worker.stop();
   }
 });
+
+test("a prompt deploy re-pays computation but never erases the conversation", { timeout: 30_000 }, async () => {
+  class CapturingEcho implements ModelProvider {
+    requests: ModelRequest[] = [];
+    async complete(req: ModelRequest): Promise<ModelResponse> {
+      this.requests.push(req);
+      const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
+      const t = lastUser?.content.find((b) => b.type === "text");
+      const text = t && t.type === "text" ? t.text : "?";
+      return { content: [{ type: "text", text: `re:${text}` }], stopReason: "endTurn", usage: { inputTokens: 1, outputTokens: 1 } };
+    }
+  }
+
+  const store = new PgStateStore(pool, SCHEMA);
+  const p1 = new CapturingEcho();
+  const deps1: TickDeps = { ...makeDeps(store, p1), agents: { main: { ...spec, system: "you are v1" } } };
+  const w1 = new LocalWorkerRuntime({ sess: deps1 }, { concurrency: 1 });
+  w1.start();
+  let runId!: string;
+  try {
+    runId = await startSession(deps1, { agent: "sess", message: "my name is aviram" });
+    await w1.drain(15_000);
+    await sendSessionMessage(deps1, runId, { text: "remember it well", channel: "api" });
+    await w1.drain(15_000);
+  } finally {
+    await w1.stop();
+  }
+
+  // the deploy: same store, new system prompt
+  const p2 = new CapturingEcho();
+  const deps2: TickDeps = { ...makeDeps(store, p2), agents: { main: { ...spec, system: "you are v2, terser" } } };
+  const w2 = new LocalWorkerRuntime({ sess: deps2 }, { concurrency: 1 });
+  w2.start();
+  try {
+    await sendSessionMessage(deps2, runId, { text: "what is my name?", channel: "api" });
+    await w2.drain(15_000);
+
+    // the invalidation really happened (computation voided)...
+    const rawEvents = await store.read(runId, "task:w0t0");
+    expect(rawEvents.some((e) => e.type === "StreamInvalidated")).toBe(true);
+
+    // ...but the model still saw the whole conversation
+    const last = p2.requests.at(-1)!;
+    const flat = JSON.stringify(last.messages);
+    expect(flat).toContain("my name is aviram");
+    expect(flat).toContain("remember it well");
+    expect(flat).toContain("re:my name is aviram"); // earlier assistant turns survive too
+    expect(last.system).toContain("you are v2");
+
+    // and the user-visible transcript is complete
+    const s = (await getSession(store, runId))!;
+    const texts = s.transcript.map((t) => t.text);
+    expect(texts).toContain("my name is aviram");
+    expect(texts).toContain("remember it well");
+    expect(texts).toContain("re:what is my name?");
+  } finally {
+    await w2.stop();
+  }
+});

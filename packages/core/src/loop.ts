@@ -1,6 +1,6 @@
 import type { z } from "zod";
 import { canonicalDigest } from "./digest.js";
-import { effectiveEvents } from "./fold.js";
+import { effectiveEvents, FACT_TYPES, inCut, invalidationCuts } from "./fold.js";
 import { ev, type NewEvent, type RecordedEvent, type StreamId } from "./events.js";
 import { needsApproval, toolSpecs, type ToolDefAny } from "./tools.js";
 import type { ChatMessage, ContentBlock, ModelProvider, ModelRequest, ModelResponse } from "./model.js";
@@ -152,9 +152,40 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
   }
 
   const walk = eff.filter((e) => WALK_TYPES.has(e.type));
+  const cuts = invalidationCuts(raw);
   let ptr = 0;
   let invalidated = false;
   const peek = (): RecordedEvent | undefined => (invalidated || ptr >= walk.length ? undefined : walk[ptr]);
+
+  /**
+   * Facts inside voided ranges are history, not replayable computation: fold
+   * them into the conversation instead of walking them. Called wherever the
+   * walk advances, so a resumed session keeps everything the person said and
+   * was told, while the voided model/tool records around them recompute.
+   */
+  function drainVoidedFacts(): void {
+    while (ptr < walk.length) {
+      const e = walk[ptr]!;
+      if (!inCut(e, cuts) || !FACT_TYPES.has(e.type)) return;
+      absorbFact(e);
+      ptr += 1;
+    }
+  }
+
+  function absorbFact(e: RecordedEvent): void {
+    const text = String(e.payload.text ?? "");
+    if (e.type === "InputRequested" && text) messages.push({ role: "assistant", content: [{ type: "text", text }] });
+    else if (e.type === "UserMessage" && text) messages.push({ role: "user", content: [{ type: "text", text }] });
+    pendingChars += text.length;
+  }
+
+  /** Mid-tick invalidation: the rest of the recorded walk is void, but its facts must live on. */
+  function absorbRemainingFacts(): void {
+    for (let i = ptr; i < walk.length; i++) {
+      const e = walk[i]!;
+      if (FACT_TYPES.has(e.type)) absorbFact(e);
+    }
+  }
 
   async function append(events: NewEvent[]): Promise<void> {
     const r = await store.append(runId, streamId, head, events);
@@ -221,17 +252,29 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
   const pressure = (): number =>
     lastUsage ? lastUsage.inputTokens + lastUsage.outputTokens + Math.ceil(pendingChars / 3) - elidedSavingsTokens : 0;
 
-  /** The record/replay dance for one model call; identical semantics for the main loop and summarization. */
-  async function recordedLlmCall(request: ModelRequest): Promise<ModelResponse> {
+  /**
+   * The record/replay dance for one model call; identical semantics for the
+   * main loop and summarization. Takes a builder, not a request: voided facts
+   * must be drained into the conversation BEFORE the request is assembled and
+   * digested, and an invalidation mid-call absorbs the voided suffix's facts
+   * and rebuilds — the live model must always see the full conversation.
+   */
+  async function recordedLlmCall(build: () => ModelRequest): Promise<ModelResponse> {
+    drainVoidedFacts();
+    let request = build();
     const digest = canonicalDigest(request);
     let next = peek();
     if (next?.type === "ContextCompacted") {
       // A recorded compaction the live code no longer performs here: stale suffix.
       await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+      absorbRemainingFacts();
+      request = build();
       next = peek();
     }
     if (next?.type === "LlmCallStarted" && next.payload.requestDigest !== digest) {
       await invalidateFrom(next.seq, "request digest mismatch (prompt or code changed)");
+      absorbRemainingFacts();
+      request = build();
       next = peek();
     }
     let response: ModelResponse;
@@ -252,7 +295,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
       }
     } else {
       const stepId = `s${head + 1}`;
-      await append([ev("LlmCallStarted", { stepId, requestDigest: digest, model: request.model })]);
+      await append([ev("LlmCallStarted", { stepId, requestDigest: canonicalDigest(request), model: request.model })]);
       response = await withSpan("toren.llm", { "gen_ai.request.model": request.model }, async (span) => {
           const r = await provider.complete(request);
           if (r.usage) span.setAttributes({ "gen_ai.usage.input_tokens": r.usage.inputTokens, "gen_ai.usage.output_tokens": r.usage.outputTokens });
@@ -345,7 +388,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         } else {
           // A differing recorded suffix (older code compacted differently) is
           // voided first; the append then lands after the StreamInvalidated cut.
-          if (next) await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+          if (next) { await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)"); absorbRemainingFacts(); }
           await append([ev("ContextCompacted", { kind: "elide", toolUseIds: targets })]);
           applyElide(targets);
         }
@@ -362,7 +405,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         tools: specs,
         maxTokens: COMPACT_SUMMARY_MAX_TOKENS,
       };
-      const sumResponse = await recordedLlmCall(sumRequest);
+      const sumResponse = await recordedLlmCall(() => sumRequest);
       const summary = sumResponse.content
         .filter((b): b is Extract<ContentBlock, { type: "text" }> => b.type === "text")
         .map((b) => b.text).join("\n");
@@ -371,7 +414,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
         ptr += 1;
         applySummary(next.payload);
       } else {
-        if (next) await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)");
+        if (next) { await invalidateFrom(next.seq, "compaction decision changed (code or thresholds)"); absorbRemainingFacts(); }
         await append([ev("ContextCompacted", { kind: "summary", keepFrom, summary })]);
         applySummary({ keepFrom, summary });
       }
@@ -457,8 +500,10 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
 
     await maybeCompact();
 
-    const request: ModelRequest = { model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens, ...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}) };
-    const response = await recordedLlmCall(request);
+    const response = await recordedLlmCall(() => ({
+      model: agent.model, system, messages: [...messages], tools: specs, maxTokens: agent.maxTokens,
+      ...(agent.reasoningEffort ? { reasoningEffort: agent.reasoningEffort } : {}),
+    }));
 
     messages.push({ role: "assistant", content: response.content });
 

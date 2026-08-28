@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Invalidation no longer erases conversations: `StreamInvalidated` voids replayable computation (model calls, tool records) but never conversation facts — what a person said (`UserMessage`) and what the assistant told them (`InputRequested`) survive unconditionally and are folded back into the model's context, with the voided calls re-paid under the new code. Previously a prompt deploy invalidated open sessions wholesale, and every daily-deployed conversation went amnesiac ("answers the next message like a stranger"). Sessions already damaged this way heal on their next turn: the events were never deleted, only skipped. Fifth production field report.
+
 ## 0.1.14 — 2026-08-28
 
 - Telegram-born sessions get a channel primer: the runtime tells the model it is speaking on Telegram (no markdown tables or headers, short replies, files via `send_to_channel`) as a constant addition to the system prompt keyed to the run's birth channel — replay-safe by construction, and sessions created earlier are untouched. Runs now record the channel they started on (`runs.channel`).
