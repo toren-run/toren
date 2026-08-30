@@ -83,6 +83,25 @@ export function makeProcessesFacet(
  * runtime (caller's can_call ∩ callee's accept_from) — this facet enforces
  * them again at call time so a stale config can never widen access.
  */
+/** Beta guardrails: a call chain deeper than this is refused (A→B→A ping-pong), and one run may place at most this many calls. Both bound the blast radius of a looping model; neither is configurable yet — tell us if a real workflow hits them. */
+export const MAX_CALL_DEPTH = 4;
+export const MAX_CALLS_PER_RUN = 25;
+
+/** How many watcher hops sit above this run — i.e. how deep in a call/spawn chain it already is. */
+async function chainDepth(pool: pg.Pool, runId: string): Promise<number> {
+  const { rows } = await pool.query(
+    `WITH RECURSIVE up AS (
+       SELECT parent_run_id, 1 AS depth FROM toren_control.run_watchers WHERE child_run_id = $1
+       UNION ALL
+       SELECT w.parent_run_id, up.depth + 1 FROM toren_control.run_watchers w
+         JOIN up ON w.child_run_id = up.parent_run_id
+       WHERE up.depth < 16
+     ) SELECT COALESCE(MAX(depth), 0) AS depth FROM up`,
+    [runId],
+  );
+  return Number(rows[0]?.depth ?? 0);
+}
+
 export function makeAgentCallsFacet(
   pool: pg.Pool,
   callerName: string,
@@ -103,6 +122,21 @@ export function makeAgentCallsFacet(
         throw new Error(`call_agent: no process "${process}" on ${req.agent} (has: ${Object.keys(target.workflows).join(", ")})`);
       }
       const runId = deterministicRunId(`call:${req.parentRunId}:${req.parentTaskId}:${req.toolUseId}`);
+      // Loop guards. Checked before the insert so a refused call leaves no watcher row;
+      // the existing-child check below keeps crash replays of an ACCEPTED call exempt.
+      if (!(await byAgent[req.agent]!.store.getRun(runId))) {
+        const depth = await chainDepth(pool, req.parentRunId);
+        if (depth >= MAX_CALL_DEPTH) {
+          throw new Error(`call_agent: refused — this run is already ${depth} calls deep (limit ${MAX_CALL_DEPTH}). A call chain this deep is usually two agents ping-ponging; answer with what you have.`);
+        }
+        const { rows: cnt } = await pool.query(
+          `SELECT count(*) AS n FROM toren_control.run_watchers WHERE parent_run_id = $1 AND parent_agent = $2`,
+          [req.parentRunId, callerName],
+        );
+        if (Number(cnt[0]?.n ?? 0) >= MAX_CALLS_PER_RUN) {
+          throw new Error(`call_agent: refused — this run has already placed ${MAX_CALLS_PER_RUN} calls. Answer with what you have.`);
+        }
+      }
       await pool.query(
         `INSERT INTO toren_control.run_watchers (child_run_id, parent_run_id, agent, parent_agent, process)
          VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,

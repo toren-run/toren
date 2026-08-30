@@ -206,3 +206,41 @@ test("call_agent: mutual consent enforced, child runs in the callee schema under
     await worker.stop();
   }
 });
+
+test("loop guards: a deep call chain is refused, a replayed accepted call is not, and the per-run budget holds", async () => {
+  const { makeAgentCallsFacet, MAX_CALL_DEPTH, MAX_CALLS_PER_RUN, deterministicRunId } = await import("../src/spawn.js");
+  const byAgent: Record<string, TickDeps> = { spawntest: deps };
+  const calls = makeAgentCallsFacet(pool, "spawntest", byAgent, { callable: ["spawntest"], defaultProcess: { spawntest: "main" } });
+
+  // fabricate an ancestry chain of MAX_CALL_DEPTH watcher hops above `leaf`
+  const id = (n: number) => `55555555-5555-4555-8555-${String(n).padStart(12, "0")}`;
+  for (let i = 0; i < MAX_CALL_DEPTH; i++) {
+    await pool.query(
+      `INSERT INTO toren_control.run_watchers (child_run_id, parent_run_id, agent, parent_agent, process, settled)
+       VALUES ($1, $2, 'spawntest', 'spawntest', 'main', true) ON CONFLICT DO NOTHING`,
+      [id(i + 1), id(i)],
+    );
+  }
+  const leaf = id(MAX_CALL_DEPTH);
+  await expect(calls.call({ agent: "spawntest", input: "deeper!", parentRunId: leaf, parentTaskId: "w0t0", toolUseId: "dg1" }))
+    .rejects.toThrow(/calls deep/);
+
+  // a shallow parent sails through, and its crash-replay stays exempt even at depth
+  const shallow = id(1);
+  const ok = await calls.call({ agent: "spawntest", input: "fine", parentRunId: shallow, parentTaskId: "w0t0", toolUseId: "dg2" });
+  expect(ok.started).toBe(true);
+  const replay = await calls.call({ agent: "spawntest", input: "fine", parentRunId: shallow, parentTaskId: "w0t0", toolUseId: "dg2" });
+  expect(replay.started).toBe(false); // found, not refused
+
+  // per-run budget: fill the count, then refuse
+  const budgetParent = "66666666-6666-4666-8666-666666666666";
+  for (let i = 0; i < MAX_CALLS_PER_RUN; i++) {
+    await pool.query(
+      `INSERT INTO toren_control.run_watchers (child_run_id, parent_run_id, agent, parent_agent, process, settled)
+       VALUES ($1, $2, 'spawntest', 'spawntest', 'main', true) ON CONFLICT DO NOTHING`,
+      [deterministicRunId(`budget:${i}`), budgetParent],
+    );
+  }
+  await expect(calls.call({ agent: "spawntest", input: "one more", parentRunId: budgetParent, parentTaskId: "w0t0", toolUseId: "dg3" }))
+    .rejects.toThrow(/already placed/);
+});

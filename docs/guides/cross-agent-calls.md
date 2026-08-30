@@ -52,5 +52,5 @@ Nothing changes for the API, SDK, or CLI: you talk to one agent, and any cross-a
 ## Beta limits (honest)
 
 - **Notify-later only.** The caller's turn ends after placing the call; the answer arrives as the next message. A blocking wait-in-turn variant is planned.
-- **No chain-depth cap yet.** A→B→A recursion is possible if you declare mutual edges both ways; don't, until the cap ships.
+- **Loop guards are fixed constants for now.** A call chain deeper than 4 hops is refused (two agents ping-ponging get told to answer with what they have), and one run may place at most 25 calls. Crash replays of an accepted call are exempt — the guards bound decisions, never recovery. If a real workflow hits either limit, tell us; they'll become configurable.
 - Consent names agents, not processes: a callable peer's processes are all callable. Process-level grants may come later if needed.
