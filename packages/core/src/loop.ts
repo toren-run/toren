@@ -77,6 +77,7 @@ export interface TaskLoopArgs {
   sandbox?: import("./tools.js").SandboxExec;
   /** Background named-process runs for the run_process/check_run builtins; wired by the runtime. */
   processes?: import("./tools.js").ProcessesCtx;
+  agentCalls?: import("./tools.js").AgentCallsCtx;
   /** Outbound file delivery for the send_to_channel builtin; wired by the runtime. */
   channels?: import("./tools.js").ToolCtx["channels"];
   /** Conversational session: end-of-turn parks awaiting the next UserMessage instead of completing. */
@@ -428,7 +429,7 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     let isError = false;
     try {
       const parsed = def.input.parse(tu.input);
-      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes, channels: args.channels }));
+      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes, agentCalls: args.agentCalls, channels: args.channels }));
     } catch (e) {
       result = `tool error: ${e instanceof Error ? e.message : String(e)}`;
       isError = true;

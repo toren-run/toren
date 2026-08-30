@@ -17,6 +17,10 @@ export interface LoadedAgent {
   defaultProcess?: string;
   /** Env var name holding this agent's dedicated Telegram bot token (agent.yaml telegram.bot_token_env). Resolved where the bot starts, so other commands work without it set. */
   telegramBotTokenEnv?: string;
+  /** Beta — peers this agent's yaml asks to call; the fleet runtime intersects with each peer's acceptFrom. */
+  canCall?: string[];
+  /** Beta — peers this agent consents to answer. */
+  acceptFrom?: string[];
   /** agent.yaml telegram.groups: "observe" — group traffic recorded, never answered. */
   telegramGroupsMode?: "observe";
   /** agent.yaml telegram.observe.updates, validated. */
@@ -42,6 +46,8 @@ interface AgentYaml {
   sandbox?: boolean | { image?: string; network?: boolean; approval?: "always" | "never"; env?: string[] };
   /** Process run when a trigger names none. Defaults to "main", or the sole process. */
   default_process?: string;
+  /** Beta — cross-agent calls: peers this agent may call, and peers it will answer. Both sides must declare for a call to connect. */
+  agents?: { can_call?: string[]; accept_from?: string[] };
   /** Dedicated Telegram bot for this agent: the env var NAME holding its token. Without it the agent rides the shared TELEGRAM_BOT_TOKEN fleet bot. */
   telegram?: {
     bot_token_env?: string;
@@ -213,6 +219,18 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     spec.tools = spec.tools.map((t) => (t.name === "run_process" ? { ...t, description: t.description + processLine } : t));
   }
 
+  // Beta cross-agent calls: declaring can_call grants the tool to the ROOT
+  // agent only (subagents delegate through their root). Which peers actually
+  // answer is decided at fleet startup, where both yamls are visible.
+  const canCall = root.yaml.agents?.can_call ?? [];
+  if (canCall.length > 0 && !agents.main!.tools.some((t) => t.name === "call_agent")) {
+    const callLine = ` This agent asks to call: ${canCall.join(", ")}.`;
+    agents.main!.tools = [...agents.main!.tools, { ...BUILTIN_TOOLS.call_agent!, description: BUILTIN_TOOLS.call_agent!.description + callLine }];
+    if (!agents.main!.tools.some((t) => t.name === "check_run")) {
+      agents.main!.tools = [...agents.main!.tools, BUILTIN_TOOLS.check_run!];
+    }
+  }
+
   // The double-fire trap, surfaced at load: an external tool that is unkeyed
   // AND never gated is at-least-once with real side effects — legal, but it
   // should be a choice someone can point to, not a default nobody noticed.
@@ -238,7 +256,7 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
     if (!OBSERVABLE.includes(kind)) throw new Error(`agent.yaml telegram.observe.updates: unknown kind "${String(kind)}" (known: ${OBSERVABLE.join(", ")})`);
   }
 
-  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(telegramGroupsMode ? { telegramGroupsMode } : {}), ...(telegramObserveUpdates ? { telegramObserveUpdates } : {}), ...(warnings.length ? { warnings } : {}), ...(sandbox ? { sandbox } : {}) };
+  return { name, dir, agents, workflows, ...(defaultProcess ? { defaultProcess } : {}), ...(canCall.length ? { canCall } : {}), ...(root.yaml.agents?.accept_from?.length ? { acceptFrom: root.yaml.agents.accept_from } : {}), ...(telegramBotTokenEnv ? { telegramBotTokenEnv } : {}), ...(telegramGroupsMode ? { telegramGroupsMode } : {}), ...(telegramObserveUpdates ? { telegramObserveUpdates } : {}), ...(warnings.length ? { warnings } : {}), ...(sandbox ? { sandbox } : {}) };
 }
 
 export interface LoadedProject {

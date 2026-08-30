@@ -20,6 +20,9 @@ env:
   optional:
     REGION: "us-east-1"          # fallback used when unset
 default_process: daily-digest    # process run when a trigger names none (only useful with workflows/)
+agents:                    # BETA — cross-agent calls; both sides must declare (see Guides → Cross-agent calls)
+  can_call: [cfo]          # peers this agent may delegate to (grants the call_agent tool)
+  accept_from: [cmo]       # peers this agent consents to answer
 telegram:
   bot_token_env: REPORTER_BOT_TOKEN   # this agent gets its own Telegram bot; see Channels → Telegram
 ```

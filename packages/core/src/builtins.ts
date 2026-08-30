@@ -263,6 +263,25 @@ const runProcess = defineTool({
   },
 });
 
+
+const callAgent = defineTool({
+  name: "call_agent",
+  description:
+    "Beta. Delegate a request to another agent in this deployment (both sides must consent in agent.yaml). The peer runs it durably with its own privileges and tools; you receive only its answer, as a message in this conversation when it finishes. check_run polls it on demand. Use it when the request belongs to another agent's domain.",
+  input: z.object({
+    agent: z.string().describe("the peer agent's name"),
+    input: z.string().describe("the request handed to the peer — it sees only this text, none of this conversation"),
+  }),
+  effects: "none",
+  idempotency: "keyed",
+  approval: "never",
+  handler: async ({ agent, input }, ctx) => {
+    if (!ctx.agentCalls) throw new Error("call_agent: cross-agent calls are not wired in this deployment (single-agent runtime, or no consent edges)");
+    const r = await ctx.agentCalls.call({ agent, input, parentRunId: ctx.runId, parentTaskId: ctx.taskId, toolUseId: ctx.toolUseId });
+    return JSON.stringify({ run_id: r.runId, agent: r.agent, status: r.started ? "started" : "already_running", note: "the answer arrives in this conversation when the peer finishes" });
+  },
+});
+
 const checkRun = defineTool({
   name: "check_run",
   description:
@@ -274,17 +293,19 @@ const checkRun = defineTool({
   idempotency: "keyed",
   approval: "never",
   handler: async ({ run_id }, ctx) => {
-    if (!ctx.processes) throw new Error("check_run: background processes are not wired in this deployment");
-    const s = await ctx.processes.status(run_id);
-    if (!s) return JSON.stringify({ error: `no run ${run_id}` });
-    return JSON.stringify({ run_id: s.runId, process: s.process, status: s.status, waves: s.waves, ...(s.output !== undefined ? { output: s.output } : {}), ...(s.error !== undefined ? { error: s.error } : {}) });
+    if (!ctx.processes && !ctx.agentCalls) throw new Error("check_run: background processes are not wired in this deployment");
+    const s = await ctx.processes?.status(run_id);
+    if (s) return JSON.stringify({ run_id: s.runId, process: s.process, status: s.status, waves: s.waves, ...(s.output !== undefined ? { output: s.output } : {}), ...(s.error !== undefined ? { error: s.error } : {}) });
+    const c = await ctx.agentCalls?.status(run_id);
+    if (c) return JSON.stringify({ run_id: c.runId, agent: c.agent, process: c.process, status: c.status, ...(c.output !== undefined ? { output: c.output } : {}), ...(c.error !== undefined ? { error: c.error } : {}) });
+    return JSON.stringify({ error: `no run ${run_id}` });
   },
 });
 
-export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash, run_process: runProcess, check_run: checkRun, send_to_channel: sendToChannel };
+export const BUILTIN_TOOLS: Record<string, ToolDefAny> = { web_search: webSearch, read_attachment: readAttachment, sql_query: sqlQuery, bash, run_process: runProcess, check_run: checkRun, call_agent: callAgent, send_to_channel: sendToChannel };
 
 /** Env each builtin needs — folded into the agent's required env by the loader. */
-export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [], run_process: [], check_run: [], send_to_channel: [] };
+export const BUILTIN_TOOL_ENV: Record<string, string[]> = { web_search: ["TAVILY_API_KEY"], read_attachment: [], sql_query: ["SQL_DATABASE_URL"], bash: [], run_process: [], check_run: [], call_agent: [], send_to_channel: [] };
 
 /**
  * The toolkit `sandbox: true` grants: a computer for the agent. bash gates on

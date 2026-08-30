@@ -2,7 +2,7 @@ import {
   PgFiles,
   createPool, migrateControl, provisionAgent, tx,
   PgStateStore, PgQueue, PgLeases,
-  LocalWorkerRuntime, listPendingApprovals, makeProcessesFacet,
+  LocalWorkerRuntime, listPendingApprovals, makeAgentCallsFacet, makeProcessesFacet,
   type QueueAdapter, type TickDeps,
 } from "@toren-run/core";
 import type pg from "pg";
@@ -205,6 +205,14 @@ export async function buildFleetRuntime(project: LoadedProject, databaseUrl?: st
       ...(sandbox ? { sandbox } : {}),
     };
     byAgent[name]!.processes = makeProcessesFacet(pool, name, byAgent[name]!, { defaultProcess: loaded.defaultProcess });
+  }
+  // Beta cross-agent calls: an edge exists only where BOTH yamls agree —
+  // caller lists the peer in can_call, peer lists the caller in accept_from.
+  for (const [name, loaded] of Object.entries(project.crews)) {
+    const callable = (loaded.canCall ?? []).filter((peer) => peer !== name && (project.crews[peer]?.acceptFrom ?? []).includes(name));
+    if (!callable.length) continue;
+    const defaultProcess = Object.fromEntries(callable.map((peer) => [peer, project.crews[peer]?.defaultProcess]));
+    byAgent[name]!.agentCalls = makeAgentCallsFacet(pool, name, byAgent, { callable, defaultProcess });
     byAgent[name]!.channels = makeChannelDelivery(pool, files);
   }
   await preflightProviders(Object.fromEntries(Object.values(project.crews).flatMap((c) => Object.values(c.agents)).map((a, i) => [i, a])));

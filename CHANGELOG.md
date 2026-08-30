@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Beta — cross-agent calls**: an agent can delegate a request to a consenting peer (`agents.can_call` / `agents.accept_from` in agent.yaml, mutual and deny-by-default). The peer runs it durably in its own schema with its own privileges and tools; the caller receives only the answer, delivered into its conversation by the watcher wake (`[reply from <agent>]`). Effectively-once spawning, `check_run` polling, full audit in both event logs, `runs.channel` records the caller. Beta: notify-later flavor only, no chain-depth cap yet; config shape may change.
+
 ## 0.1.15 — 2026-08-28
 
 - Invalidation no longer erases conversations: `StreamInvalidated` voids replayable computation (model calls, tool records) but never conversation facts — what a person said (`UserMessage`) and what the assistant told them (`InputRequested`) survive unconditionally and are folded back into the model's context, with the voided calls re-paid under the new code. Previously a prompt deploy invalidated open sessions wholesale, and every daily-deployed conversation went amnesiac ("answers the next message like a stranger"). Sessions already damaged this way heal on their next turn: the events were never deleted, only skipped. Fifth production field report.

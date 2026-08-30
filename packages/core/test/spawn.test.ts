@@ -134,3 +134,75 @@ test("the full arc: chat spawns a process, the run settles, the agent messages t
     await worker.stop();
   }
 });
+
+// ---- cross-agent calls (beta) --------------------------------------------
+
+test("call_agent: mutual consent enforced, child runs in the callee schema under agent: channel, wake says who replied", async () => {
+  const { makeAgentCallsFacet } = await import("../src/spawn.js");
+  const { getSession, startSession } = await import("../src/conversations.js");
+  const { LocalWorkerRuntime } = await import("../src/worker.js");
+  const { MockProvider } = await import("../src/providers/mock.js");
+
+  // second agent: the "cfo", schema of its own
+  await tx(pool, async (c) => { await provisionAgent(c, "spawncfo"); });
+  await pool.query(`TRUNCATE agent_spawncfo.events, agent_spawncfo.streams, agent_spawncfo.leases, agent_spawncfo.blobs, agent_spawncfo.runs CASCADE`);
+  const cfoStore = new PgStateStore(pool, "agent_spawncfo");
+  const cfo: TickDeps = {
+    store: cfoStore, queue: new PgQueue(pool), leases: new PgLeases(pool, "agent_spawncfo"),
+    provider: new MockProvider([]), agents: { main: spec },
+    workflows: { main: async () => "august spend: 42k" },
+  };
+  const say = (text: string) => ({ content: [{ type: "text" as const, text }], stopReason: "endTurn" as const, usage: { inputTokens: 1, outputTokens: 1 } });
+  const parentDeps: TickDeps = { ...deps, provider: { complete: async () => say("on it") } };
+  const byAgent: Record<string, TickDeps> = { spawntest: parentDeps, spawncfo: cfo };
+
+  const calls = makeAgentCallsFacet(pool, "spawntest", byAgent, {
+    callable: ["spawncfo"], defaultProcess: { spawncfo: "main" },
+  });
+
+  // no consent edge → refused with the callable list
+  await expect(calls.call({ agent: "spawnceo", input: "x", parentRunId: "22222222-2222-4222-8222-222222222222", parentTaskId: "w0t0", toolUseId: "cc0" }))
+    .rejects.toThrow(/not callable from spawntest/);
+
+  // a real call: parent is a session on spawntest, child lands in the cfo schema
+  const sessionId = await startSession(parentDeps, { agent: "spawntest", message: "ask the cfo" });
+  const worker = new LocalWorkerRuntime(byAgent, { concurrency: 1 });
+  worker.start();
+  try {
+    await worker.drain(15_000); // parent's first turn parks awaiting input
+
+    const r = await calls.call({ agent: "spawncfo", input: "august spend?", parentRunId: sessionId, parentTaskId: "w0t0", toolUseId: "cc1" });
+    expect(r.started).toBe(true);
+    const child = await cfoStore.getRun(r.runId);
+    expect(child).not.toBeNull();
+    expect(child!.channel).toBe("agent:spawntest");
+    expect(await store.getRun(r.runId)).toBeNull(); // NOT in the caller's schema
+
+    // effectively-once under the same tool-use key
+    const again = await calls.call({ agent: "spawncfo", input: "august spend?", parentRunId: sessionId, parentTaskId: "w0t0", toolUseId: "cc1" });
+    expect(again.runId).toBe(r.runId);
+    expect(again.started).toBe(false);
+
+    // status is visible from the caller side
+    await worker.drain(15_000); // child completes
+    const st = await calls.status(r.runId);
+    expect(st!.status).toBe("completed");
+    expect(st!.agent).toBe("spawncfo");
+    expect(st!.output).toContain("42k");
+
+    // the wake crosses schemas and names the peer
+    let woken = 0;
+    for (let i = 0; i < 50 && woken === 0; i++) {
+      woken = await sweepWatchers(pool, byAgent);
+      if (woken === 0) await new Promise((res) => setTimeout(res, 100));
+    }
+    expect(woken).toBe(1);
+    await worker.drain(15_000); // parent's turn over the wake message
+    const s = (await getSession(store, sessionId))!;
+    const wakeTurn = s.transcript.find((t) => t.text.includes("[reply from spawncfo]"));
+    expect(wakeTurn).toBeTruthy();
+    expect(wakeTurn!.text).toContain("august spend: 42k");
+  } finally {
+    await worker.stop();
+  }
+});

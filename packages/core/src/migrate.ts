@@ -131,10 +131,12 @@ CREATE TABLE IF NOT EXISTS toren_control.run_watchers (
   child_run_id uuid PRIMARY KEY,
   parent_run_id uuid NOT NULL,
   agent text NOT NULL,
+  parent_agent text,
   process text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   settled boolean NOT NULL DEFAULT false
 );
+ALTER TABLE toren_control.run_watchers ADD COLUMN IF NOT EXISTS parent_agent text;
 CREATE INDEX IF NOT EXISTS run_watchers_open_idx ON toren_control.run_watchers (agent) WHERE NOT settled;
 CREATE TABLE IF NOT EXISTS toren_control.telegram_observations (
   id bigserial PRIMARY KEY,

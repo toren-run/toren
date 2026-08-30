@@ -19,6 +19,16 @@ export interface ProcessesCtx {
   }>;
 }
 
+/** Cross-agent calls (beta): delegate to a consenting peer agent. Consent is mutual and resolved by the runtime; the callee answers with its own privileges and shares only its output. */
+export interface AgentCallsCtx {
+  /** Peers this agent may call — the intersection of its can_call and their accept_from. */
+  callable: string[];
+  call(req: { agent: string; input: string; process?: string; parentRunId: string; parentTaskId: string; toolUseId: string }): Promise<{ runId: string; agent: string; started: boolean }>;
+  status(runId: string): Promise<null | {
+    runId: string; agent: string; process: string; status: string; output?: string; error?: string;
+  }>;
+}
+
 export interface ToolCtx {
   runId: string;
   taskId: string;
@@ -32,6 +42,8 @@ export interface ToolCtx {
   sandbox?: SandboxExec;
   /** Background named-process runs for the run_process/check_run builtins; wired by the runtime. */
   processes?: ProcessesCtx;
+  /** Cross-agent delegation (beta); wired by the fleet runtime when consent edges exist. */
+  agentCalls?: AgentCallsCtx;
   /** Outbound file delivery to the run's bound chat channel (send_to_channel builtin); wired by the runtime. */
   channels?: {
     send(file: { name: string; dataBase64: string; caption?: string; kind: "photo" | "document" }): Promise<"queued" | "no-channel">;

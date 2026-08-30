@@ -27,6 +27,8 @@ export interface TickDeps {
   files?: import("./files.js").PgFiles;
   /** Background named-process runs; enables the run_process/check_run builtins. */
   processes?: import("./tools.js").ProcessesCtx;
+  /** Beta cross-agent delegation; wired by the fleet runtime where consent edges exist. */
+  agentCalls?: import("./tools.js").AgentCallsCtx;
   /** Outbound file delivery to bound chat channels; enables the send_to_channel builtin. */
   channels?: import("./tools.js").ChannelDeliveryProvider;
 }

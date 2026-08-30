@@ -45,6 +45,7 @@ export default defineConfig({
           { text: "Approvals", link: "/guides/approvals" },
           { text: "Sessions", link: "/guides/sessions" },
           { text: "Background runs", link: "/guides/background-runs" },
+          { text: "Cross-agent calls (beta)", link: "/guides/cross-agent-calls" },
           { text: "Scheduling", link: "/guides/scheduling" },
           { text: "HTTP API", link: "/guides/http-api" },
           { text: "Environments", link: "/guides/environments" },
