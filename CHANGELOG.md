@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.16 — 2026-08-30
 
 - **Beta — cross-agent calls**: an agent can delegate a request to a consenting peer (`agents.can_call` / `agents.accept_from` in agent.yaml, mutual and deny-by-default). The peer runs it durably in its own schema with its own privileges and tools; the caller receives only the answer, delivered into its conversation by the watcher wake (`[reply from <agent>]`). Effectively-once spawning, `check_run` polling, full audit in both event logs, `runs.channel` records the caller. Beta: notify-later flavor only, no chain-depth cap yet; config shape may change.
 

@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Toren intake API",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "description": "The HTTP API every Toren deployment serves (toren dev locally, the load balancer on AWS). Toren is self-hosted: this API lives at YOUR deployment's URL, not at toren.run. Trigger durable agent runs, read status and full event transcripts, resolve approvals, upload files, and hold sessions. All endpoints except /healthz require a bearer token: the deployment's admin token or an issued API key (issued keys cannot manage keys, schedules, or invites).",
     "license": {
       "name": "Apache-2.0",
