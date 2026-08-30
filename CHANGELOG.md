@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.17 — 2026-08-30
 
 - Cross-agent loop guards: a call chain deeper than 4 hops is refused (the A→B→A ping-pong case), and one run may place at most 25 calls — a looping model is now bounded and told to answer with what it has, instead of billing forever. Crash replays of accepted calls stay exempt; the guards bound decisions, never recovery.
 
