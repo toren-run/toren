@@ -19,6 +19,9 @@ env:
   required: [TICKETS_API_KEY]    # missing values fail fast at startup
   optional:
     REGION: "us-east-1"          # fallback used when unset
+  bind:                          # BETA — per-agent redirection: this agent reads the logical
+    SQL_DATABASE_URL: CMO_DB_URL # name from a different process variable. Lets co-located
+                                 # agents give the same key different values (per-agent DB roles)
 default_process: daily-digest    # process run when a trigger names none (only useful with workflows/)
 agents:                    # BETA — cross-agent calls; both sides must declare (see Guides → Cross-agent calls)
   can_call: [cfo]          # peers this agent may delegate to (grants the call_agent tool)

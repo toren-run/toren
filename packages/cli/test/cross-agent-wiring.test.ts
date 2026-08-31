@@ -43,3 +43,31 @@ test("consent wiring through the real loader and fleet runtime", async () => {
   await expect(wceo!.agentCalls!.call({ agent: "wext", input: "x", parentRunId: "44444444-4444-4444-8444-444444444444", parentTaskId: "w0t0", toolUseId: "wx2" }))
     .rejects.toThrow(/not callable from wceo/);
 });
+
+test("env.bind: same logical key, different physical vars per co-located agent; unbound names fail fast with the physical name", async () => {
+  process.env.WCMO_DB = "postgres://cmo";
+  process.env.WCFO_DB = "postgres://cfo";
+  const base = mkdtempSync(join(tmpdir(), "toren-envbind-"));
+  const mk = (name: string, yaml: string) => {
+    const dir = join(base, name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "agent.yaml"), yaml);
+    return dir;
+  };
+  const a = mk("bcmo", "name: bcmo\nmodel: mock/echo\nenv:\n  required: [SQL_DATABASE_URL]\n  bind:\n    SQL_DATABASE_URL: WCMO_DB\n");
+  const b = mk("bcfo", "name: bcfo\nmodel: mock/echo\nenv:\n  required: [SQL_DATABASE_URL]\n  bind:\n    SQL_DATABASE_URL: WCFO_DB\n");
+
+  const { loadAgentDir } = await import("../src/loader.js");
+  const cmo = await loadAgentDir(a);
+  const cfo = await loadAgentDir(b);
+  expect(cmo.agents.main!.env!.SQL_DATABASE_URL).toBe("postgres://cmo");
+  expect(cfo.agents.main!.env!.SQL_DATABASE_URL).toBe("postgres://cfo");
+
+  // missing PHYSICAL var: the error names the variable the operator must set
+  const c = mk("bmiss", "name: bmiss\nmodel: mock/echo\nenv:\n  required: [SQL_DATABASE_URL]\n  bind:\n    SQL_DATABASE_URL: DOES_NOT_EXIST_XYZ\n");
+  await expect(loadAgentDir(c)).rejects.toThrow(/DOES_NOT_EXIST_XYZ \(bound to SQL_DATABASE_URL\)/);
+
+  // binding an undeclared name is a config error, not a silent no-op
+  const d = mk("bwild", "name: bwild\nmodel: mock/echo\nenv:\n  bind:\n    NEVER_DECLARED: WCMO_DB\n");
+  await expect(loadAgentDir(d)).rejects.toThrow(/not declared in env.required/);
+});

@@ -39,7 +39,12 @@ interface AgentYaml {
   /** For OpenAI reasoning models: "none" | "low" | "medium" | "high". gpt-5.6+ need it to use tools. */
   reasoning_effort?: string;
   contextWindow?: number;
-  env?: { required?: string[]; optional?: Record<string, string> };
+  env?: {
+    required?: string[];
+    optional?: Record<string, string>;
+    /** Beta — per-agent env binding: logical name → the process env var it reads from. Lets two co-located agents give the same logical key (SQL_DATABASE_URL) different values (CMO_SQL_DATABASE_URL vs CFO_SQL_DATABASE_URL). Tools keep their logical names. */
+    bind?: Record<string, string>;
+  };
   /** Built-in tools by name, e.g. [web_search]. Their required env folds into env.required. */
   builtin_tools?: string[];
   /** `true` (or a settings block) gives the agent a computer: bash + read_file/write_file/edit_file on a durable workspace. */
@@ -63,16 +68,25 @@ function sandboxConfig(yaml: AgentYaml): { image?: string; network?: boolean; ap
   return yaml.sandbox === true ? {} : yaml.sandbox;
 }
 
-/** Resolve a declared env block against process.env. Values never get logged. */
+/** Resolve a declared env block against process.env. Values never get logged.
+ * env.bind redirects a logical name to a different process variable — the
+ * tool keeps reading ctx.env.SQL_DATABASE_URL, the deployment decides which
+ * physical variable that is for THIS agent. Same pattern as telegram.bot_token_env. */
 function resolveEnv(decl: AgentYaml["env"], where: string, missing: string[]): Record<string, string> {
+  const phys = (name: string) => decl?.bind?.[name] ?? name;
   const out: Record<string, string> = {};
   for (const [name, fallback] of Object.entries(decl?.optional ?? {})) {
-    out[name] = process.env[name] ?? String(fallback);
+    out[name] = process.env[phys(name)] ?? String(fallback);
   }
   for (const name of decl?.required ?? []) {
-    const v = process.env[name];
-    if (v === undefined || v === "") missing.push(`${name} (${where})`);
+    const v = process.env[phys(name)];
+    if (v === undefined || v === "") missing.push(`${phys(name)}${phys(name) !== name ? ` (bound to ${name})` : ""} (${where})`);
     else out[name] = v;
+  }
+  for (const name of Object.keys(decl?.bind ?? {})) {
+    if (!(decl?.required ?? []).includes(name) && !(name in (decl?.optional ?? {}))) {
+      missing.push(`env.bind names "${name}" but it is not declared in env.required or env.optional (${where})`);
+    }
   }
   return out;
 }
@@ -128,6 +142,7 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
   const env = {
     required: [...new Set([...(yaml.env?.required ?? []), ...builtinEnv, ...(sandbox?.env ?? [])])],
     optional: yaml.env?.optional,
+    bind: yaml.env?.bind,
   };
 
   return {
@@ -173,7 +188,7 @@ export async function loadAgentDir(dirRaw: string): Promise<LoadedAgent> {
   if (sandboxYaml || Object.values(agents).some((a) => a.tools.some((t) => t.name === "bash"))) {
     const grantedEnv: Record<string, string> = {};
     for (const name of sandboxYaml?.env ?? []) {
-      const v = process.env[name];
+      const v = process.env[root.yaml.env?.bind?.[name] ?? name];
       if (v !== undefined && v !== "") grantedEnv[name] = v; // missing values already reported via env.required
     }
     sandbox = { image: sandboxYaml?.image, network: sandboxYaml?.network, env: grantedEnv };

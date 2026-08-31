@@ -49,6 +49,20 @@ Nothing changes for the API, SDK, or CLI: you talk to one agent, and any cross-a
 - The caller gets the peer's **output only** (capped, like any run output).
 - No fleet, no calls: a single-agent runtime has no peers, and `call_agent` says so instead of failing mysteriously.
 
+## Consolidating containers to enable calls
+
+`call_agent` connects agents served by **one deployment** (`toren dev --dir a --dir b`). If your agents currently run as separate containers for credential isolation — each with its own `SQL_DATABASE_URL` pointing at its own database role — consolidation used to collapse that boundary, because env vars are process-wide. `env.bind` restores it:
+
+```yaml
+# cmo/agent.yaml                      # cfo/agent.yaml
+env:                                  env:
+  required: [SQL_DATABASE_URL]         required: [SQL_DATABASE_URL]
+  bind:                                bind:
+    SQL_DATABASE_URL: CMO_DB_URL         SQL_DATABASE_URL: CFO_DB_URL
+```
+
+Tools keep reading their logical name (`ctx.env.SQL_DATABASE_URL`); each agent resolves it from its own physical variable, so the finance/marketing wall survives co-location. Version skew across the old split is a non-issue after consolidation by construction — one container, one version.
+
 ## Beta limits (honest)
 
 - **Notify-later only.** The caller's turn ends after placing the call; the answer arrives as the next message. A blocking wait-in-turn variant is planned.

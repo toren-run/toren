@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Beta — `env.bind`**: per-agent env redirection. An agent declares that a logical env name (say `SQL_DATABASE_URL`) reads from a different process variable (`CMO_DB_URL`), so two co-located agents can hold different values for the same key — per-agent database roles survive container consolidation, which cross-agent calls encourage. Tools keep their logical names; missing physical variables fail fast naming the variable to set; binding an undeclared name is a config error. Same pattern as `telegram.bot_token_env`, generalized. From a production deployment consolidating to use `call_agent`.
+
 ## 0.1.17 — 2026-08-30
 
 - Cross-agent loop guards: a call chain deeper than 4 hops is refused (the A→B→A ping-pong case), and one run may place at most 25 calls — a looping model is now bounded and told to answer with what it has, instead of billing forever. Crash replays of accepted calls stay exempt; the guards bound decisions, never recovery.
