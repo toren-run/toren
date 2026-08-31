@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.18 — 2026-08-31
 
 - **Beta — `env.bind`**: per-agent env redirection. An agent declares that a logical env name (say `SQL_DATABASE_URL`) reads from a different process variable (`CMO_DB_URL`), so two co-located agents can hold different values for the same key — per-agent database roles survive container consolidation, which cross-agent calls encourage. Tools keep their logical names; missing physical variables fail fast naming the variable to set; binding an undeclared name is a config error. Same pattern as `telegram.bot_token_env`, generalized. From a production deployment consolidating to use `call_agent`.
 
