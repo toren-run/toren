@@ -31,5 +31,6 @@ The design rationale behind these guarantees is summarized in [Durability & repl
 | HTTP intake API (runs, status, events, approvals) | ✅ shipped, see the [guide](/guides/http-api.md); sessions and SSE streaming shipped too |
 | Troubleshooting / FAQ | ❌ gap, collect from first external users |
 | [Versioning & compatibility policy](/reference/versioning.md) | ✅ shipped |
+| Hosted tier and BYOC (a control plane for teams that want the ops handled) | 🗓 planned; the open-source runtime stays complete and nothing moves behind them |
 | Examples gallery beyond research-crew | ❌ gap |
 | [Client SDK](/reference/client.md) (`@toren-run/client`), env declarations, environment profiles | ✅ shipped |
