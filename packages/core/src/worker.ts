@@ -158,6 +158,7 @@ export class LocalWorkerRuntime {
           channels: deps.channels?.forRun(msg.runId),
           sessionMode: run?.mode === "session",
           channel: run?.channel,
+          runCreatedAt: run?.createdAt,
         });
         await this.shared.queue.ack(d);
         // Nudge the orchestrator to absorb the terminal/parked state.

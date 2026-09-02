@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `limits.maxWallClockMin` (opt-in): a task run older than its wall-clock budget fails with a `timeout` failure class instead of running forever — checked in the same place as the attempts cap, so it surfaces on the run record like any other failure and whatever pages on failures pages on this. Wall clock includes parked time; sessions are exempt. Designed in public: the shape (deadline from the run row, timeout class, no second alerting stack) came from a reader on the launch thread within hours of the post.
+
 ## 0.1.18 — 2026-08-31
 
 - **Beta — `env.bind`**: per-agent env redirection. An agent declares that a logical env name (say `SQL_DATABASE_URL`) reads from a different process variable (`CMO_DB_URL`), so two co-located agents can hold different values for the same key — per-agent database roles survive container consolidation, which cross-agent calls encourage. Tools keep their logical names; missing physical variables fail fast naming the variable to set; binding an undeclared name is a config error. Same pattern as `telegram.bot_token_env`, generalized. From a production deployment consolidating to use `call_agent`.

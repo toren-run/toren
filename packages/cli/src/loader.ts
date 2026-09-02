@@ -35,7 +35,7 @@ interface AgentYaml {
   name?: string;
   model?: string;
   maxTokens?: number;
-  limits?: { maxStepsPerTask?: number; maxAttemptsPerTask?: number };
+  limits?: { maxStepsPerTask?: number; maxAttemptsPerTask?: number; maxWallClockMin?: number };
   /** For OpenAI reasoning models: "none" | "low" | "medium" | "high". gpt-5.6+ need it to use tools. */
   reasoning_effort?: string;
   contextWindow?: number;
@@ -154,6 +154,7 @@ async function loadAgentSpec(dir: string, where: string, missing: string[]): Pro
       maxTokens: yaml.maxTokens ?? 16_000,
       maxSteps: yaml.limits?.maxStepsPerTask ?? 50,
       ...(yaml.limits?.maxAttemptsPerTask ? { maxTaskAttempts: yaml.limits.maxAttemptsPerTask } : {}),
+      ...(yaml.limits?.maxWallClockMin ? { maxWallClockMin: yaml.limits.maxWallClockMin } : {}),
       ...(yaml.reasoning_effort ? { reasoningEffort: yaml.reasoning_effort } : {}),
       ...(yaml.contextWindow ? { contextWindow: yaml.contextWindow } : {}),
       env: resolveEnv(env, where, missing),

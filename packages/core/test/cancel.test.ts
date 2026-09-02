@@ -90,3 +90,40 @@ test("maxAttemptsPerTask (opt-in) turns an endless retry into a terminal failure
     await worker.stop();
   }
 });
+
+test("maxWallClockMin: an aged task run fails with a timeout class; sessions are exempt", { timeout: 30_000 }, async () => {
+  const { EchoProvider } = await import("../src/providers/echo.js");
+  const capped: AgentSpec = { ...spec, maxWallClockMin: 30 };
+  const deps: TickDeps = {
+    store, queue: new PgQueue(pool), leases: new PgLeases(pool, SCHEMA),
+    provider: new EchoProvider(), agents: { main: capped }, workflows: { main: wf },
+  };
+  const worker = new LocalWorkerRuntime({ canceltest: deps }, { concurrency: 1 });
+  worker.start();
+  try {
+    // task run born 2 hours ago: over budget before its first tick
+    const runId = await startRun(deps, { agent: "canceltest", input: "too old" });
+    await pool.query(`UPDATE ${SCHEMA}.runs SET created_at = now() - interval '2 hours' WHERE run_id = $1`, [runId]);
+    await worker.drain(15_000);
+    const run = (await store.getRun(runId))!;
+    expect(run.status).toBe("failed");
+    expect(String(run.error)).toContain("maxWallClockMin");
+
+    // a fresh run under the same cap completes normally
+    const okId = await startRun(deps, { agent: "canceltest", input: "fresh" });
+    await worker.drain(15_000);
+    expect((await store.getRun(okId))!.status).toBe("completed");
+
+    // sessions are exempt: an old conversation keeps answering
+    const { startSession, sendSessionMessage, getSession } = await import("../src/conversations.js");
+    const sessId = await startSession(deps, { agent: "canceltest", message: "hi" });
+    await pool.query(`UPDATE ${SCHEMA}.runs SET created_at = now() - interval '2 days' WHERE run_id = $1`, [sessId]);
+    await worker.drain(15_000);
+    await sendSessionMessage(deps, sessId, { text: "still there?" });
+    await worker.drain(15_000);
+    const s = (await getSession(store, sessId))!;
+    expect(s.state).toBe("awaiting_input");
+  } finally {
+    await worker.stop();
+  }
+});

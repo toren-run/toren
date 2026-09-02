@@ -31,6 +31,8 @@ export interface AgentSpec {
   reasoningEffort?: string;
   /** Opt-in poison-pill (agent.yaml `limits.maxAttemptsPerTask`): terminally fail a task after this many attempts instead of retrying forever. */
   maxTaskAttempts?: number;
+  /** Opt-in wall-clock budget (agent.yaml `limits.maxWallClockMin`): a task-mode run older than this fails with a timeout class instead of running forever. Wall clock includes parked time; sessions are exempt (conversations live for days by design). */
+  maxWallClockMin?: number;
   outputSchema?: z.ZodTypeAny;
   /** Declared env values (from agent.yaml `env:`) passed to tool handlers as ctx.env. */
   env?: Record<string, string>;
@@ -84,6 +86,8 @@ export interface TaskLoopArgs {
   sessionMode?: boolean;
   /** The channel the run was born on (runs.channel); selects a channel primer in session mode. Immutable per run, so replay digests stay stable. */
   channel?: string;
+  /** runs.created_at — the wall-clock budget measures from here. */
+  runCreatedAt?: Date;
 }
 
 export type TaskLoopResult =
@@ -228,6 +232,16 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
       }
     }
     if (sawStart && !cleanSinceStart) attempt += 1; // the tick about to start resumes a dirty cycle
+  }
+  // The wall-clock budget, checked in the same place as the attempts cap
+  // (design credit: a reader on the launch thread). The run started the clock;
+  // the runtime kills it; the timeout surfaces as an ordinary failure, so
+  // whatever pages on failures pages on this — no second alerting stack.
+  if (agent.maxWallClockMin && args.runCreatedAt && !args.sessionMode
+      && Date.now() - args.runCreatedAt.getTime() > agent.maxWallClockMin * 60_000) {
+    const error = `timeout: run exceeded limits.maxWallClockMin (${agent.maxWallClockMin}m; wall clock includes parked time)`;
+    await append([ev("TaskFailed", { error, willRetry: false, failureClass: "timeout" })]);
+    return { status: "failed", error };
   }
   if (agent.maxTaskAttempts && attempt > agent.maxTaskAttempts) {
     const error = `gave up after ${agent.maxTaskAttempts} attempts (limits.maxAttemptsPerTask); the run's recorded error holds the last failure reason`;

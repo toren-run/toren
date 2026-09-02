@@ -18,12 +18,12 @@ export class PgStateStore {
     );
   }
 
-  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; mode: string; process: string; channel?: string; input: unknown; output: unknown; error: unknown } | null> {
+  async getRun(runId: string): Promise<{ runId: string; agent: string; status: string; mode: string; process: string; channel?: string; createdAt?: Date; input: unknown; output: unknown; error: unknown } | null> {
     const r = await this.pool.query(
-      `SELECT run_id, agent, status, mode, process, channel, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
+      `SELECT run_id, agent, status, mode, process, channel, created_at, input, output, error FROM ${this.schema}.runs WHERE run_id = $1`, [runId],
     );
     const row = r.rows[0];
-    return row ? { runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, process: row.process, channel: row.channel ?? undefined, input: row.input, output: row.output, error: row.error } : null;
+    return row ? { runId: row.run_id, agent: row.agent, status: row.status, mode: row.mode, process: row.process, channel: row.channel ?? undefined, createdAt: row.created_at ?? undefined, input: row.input, output: row.output, error: row.error } : null;
   }
 
   async updateRun(runId: string, patch: { status?: string; output?: unknown; error?: unknown }): Promise<void> {
