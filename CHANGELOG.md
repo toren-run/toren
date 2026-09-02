@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.19 — 2026-09-02
 
 - `limits.maxWallClockMin` (opt-in): a task run older than its wall-clock budget fails with a `timeout` failure class instead of running forever — checked in the same place as the attempts cap, so it surfaces on the run record like any other failure and whatever pages on failures pages on this. Wall clock includes parked time; sessions are exempt. Designed in public: the shape (deadline from the run row, timeout class, no second alerting stack) came from a reader on the launch thread within hours of the post.
 
