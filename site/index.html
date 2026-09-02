@@ -242,6 +242,21 @@ tr.toren td:nth-child(2) { color: var(--ink); font-family: Archivo, sans-serif; 
 .pane p { color: var(--muted); font-size: 15.5px; }
 .pane code { background: rgba(18,33,52,.07); padding: 3px 8px; border-radius: 4px; font-size: 13.5px; color: var(--ink); }
 
+/* ============ conversion path (rev C) ============ */
+button.install { cursor: pointer; font: inherit; color: inherit; text-align: left; display: inline-flex; align-items: center; gap: 14px; }
+button.install .copyhint { font: 600 9.5px "JetBrains Mono", monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--signal); }
+button.install.copied .copyhint::after { content: " ✓"; }
+.starcount { margin-left: 8px; font-weight: 500; opacity: .8; }
+.starcount:empty { display: none; }
+.proof { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 26px; border-top: 2px solid var(--ink); padding-top: 18px; }
+.proof .pcell { font: 500 13px/1.45 "Source Sans 3", system-ui, sans-serif; }
+.proof .pcell b { font: 700 22px/1 "Archivo", system-ui, sans-serif; display: block; margin-bottom: 4px; }
+.proof .pquote { grid-column: 1 / -1; font: italic 500 14px/1.5 "Source Sans 3", system-ui, sans-serif; }
+.proof .pquote span { font: 600 9.5px "JetBrains Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--muted, #5b6b7b); margin-left: 10px; font-style: normal; }
+@media (max-width: 720px) { .proof { grid-template-columns: 1fr; } }
+.closing { text-align: left; }
+.closelinks { margin-top: 18px; font: 500 14px "Source Sans 3", system-ui, sans-serif; }
+.closelinks a { color: inherit; }
 /* ============ 08 pricing ============ */
 .tiers { display: grid; grid-template-columns: 1fr 1fr 1.35fr; gap: 18px; align-items: stretch; }
 .tier { background: var(--card); border: 2px solid var(--ink); padding: 26px 28px; box-shadow: 5px 5px 0 rgba(18,33,52,.08); }
@@ -311,22 +326,22 @@ footer { margin-top: 110px; }
 </head>
 <body>
 <div class="sheet-frame">
-<div class="marginalia" aria-hidden="true">DURABLE EXECUTION FOR AGENTS · SHT 1/1 · REV A · AUG 2026</div>
+<div class="marginalia" aria-hidden="true">DURABLE AGENT RUNTIME · SHT 1/1 · REV C · SEP 2026</div>
 
 <nav>
   <a class="brandlock" href="#">
     <svg viewBox="0 0 64 104" width="18" height="30" aria-hidden="true"><defs><mask id="cutn"><rect width="64" height="104" fill="white"/><rect x="-16" y="47" width="96" height="8" fill="black" transform="rotate(-12 32 52)"/></mask></defs><rect x="12" y="4" width="40" height="96" rx="7" fill="#122134" mask="url(#cutn)"/></svg>
     <b>TOREN</b>
   </a>
-  <span class="sheetchip">DWG № TRN-001 · REV A</span>
+  <span class="sheetchip">DWG № TRN-001 · REV C</span>
   <div class="links">
     <a href="#s2">Principle</a>
     <a href="#s4">System</a>
     <a href="#s6">Compare</a>
-    <a href="#s8">Plans</a>
+    <a class="keep" href="/docs/quickstart">Quickstart</a>
     <a class="keep" href="/docs/">Docs</a>
     <a class="keep gh-link" href="https://github.com/toren-run/toren" aria-label="Toren on GitHub" title="GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
-    <a class="cta" href="#s3"><span class="cta-long">Watch the kill test</span><span class="cta-short">Kill test</span></a>
+    <a class="cta" href="https://github.com/toren-run/toren"><span class="cta-long">Star on GitHub<span id="starcount" class="starcount"></span></span><span class="cta-short">★ GitHub</span></a>
   </div>
 </nav>
 
@@ -337,7 +352,8 @@ footer { margin-top: 110px; }
   <h1>Toren runs agents <br>that work for <em>days</em>, <br>do real work, <br><span class="tail">and survive anything.</span></h1>
   <p class="sub">The open-source runtime for long-running agents. A deploy, a crash, a literal <span style="white-space:nowrap">kill&nbsp;-9</span>: the run resumes where it died and <strong>never re-pays for a completed model call</strong>. In <em>your</em> cloud.</p>
   <div class="heroctas">
-    <div class="install">npx toren-run init my-crew</div>
+    <button class="install" type="button" data-copy="npx toren-run init my-crew" title="Copy to clipboard"><span class="cmd">npx toren-run init my-crew</span><span class="copyhint">copy</span></button>
+    <a class="ghost-link" href="/docs/quickstart">Run the quickstart →</a>
     <a class="ghost-link" href="#s3">Watch it survive a kill -9 ↓</a>
   </div>
 
@@ -374,8 +390,15 @@ footer { margin-top: 110px; }
 
   <div class="claims rev">
     <div class="claim"><span class="no">CLAIM 01 · AN ASSERTION IN CI</span><p>A resumed run never re-pays for a completed model call.</p></div>
-    <div class="claim"><span class="no">CLAIM 02 · AN ASSERTION IN CI</span><p>Crash-tested after every single write point.</p></div>
+    <div class="claim"><span class="no">CLAIM 02 · AN ASSERTION IN CI</span><p>The kill matrix kills the worker after every single write point and the run still finishes.</p></div>
     <div class="claim"><span class="no">CLAIM 03 · BY CONSTRUCTION</span><p>Your VPC. Your keys. Apache-2.0, forever.</p></div>
+  </div>
+
+  <div class="proof rev">
+    <div class="pcell"><b>19</b> releases in three weeks</div>
+    <div class="pcell"><b>5</b> production field reports, each fixed the same day</div>
+    <div class="pcell"><b>1</b> pilot in production on Fargate + RDS, two agents, Telegram</div>
+    <div class="pquote">"They fixed the last report same-day." <span>pilot incident report</span></div>
   </div>
 </section>
 
@@ -383,8 +406,8 @@ footer { margin-top: 110px; }
 <section class="manifesto" id="s2">
   <span class="shnum" aria-hidden="true">02</span>
   <blockquote class="bigq rev">"<mark>90% of the work</mark> is checkpointing, delivery tracking, and human oversight. Agent logic is 10%."</blockquote>
-  <div class="attr rev">practitioners building multi-agent systems in production, 2026</div>
-  <p class="therefore rev">Every serious agent team rebuilds the same plumbing: queues, checkpoints, retries, approval flows. Toren is that 90%, <b>built once, chaos-tested, and open</b>, so your team ships the 10% that's actually yours.</p>
+  <div class="attr rev">what the production field reports keep saying, in different words</div>
+  <p class="therefore rev">Every serious agent team rebuilds the same plumbing: queues, checkpoints, retries, approval flows. Toren is that 90%, <b>built once and kill-tested in CI</b>, so your team ships the 10% that's actually yours.</p>
 </section>
 
 <!-- ======== 03 DEMO ======== -->
@@ -476,10 +499,10 @@ same workspace and keeps going</pre></div>
 <!-- ======== 05 SPEC STRIP ======== -->
 <section id="s5">
   <span class="shnum" aria-hidden="true">05</span>
-  <div class="sechead"><span class="cut">SPEC · MEASURED, NOT MARKETED</span></div>
+  <div class="sechead"><span class="cut">SPEC · MEASURED IN CI</span></div>
   <div class="spec rev">
     <div class="cell"><div class="big"><em>0</em></div><div class="lbl">tokens re-paid on resume</div></div>
-    <div class="cell"><div class="big">every</div><div class="lbl">write point crash-tested in CI</div></div>
+    <div class="cell"><div class="big">every</div><div class="lbl">write point covered by the kill matrix</div></div>
     <div class="cell"><div class="big">1</div><div class="lbl">dependency to run locally</div></div>
     <div class="cell"><div class="big">$0</div><div class="lbl">compute while a run waits, hours or weeks</div></div>
   </div>
@@ -488,15 +511,15 @@ same workspace and keeps going</pre></div>
 <!-- ======== 06 COMPARE ======== -->
 <section id="s6">
   <span class="shnum" aria-hidden="true">06</span>
-  <h2>They optimize time-to-first-agent. We optimize agent-lifetime.</h2>
-  <p class="lede">The real alternative to Toren isn't one tool. It's a stack: a framework for the agent, a workflow engine for durability, a sandbox vendor for the computer, glue for the rest. Every seam is yours to build, operate, and debug at 3am.</p>
+  <h2>The alternative is a stack you assemble yourself.</h2>
+  <p class="lede">A framework for the agent, a workflow engine for durability, a sandbox vendor for the computer, glue for the rest. Every seam is yours to build and yours to debug at 3am.</p>
   <div class="tablewrap rev"><table>
     <thead><tr><th></th><th>The layer</th><th>Assembled</th><th>In Toren</th></tr></thead>
     <tbody>
       <tr><td class="idx">01</td><td>The agent loop</td><td>LangChain / CrewAI / your code</td><td>built in: task loops, subagents, waves</td></tr>
       <tr><td class="idx">02</td><td>Durability</td><td>+ Temporal or Inngest, wired in</td><td>the event log <em>is</em> the runtime</td></tr>
       <tr><td class="idx">03</td><td>A computer</td><td>+ E2B or Modal, state on you</td><td><code>sandbox: true</code>, survives the worker</td></tr>
-      <tr><td class="idx">04</td><td>Scheduling</td><td>+ cron and idempotency glue</td><td>exactly-once, crash-tested</td></tr>
+      <tr><td class="idx">04</td><td>Scheduling</td><td>+ cron and idempotency glue</td><td>exactly-once, covered by the kill matrix</td></tr>
       <tr><td class="idx">05</td><td>Talking to it</td><td>+ a bot framework per channel</td><td>durable sessions: console, CLI, HTTP, Telegram</td></tr>
       <tr><td class="idx">06</td><td>Approvals &amp; console</td><td>build it yourself</td><td>built in, parked at $0 compute</td></tr>
       <tr><td class="idx">07</td><td>Deploy</td><td>compose all of the above</td><td><code>docker compose up</code> · <code>toren deploy-aws</code></td></tr>
@@ -532,12 +555,24 @@ same workspace and keeps going</pre></div>
   <p class="lede">Everything the runtime does is open source, forever. The paid tiers are hosting and fleet management for organizations; features never move behind them.</p>
   <div class="tiers rev">
     <div class="tier"><h3>Open source</h3><div class="price">Apache-2.0 · forever</div>
-      <ul><li>The full runtime + CLI</li><li>Built-in web console</li><li>Deploy to your own AWS</li><li>Durable timers &amp; approvals</li><li>Cron scheduling, crash-tested</li><li>HTTP API &amp; typed SDK</li></ul></div>
+      <ul><li>The full runtime + CLI</li><li>Built-in web console</li><li>Deploy to your own AWS</li><li>Durable timers &amp; approvals</li><li>Cron scheduling, kill-matrix tested</li><li>HTTP API &amp; typed SDK</li></ul></div>
     <div class="tier soon"><h3>Toren Cloud</h3><div class="price">coming soon</div>
       <ul><li>Fully hosted, zero ops</li><li>Dashboard &amp; approvals UI</li><li>Hosted memory</li><li>For teams without infra</li></ul></div>
     <div class="tier flag soon"><h3>Toren BYOC</h3><div class="price">coming soon · design partners welcome</div>
       <ul><li>Data plane in <strong>your</strong> cloud: payloads never leave your VPC</li><li>Our hosted control plane: fleet dashboards, SSO, RBAC, audit exports, SLAs</li><li>Fleet analytics across your deployments, from metadata only</li><li>What procurement signs after the free deploy wins the eval</li></ul></div>
   </div>
+</section>
+
+<!-- ======== 09 CLOSING ======== -->
+<section class="closing" id="s9">
+  <span class="shnum" aria-hidden="true">09</span>
+  <h2>Run the kill test on your own machine.</h2>
+  <p class="lede">The scaffold runs offline with a mock model, so the first kill -9 costs nothing. Postgres is the only thing to install.</p>
+  <div class="heroctas">
+    <button class="install" type="button" data-copy="npx toren-run init my-crew" title="Copy to clipboard"><span class="cmd">npx toren-run init my-crew</span><span class="copyhint">copy</span></button>
+    <a class="ghost-link" href="/docs/quickstart">Run the quickstart →</a>
+  </div>
+  <p class="closelinks"><a href="https://github.com/toren-run/toren">Star it on GitHub</a> · <a href="https://github.com/toren-run/toren/issues/new/choose">File an issue when it breaks</a> · <a href="/docs/faq">Read the FAQ</a></p>
 </section>
 
 </div><!-- /wrap -->
@@ -551,7 +586,7 @@ same workspace and keeps going</pre></div>
     <div class="tcell"><span class="k">Drawn by</span>humans + agents, durably</div>
   </div>
   <div class="revtable">
-    <span>REV B · Aug 2026 · public issue</span>
+    <span>REV C · Sep 2026 · public issue</span>
     <span>CHECKED · <a href="https://github.com/toren-run/toren/actions/workflows/ci.yml" style="color:inherit">kill matrix green in CI</a></span>
     <span>APPROVED · pending your kill -9</span>
   </div>
@@ -577,7 +612,7 @@ const LINES = [
   ['c', '$ '], ['p', 'toren run research-crew --input \'["solar shipping","battery freight"]\'\n'],
   ['p', 'run r_9f2c1a  wave research   dispatched 2 tasks\n'],
   ['p', 'run r_9f2c1a  wave research   settled 2/2\n'],
-  ['o', '^C  process killed mid-wave\n'],
+  ['o', 'kill -9  worker killed mid-wave\n'],
   ['c', '$ '], ['p', 'toren dev\n'],
   ['g', 'run r_9f2c1a  resumed at step 14: 13 completed calls replayed, 0 tokens re-paid\n'],
   ['b', 'run r_9f2c1a  completed  '], ['p', '"Solar-assisted shipping is…"\n'],
@@ -609,6 +644,19 @@ const tio = new IntersectionObserver((es) => {
   }
 }, { threshold: .35 });
 tio.observe(body);
+
+// click-to-copy install lines
+document.querySelectorAll("button.install[data-copy]").forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(btn.dataset.copy); btn.classList.add("copied"); setTimeout(() => btn.classList.remove("copied"), 1600); }
+    catch { /* clipboard blocked: the command is still selectable text */ }
+  });
+});
+
+// live star count (public API, no auth; silent on failure)
+fetch("https://api.github.com/repos/toren-run/toren").then((r) => r.ok ? r.json() : null).then((d) => {
+  if (d && typeof d.stargazers_count === "number") document.getElementById("starcount").textContent = `★ ${d.stargazers_count}`;
+}).catch(() => {});
 </script>
 </body>
 </html>

@@ -28,18 +28,32 @@ function urlPath(relPath) {
   return `/docs${p ? "/" + p : ""}`;
 }
 
+/** Title from the H1; blurb from the first real prose paragraph — never a line inside a code fence, never a
+ * list item or a lead-in ending in a colon, and capped at a sentence boundary so an index entry stays an entry. */
 function titleAndBlurb(src) {
   const lines = src.split("\n");
-  let title = "", blurb = "";
+  let title = "", blurb = "", inFence = false;
   for (const l of lines) {
     const t = l.trim();
+    if (t.startsWith("```")) { inFence = !inFence; continue; }
+    if (inFence) continue;
     if (!title && t.startsWith("# ")) { title = t.slice(2).replace(/<[^>]+>/g, "").trim(); continue; }
-    if (title && !blurb && t && !t.startsWith("#") && !t.startsWith("```") && !t.startsWith(":::") && !t.startsWith("<")) {
-      blurb = t.replace(/^[*_]+|[*_]+$/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
-      break;
+    if (!title || blurb) continue;
+    if (!t || t.startsWith("#") || t.startsWith(":::") || t.startsWith("<") || t.startsWith("|") || t.startsWith("- ") || t.startsWith("* ") || /^\d+\. /.test(t) || t.endsWith(":")) continue;
+    let b = t.replace(/^[*_]+|[*_]+$/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/`/g, "").trim();
+    if (b.length > 180) {
+      const cut = b.slice(0, 180);
+      const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
+      b = end > 60 ? cut.slice(0, end + 1) : `${cut.replace(/\s+\S*$/, "")}…`;
     }
+    blurb = b;
   }
   return { title, blurb };
+}
+
+/** Vue components (<Badge>) mean nothing to a model reading raw markdown. */
+function stripComponents(src) {
+  return src.replace(/<Badge[^>]*>[\s\S]*?<\/Badge>/g, "").replace(/<Badge[^>]*\/>/g, "");
 }
 
 const files = walk(docsDir).sort();
@@ -61,8 +75,9 @@ for (const p of pages) {
 
 // --- llms.txt: the index.
 let index = `# Toren\n\n`;
-index += `> The open-source runtime for long-running, durable AI agents in your own cloud. A resumed run never re-pays for a completed model call.\n\n`;
-index += `Toren runs agents as durable, event-sourced processes on Postgres: work measured in hours and days that survives crashes, deploys, and kill -9. Agents can hold conversations (sessions), run autonomously (runs), call tools, and get a sandboxed computer. Deploy locally, on one box, or into your own AWS account.\n\n`;
+index += `> Toren is an open-source, self-hosted durable agent runtime: long-running AI agents on a Postgres event log, in your own cloud. A resumed run never re-pays for a completed model call, and every run can be read afterwards: what it did, what it cost, why it stopped.\n\n`;
+index += `Toren runs agents as durable, event-sourced processes on Postgres: work measured in hours and days that survives crashes, deploys, and kill -9. Agents can hold conversations (sessions), run autonomously (runs), call tools, delegate to consenting peer agents, and get a sandboxed computer. Deploy locally, on one box with Docker Compose, or into your own AWS account. Website: ${SITE}. Source (Apache-2.0): https://github.com/toren-run/toren.\n\n`;
+index += `Where it sits: frameworks like LangGraph and CrewAI author agent logic and leave persistence, workers, and deployment to you; durable-execution engines like Temporal, Inngest, and Hatchet make arbitrary code crash-safe and leave the agent layer (model-call replay, compaction, sandboxes, approvals, channels, cost receipts) to you; hosted platforms like Claude Managed Agents and LangGraph Platform run on someone else's cloud; Golem is a durable agent runtime too, on WebAssembly. Toren is the runtime layer with the agent layer built in, on plain Node and your Postgres.\n\n`;
 index += `## When to use Toren\n\n`;
 index += `Reach for Toren when agent work is LONG (hours to days), EXPENSIVE (many model calls whose re-payment on a crash hurts), and UNATTENDED (no human watching who can just re-run): enrichment pipelines, scheduled reports, migrations, document processing, back-office automation, approval-gated actions. Skip it when runs finish in seconds and a retry is free. It is a runtime, not an agent framework: you bring the prompts and tools, Toren makes the execution durable. Everything self-hosts (Postgres locally, your own AWS in production); there is no hosted service, so the HTTP API lives at YOUR deployment's URL, never at toren.run. Quickstart: npx toren-run@latest init my-crew (offline, no API keys needed). Machine-readable API spec: https://toren.run/openapi.json.\n\n`;
 for (const g of ORDER) {
@@ -84,7 +99,7 @@ writeFileSync(join(outRoot, "llms.txt"), index);
 let full = `# Toren documentation (full corpus)\n\n`;
 for (const g of ORDER) {
   for (const p of (groups[g] ?? []).sort((a, b) => a.url.localeCompare(b.url))) {
-    full += `\n\n---\n# ${SITE}${p.url}\n\n${p.src.trim()}\n`;
+    full += `\n\n---\n# ${SITE}${p.url}\n\n${stripComponents(p.src).trim()}\n`;
   }
 }
 writeFileSync(join(outRoot, "llms-full.txt"), full);
