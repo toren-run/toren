@@ -8,6 +8,8 @@ reasoning_effort: low      # OpenAI reasoning models: none|low|medium|high. gpt-
 limits:
   maxStepsPerTask: 50      # hard cap on loop steps per task (default 50)
   maxAttemptsPerTask: 20   # opt-in poison-pill: fail terminally after N faulted attempts (conversation turns and approval wakes never count)
+  maxWallClockMin: 240     # opt-in wall-clock budget: a task run older than this fails with a timeout
+                           # class. Parked time counts; sessions are exempt (conversations live for days)
 contextWindow: 200000      # tokens; defaults per provider (anthropic 200k, openai 128k). Drives compaction
 builtin_tools: [web_search]      # standalone tools; see the Tools docs
 sandbox:                   # true, or a block: gives the agent a computer (bash + file tools)
