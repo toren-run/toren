@@ -4,7 +4,7 @@ description: Toren vs Temporal for AI agents. Temporal is the best generic durab
 
 # Toren vs Temporal
 
-**Short version.** Temporal is the best generic durable-execution engine there is, and if you already run it, building agents on it is a reasonable project. Toren is the same core idea (record every step, replay on resume) built specifically for agents, with the agent layer that Temporal leaves to you: model-call replay with cost accounting, context compaction, sandboxes, approvals, chat channels, cross-agent calls. It runs as one container on the Postgres you already have.
+Temporal is the best generic durable-execution engine there is, and if you already run it, building agents on it is a reasonable project. Toren is the same core idea (record every step, replay on resume) built specifically for agents, with the agent layer that Temporal leaves to you: model-call replay with cost accounting, context compaction, sandboxes, approvals, chat channels, cross-agent calls. It runs as one container on the Postgres you already have.
 
 Pick Temporal if you need polyglot workflows, multi-region scale, or one engine for everything from payments to agents. Pick Toren if the thing you are running is an agent and you would rather not build the agent layer yourself.
 

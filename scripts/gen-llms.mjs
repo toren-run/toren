@@ -40,7 +40,7 @@ function titleAndBlurb(src) {
     if (!title && t.startsWith("# ")) { title = t.slice(2).replace(/<[^>]+>/g, "").trim(); continue; }
     if (!title || blurb) continue;
     if (!t || t.startsWith("#") || t.startsWith(":::") || t.startsWith("<") || t.startsWith("|") || t.startsWith("- ") || t.startsWith("* ") || /^\d+\. /.test(t) || t.endsWith(":")) continue;
-    let b = t.replace(/^[*_]+|[*_]+$/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/`/g, "").trim();
+    let b = t.replace(/\*\*|__/g, "").replace(/^[*_]+|[*_]+$/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").replace(/`/g, "").trim();
     if (b.length > 180) {
       const cut = b.slice(0, 180);
       const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("; "));
