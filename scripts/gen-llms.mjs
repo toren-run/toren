@@ -64,8 +64,8 @@ const pages = files.map((f) => {
 });
 
 // Group pages by top-level section (dir name; root files under "Overview").
-const SECTION = { "": "Overview", channels: "Channels", tools: "Tools", guides: "Guides", concepts: "Concepts", reference: "Reference", deploy: "Deploy" };
-const ORDER = ["Overview", "Guides", "Channels", "Tools", "Deploy", "Concepts", "Reference"];
+const SECTION = { "": "Overview", channels: "Channels", tools: "Tools", guides: "Guides", concepts: "Concepts", compare: "Compare", reference: "Reference", deploy: "Deploy" };
+const ORDER = ["Overview", "Guides", "Channels", "Tools", "Deploy", "Concepts", "Compare", "Reference"];
 const groups = {};
 for (const p of pages) {
   const top = p.rel.includes("/") ? p.rel.split("/")[0] : "";

@@ -162,6 +162,12 @@ export default defineConfig({
         ],
       },
       {
+        text: "Compare",
+        items: [
+          { text: "Toren vs Temporal", link: "/compare/temporal" },
+        ],
+      },
+      {
         text: "Reference",
         items: [
           { text: "CLI", link: "/reference/cli" },
