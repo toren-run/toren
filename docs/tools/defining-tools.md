@@ -33,6 +33,25 @@ Every field is part of the durability contract, not decoration:
 
 The handler returns a string (JSON-encode structured results). Whatever it returns is recorded in the event log, so a resumed run replays the recorded result instead of calling the tool again.
 
+## Budgets: `timeoutMs` and `maxAttempts`
+
+Two optional fields keep one bad tool call from taking a whole run down with it:
+
+```ts
+export default defineTool({
+  name: "fetch_report",
+  // ...
+  timeoutMs: 30_000,   // a call running longer than this returns a timeout error to the model
+  maxAttempts: 2,      // after a worker died mid-call this many times, fail closed instead of re-running
+  handler: async (args, ctx) => { /* ... */ },
+});
+```
+
+- **`timeoutMs`** races the handler against a timer. On timeout the call completes with an error result (`tool fetch_report timed out after 30000ms`) that the model sees and can act on, exactly like a thrown error. The run keeps its accounting and continues. The handler's promise cannot be cancelled, so a truly stuck handler is abandoned, not killed; put the real cancellation in the handler (an `AbortSignal` on the HTTP call, a `timeout` on the child process).
+- **`maxAttempts`** bounds the crash window. When a worker dies after `ToolCallStarted` and before `ToolCallCompleted`, the resumed run re-runs the call under the same idempotency key. With `maxAttempts: 2`, the third such start fails closed with an error result instead of running again. Without it the documented at-least-once behavior stands.
+
+Both sit in the same declaration as `effects`, `idempotency`, and `approval`, and both are per tool: the run-level budgets are `limits.maxAttemptsPerTask` and `limits.maxWallClockMin` in [agent.yaml](../reference/agent-yaml.md). The runtime owns the hard deadline and the final cancel; the tool owns how fast it gives up.
+
 ## Built-in tools
 
 Some tools are common enough to ship in the box. Declare them by name in `agent.yaml` and skip the handler:

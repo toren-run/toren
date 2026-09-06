@@ -78,6 +78,10 @@ export interface ToolDef<S extends z.ZodTypeAny = z.ZodTypeAny> {
   effects: ToolEffects;
   idempotency: "keyed" | "none";
   approval: "never" | "always" | ((args: z.infer<S>) => boolean);
+  /** Per-call budget: a handler running longer than this returns a timeout error to the model instead of hanging the run. The run keeps its accounting; the model decides what to do next. */
+  timeoutMs?: number;
+  /** Crash-window budget: how many times the runtime will re-run this call after a worker died mid-execution before it fails closed with an error result. Default unlimited (at-least-once, as documented). */
+  maxAttempts?: number;
   handler: (args: z.infer<S>, ctx: ToolCtx) => Promise<string>;
 }
 
@@ -90,6 +94,8 @@ export interface ToolDefAny {
   idempotency: "keyed" | "none";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   approval: "never" | "always" | ((args: any) => boolean);
+  timeoutMs?: number;
+  maxAttempts?: number;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: (args: any, ctx: ToolCtx) => Promise<string>;
 }

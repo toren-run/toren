@@ -130,6 +130,11 @@ export const CHANNEL_PRIMERS: Record<string, string> = {
     "For tabular data use short labeled lines, one item per line, never a table.",
 };
 
+/** How many times a given tool call has been started in this task's effective log (crash-window re-runs included). */
+export function countToolStarts(events: RecordedEvent[], toolUseId: string): number {
+  return events.filter((e) => e.type === "ToolCallStarted" && e.payload.toolUseId === toolUseId).length;
+}
+
 export async function runTaskLoop(args: TaskLoopArgs): Promise<TaskLoopResult> {
   return withSpan("toren.task", { "toren.run_id": args.runId, "toren.task_id": args.taskId }, () => runTaskLoopImpl(args));
 }
@@ -443,7 +448,13 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     let isError = false;
     try {
       const parsed = def.input.parse(tu.input);
-      result = await withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes, agentCalls: args.agentCalls, channels: args.channels }));
+      const run = () => withSpan("toren.tool", { "toren.tool.name": def.name, "toren.tool.effects": def.effects }, () => def.handler(parsed, { runId, taskId, toolUseId: tu.id, env: agent.env ?? {}, files: args.files, sandbox: args.sandbox, processes: args.processes, agentCalls: args.agentCalls, channels: args.channels }));
+      // Per-tool time budget: the handler races a timer. A stuck tool fails
+      // fast with an error the model can act on; the run keeps its accounting.
+      // (The handler's promise cannot be cancelled; it is abandoned.)
+      result = def.timeoutMs
+        ? await Promise.race([run(), new Promise<string>((_, rej) => setTimeout(() => rej(new Error(`tool ${def.name} timed out after ${def.timeoutMs}ms (timeoutMs budget)`)), def.timeoutMs).unref?.())])
+        : await run();
     } catch (e) {
       result = `tool error: ${e instanceof Error ? e.message : String(e)}`;
       isError = true;
@@ -465,6 +476,14 @@ async function runTaskLoopImpl(args: TaskLoopArgs): Promise<TaskLoopResult> {
     // Crash window: started, never completed. Keyed tools re-run under the same
     // idempotency key (effectively-once downstream); unkeyed tools are documented at-least-once.
     ptr += 1;
+    // Per-tool attempt budget: this is start number N for the same call. Past
+    // the budget, fail closed with an error the model sees instead of re-running.
+    const starts = countToolStarts(eff, tu.id);
+    if (def.maxAttempts && starts >= def.maxAttempts) {
+      const result = `tool ${def.name} gave up after ${starts} attempts (maxAttempts budget); the last attempt started but never completed`;
+      await append([ev("ToolCallCompleted", { stepId: String(next.payload.stepId), toolUseId: tu.id, result, isError: true })]);
+      return { type: "toolResult", toolUseId: tu.id, content: result, isError: true };
+    }
     return runHandlerAndComplete(def, tu, String(next.payload.stepId));
   }
 
