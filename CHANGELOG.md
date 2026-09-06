@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.20 — 2026-09-06
 
 - Per-tool budgets: `defineTool` accepts `timeoutMs` (a handler past its budget returns a timeout error the model sees; the run keeps its accounting) and `maxAttempts` (crash-window re-runs of the same call are capped; past the cap the call fails closed with an error result instead of running again). Same declaration model as `effects`, `idempotency`, `approval`: the runtime owns the hard deadline and final cancel, the tool owns how fast it gives up. Suggested on the launch thread.
 
